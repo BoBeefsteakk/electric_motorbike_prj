@@ -1,5 +1,5 @@
 import { FontAwesome } from "@expo/vector-icons";
-import React from "react";
+import React, { useState } from "react";
 import {
   Dimensions,
   Image,
@@ -8,6 +8,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -26,6 +27,10 @@ const CARD_WIDTH = (width - 40 - 24) / 3;
 
 const HomeScreen = () => {
   /* ======================= DATA ======================= */
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [selectedTab, setSelectedTab] = useState("Cao cấp");
 
   const categories = [
     { id: 1, name: "Special Voucher", type: "special", color: "#FF8A5B" },
@@ -351,39 +356,102 @@ const HomeScreen = () => {
         </View>
 
         {/* CONSULT */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tư vấn</Text>
+        <View style={styles.consultSection}>
+          <Text style={styles.consultHeading}>ĐĂNG KÝ TƯ VẤN</Text>
+          <View style={styles.consultDivider} />
 
-          <TouchableOpacity style={styles.consultMainCard} activeOpacity={0.7}>
-            <FontAwesome name="user" size={28} color="#2C3E50" />
-            <View style={{ marginLeft: 12 }}>
-              <Text style={styles.consultTitle}>Tư vấn mua xe</Text>
-              <Text style={styles.consultDesc}>
-                Hỗ trợ chọn xe phù hợp nhu cầu
-              </Text>
-            </View>
-          </TouchableOpacity>
+          <Text style={styles.consultSubtitle}>
+            Đăng ký ngay hôm nay để nhận thông tin chính thức và tư vấn từ
+            VinFast
+          </Text>
 
-          <View style={styles.consultActions}>
-            <TouchableOpacity
-              style={styles.consultActionBtn}
-              activeOpacity={0.6}
-            >
-              <FontAwesome name="phone" size={20} color="#fff" />
-              <Text style={styles.consultActionText}>Gọi ngay</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.consultActionBtn, { backgroundColor: "#0EC143" }]}
-              activeOpacity={0.6}
-            >
-              <FontAwesome name="comment" size={20} color="#fff" />
-              <Text style={styles.consultActionText}>Chat Zalo</Text>
-            </TouchableOpacity>
+          {/* INPUT HỌ TÊN */}
+          <View style={styles.inputBox}>
+            <TextInput
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Họ và tên *"
+              placeholderTextColor="#999"
+              style={styles.textInputt}
+            />
           </View>
-        </View>
 
-        <View style={{ height: 80 }} />
+          {/* INPUT SỐ ĐIỆN THOẠI */}
+          <View style={styles.inputBox}>
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Nhập số điện thoại *"
+              placeholderTextColor="#999"
+              keyboardType="phone-pad"
+              style={styles.textInputt}
+            />
+          </View>
+
+          {/* INPUT EMAIL */}
+          <View style={styles.inputBox}>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email *"
+              placeholderTextColor="#999"
+              keyboardType="email-address"
+              style={styles.textInputt}
+            />
+          </View>
+
+          {/* TABS */}
+          <Text style={styles.consultLabel}>Dòng xe quan tâm</Text>
+
+          <View style={styles.tabRow}>
+            {["Cao cấp", "Trung cấp", "Phổ thông"].map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[
+                  styles.tabItem,
+                  selectedTab === item && styles.tabActive,
+                ]}
+                onPress={() => setSelectedTab(item)}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    selectedTab === item && styles.tabTextActive,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* RADIO */}
+          <View style={styles.radioRow}>
+            <View style={styles.radioActive} />
+            <Text style={styles.radioText}>Vero X</Text>
+          </View>
+
+          {/* CHECKBOX */}
+          <View style={styles.checkboxRow}>
+            <View style={styles.checkbox} />
+            <Text style={styles.checkboxText}>
+              Bạn có phải là CBNV tập đoàn Vingroup không?
+            </Text>
+          </View>
+
+          <View style={styles.checkboxRow}>
+            <View style={styles.checkbox} />
+            <Text style={styles.checkboxText}>
+              Tôi đồng ý cho phép Công ty TNHH Kinh doanh Thương mại Dịch vụ
+              VinFast xử lý dữ liệu cá nhân của tôi...
+            </Text>
+          </View>
+
+          {/* BUTTON */}
+          <TouchableOpacity style={styles.submitBtn} activeOpacity={0.8}>
+            <Text style={styles.submitText}>ĐĂNG KÝ</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -409,7 +477,6 @@ const styles = StyleSheet.create({
   headerDark: {
     backgroundColor: "#000",
     paddingHorizontal: 16,
-    paddingTop: 30,
     paddingBottom: 80,
   },
 
@@ -670,55 +737,146 @@ const styles = StyleSheet.create({
     color: "#222",
   },
 
-  /* ================= CONSULT ================= */
-  consultMainCard: {
+  /* ================= CONSULT FORM ================= */
+  consultSection: {
+    backgroundColor: "#0F1B1D",
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+    marginTop: 50,
+  },
+
+  consultHeading: {
+    fontSize: 26,
+    fontWeight: "700",
+    color: "#E6D5C3",
+    textAlign: "center",
+    letterSpacing: 1,
+  },
+
+  consultDivider: {
+    height: 1,
+    backgroundColor: "#2A3A3D",
+    marginVertical: 16,
+  },
+
+  consultSubtitle: {
+    fontSize: 14,
+    color: "#CFCFCF",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+
+  inputBox: {
+    backgroundColor: "white",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
+
+  inputPlaceholder: {
+    color: "#888",
+    fontSize: 14,
+  },
+
+  consultLabel: {
+    fontWeight: "700",
+    color: "#DDD",
+    fontSize: 18,
+    marginTop: 10,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+
+  tabRow: {
     flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF",
-    padding: 16,
-    borderRadius: 16,
-    marginRight: 20,
-
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
+    backgroundColor: "#121212",
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#2A3A3D",
   },
 
-  consultTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-
-  consultDesc: {
-    fontSize: 13,
-    color: "#666",
-    marginTop: 2,
-  },
-
-  consultActions: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 12,
-    marginRight: 20,
-  },
-
-  consultActionBtn: {
+  tabItem: {
     flex: 1,
-    flexDirection: "row",
+    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#3498DB",
-    paddingVertical: 12,
-    borderRadius: 12,
   },
 
-  consultActionText: {
-    color: "#FFF",
+  tabActive: {
+    backgroundColor: "#2F80ED",
+  },
+
+  tabText: {
     fontSize: 14,
+    color: "#888",
+    fontWeight: "500",
+  },
+
+  tabTextActive: {
+    color: "#FFF",
     fontWeight: "600",
-    marginLeft: 8,
+  },
+
+  radioRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  radioActive: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#2F80ED",
+    marginRight: 10,
+  },
+
+  radioText: {
+    color: "#EEE",
+    fontSize: 14,
+  },
+
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+
+  checkbox: {
+    width: 16,
+    height: 16,
+    borderWidth: 1,
+    borderColor: "#646464",
+    marginRight: 10,
+    marginTop: 3,
+  },
+
+  checkboxText: {
+    color: "#AAA",
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+
+  submitBtn: {
+    backgroundColor: "gray",
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+
+  submitText: {
+    color: "white",
+    textAlign: "center",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+
+  textInputt: {
+    color: "white",
   },
 });
