@@ -12,9 +12,77 @@ import { SearchScreen } from "../pages/search";
 import { CartScreen } from "../pages/cart";
 import { ProfileScreen } from "../pages/profile";
 
-const RootStack = createNativeStackNavigator();
+import HomeBannerDetail from "../pages/home_expand/home_banner_detail";
+
+/* CATEGORY */
+import CategorySpecial from "../pages/home_expand/categories_tab/CategorySpecial";
+import CategoryPhoThong from "../pages/home_expand/categories_tab/CategoryPhoThong";
+import CategoryTrungCap from "../pages/home_expand/categories_tab/CategoryTrungCap";
+import CategoryCaoCap from "../pages/home_expand/categories_tab/CategoryCaoCap";
+import CategoryOTo from "../pages/home_expand/categories_tab/CategoryOTo";
+import CategoryPhuKien from "../pages/home_expand/categories_tab/CategoryPhuKien";
+
+/* STORE */
+import HomeStoreList from "../pages/home_expand/home_store_list";
+import Store1Screen from "../pages/home_expand/detail_store_compoment/Store1Screen";
+import Store2Screen from "../pages/home_expand/detail_store_compoment/Store2Screen";
+import Store3Screen from "../pages/home_expand/detail_store_compoment/Store3Screen";
+import Store4Screen from "../pages/home_expand/detail_store_compoment/Store4Screen";
+import Store5Screen from "../pages/home_expand/detail_store_compoment/Store5Screen";
+
+/* BEST PRICES */
+import BestPriceAllScreen from "../pages/home_expand/best_prices/best_prices_screen";
+import BestPrices1 from "../pages/home_expand/best_prices/BestPrices1";
+import BestPrices2 from "../pages/home_expand/best_prices/BestPrices2";
+import BestPrices3 from "../pages/home_expand/best_prices/BestPrices3";
+
+import {
+  HomeStackParamList,
+  RootStackParamList,
+  TabParamList,
+} from "./types";
+
 const AuthStack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const HomeStack = createNativeStackNavigator<HomeStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
+
+/* ================= HOME STACK ================= */
+
+function HomeNavigation() {
+  return (
+    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStack.Screen name="home_main" component={HomeScreen} />
+      <HomeStack.Screen
+        name="home_banner_detail"
+        component={HomeBannerDetail}
+      />
+
+      {/* CATEGORY */}
+      <HomeStack.Screen name="category_special" component={CategorySpecial} />
+      <HomeStack.Screen name="category_pho_thong" component={CategoryPhoThong} />
+      <HomeStack.Screen name="category_trung_cap" component={CategoryTrungCap} />
+      <HomeStack.Screen name="category_cao_cap" component={CategoryCaoCap} />
+      <HomeStack.Screen name="category_o_to" component={CategoryOTo} />
+      <HomeStack.Screen name="category_phu_kien" component={CategoryPhuKien} />
+
+      {/* STORE */}
+      <HomeStack.Screen name="home_store_list" component={HomeStoreList} />
+      <HomeStack.Screen name="store_1_detail" component={Store1Screen} />
+      <HomeStack.Screen name="store_2_detail" component={Store2Screen} />
+      <HomeStack.Screen name="store_3_detail" component={Store3Screen} />
+      <HomeStack.Screen name="store_4_detail" component={Store4Screen} />
+      <HomeStack.Screen name="store_5_detail" component={Store5Screen} />
+
+      {/* BEST PRICES */}
+      <HomeStack.Screen name="best_price_all" component={BestPriceAllScreen} />
+      <HomeStack.Screen name="best_prices_1" component={BestPrices1} />
+      <HomeStack.Screen name="best_prices_2" component={BestPrices2} />
+      <HomeStack.Screen name="best_prices_3" component={BestPrices3} />
+
+    </HomeStack.Navigator>
+  );
+}
 
 /* ================= AUTH STACK ================= */
 
@@ -46,7 +114,7 @@ function InappNavigation() {
         tabBarInactiveTintColor: "gray",
       })}
     >
-      <Tab.Screen name="home" component={HomeScreen} />
+      <Tab.Screen name="home" component={HomeNavigation} />
       <Tab.Screen name="search" component={SearchScreen} />
       <Tab.Screen name="cart" component={CartScreen} />
       <Tab.Screen name="profile" component={ProfileScreen} />
