@@ -1,16 +1,16 @@
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Icon from "react-native-vector-icons/FontAwesome";
 
+import ForgotPasswordScreen from "../pages/forgot";
 import LoginScreen from "../pages/login";
 import RegisterScreen from "../pages/register";
-import ForgotPasswordScreen from "../pages/forgot";
 
-import HomeScreen from "../pages/home";
-import { SearchScreen } from "../pages/search";
 import { CartScreen } from "../pages/cart";
+import HomeScreen from "../pages/home";
 import { ProfileScreen } from "../pages/profile";
+import SearchScreen from "../pages/search";
 
 const RootStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
