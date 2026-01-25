@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// Nhớ đường dẫn hook reset của bạn
 import { useResetOnLeave } from "../../../hooks/use-clean-search";
 
 /* ===== DỮ LIỆU GIẢ ===== */
