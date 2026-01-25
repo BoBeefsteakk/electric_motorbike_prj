@@ -1,4 +1,6 @@
 import { FontAwesome } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useState } from "react";
 import {
   Dimensions,
@@ -12,14 +14,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { HomeStackParamList } from "../navigation/types";
 
-type HomeNavProp = NativeStackNavigationProp<
-  HomeStackParamList,
-  "home_main"
->;
+type HomeNavProp = NativeStackNavigationProp<HomeStackParamList, "home_main">;
 
 type CategoryItem = {
   id: number;
@@ -51,50 +48,49 @@ const HomeScreen = () => {
   const navigation = useNavigation<HomeNavProp>();
 
   const categories: CategoryItem[] = [
-  {
-    id: 1,
-    name: "Special Voucher",
-    type: "special",
-    route: "category_special",
-    color: "#FF8A5B",
-  },
-  {
-    id: 2,
-    name: "Phổ Thông",
-    image: require("../../../pic/home/phothong.png"),
-    route: "category_pho_thong",
-    color: "#F5E6D3",
-  },
-  {
-    id: 3,
-    name: "Trung Cấp",
-    image: require("../../../pic/home/trungcap.png"),
-    route: "category_trung_cap",
-    color: "#FFE5E5",
-  },
-  {
-    id: 4,
-    name: "Cao Cấp",
-    image: require("../../../pic/home/caocap.png"),
-    route: "category_cao_cap",
-    color: "#FFF8F0",
-  },
-  {
-    id: 5,
-    name: "Ô Tô",
-    image: require("../../../pic/home/oto.png"),
-    route: "category_o_to",
-    color: "#FFF8E7",
-  },
-  {
-    id: 6,
-    name: "Phụ Kiện",
-    image: require("../../../pic/home/phukien.png"),
-    route: "category_phu_kien",
-    color: "#F0FFF0",
-  },
-];
-
+    {
+      id: 1,
+      name: "Special Voucher",
+      type: "special",
+      route: "category_special",
+      color: "#FF8A5B",
+    },
+    {
+      id: 2,
+      name: "Phổ Thông",
+      image: require("../../../pic/home/phothong.png"),
+      route: "category_pho_thong",
+      color: "#F5E6D3",
+    },
+    {
+      id: 3,
+      name: "Trung Cấp",
+      image: require("../../../pic/home/trungcap.png"),
+      route: "category_trung_cap",
+      color: "#FFE5E5",
+    },
+    {
+      id: 4,
+      name: "Cao Cấp",
+      image: require("../../../pic/home/caocap.png"),
+      route: "category_cao_cap",
+      color: "#FFF8F0",
+    },
+    {
+      id: 5,
+      name: "Ô Tô",
+      image: require("../../../pic/home/oto.png"),
+      route: "category_o_to",
+      color: "#FFF8E7",
+    },
+    {
+      id: 6,
+      name: "Phụ Kiện",
+      image: require("../../../pic/home/phukien.png"),
+      route: "category_phu_kien",
+      color: "#F0FFF0",
+    },
+  ];
 
   const places = [
     {
@@ -197,9 +193,7 @@ const HomeScreen = () => {
         key={cat.id}
         activeOpacity={0.8}
         style={[
-          cat.type === "special"
-            ? styles.specialCard
-            : styles.categoryCard,
+          cat.type === "special" ? styles.specialCard : styles.categoryCard,
           { backgroundColor: cat.color },
         ]}
         onPress={() => navigation.navigate(cat.route)}
@@ -231,7 +225,6 @@ const HomeScreen = () => {
       </TouchableOpacity>
     );
   };
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -286,21 +279,28 @@ const HomeScreen = () => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Cửa Hàng</Text>
             <TouchableOpacity
-                activeOpacity={0.6}
-                style={{ flexDirection: "row", alignItems: "center" }}
-                onPress={() => navigation.navigate("home_store_list")}
-              >
-                <Text style={styles.seeAllText}>Xem thêm</Text>
-                <FontAwesome
-                  name="chevron-right"
-                  size={12}
-                  color="#999"
-                  style={{ marginLeft: 4, top: 1.5 }}
-                />
-              </TouchableOpacity>
+              activeOpacity={0.6}
+              style={{ flexDirection: "row", alignItems: "center" }}
+              onPress={() => navigation.navigate("home_store_list")}
+            >
+              <Text style={styles.seeAllText}>Xem thêm</Text>
+              <FontAwesome
+                name="chevron-right"
+                size={12}
+                color="#999"
+                style={{ marginLeft: 4, top: 1.5 }}
+              />
+            </TouchableOpacity>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingRight: 20,
+              paddingVertical: 10, // 👈 THÊM
+            }}
+          >
             {places.map((place) => (
               <TouchableOpacity
                 key={place.id}
@@ -311,15 +311,18 @@ const HomeScreen = () => {
                 }
               >
                 <Image source={place.image} style={styles.placeImage} />
-                <Text style={styles.placeName} numberOfLines={1}>
-                  {place.name}
-                </Text>
-                <View style={styles.placeInfoRow}>
-                  <Text style={styles.rating}>⭐ {place.rating}</Text>
-                  <Text style={styles.dot}>•</Text>
-                  <Text style={styles.placeAddress} numberOfLines={1}>
-                    {place.address}
+                <View style={{ padding: 10 }}>
+                  <Text style={styles.placeName} numberOfLines={1}>
+                    {place.name}
                   </Text>
+
+                  <View style={styles.placeInfoRow}>
+                    <Text style={styles.rating}>⭐ {place.rating}</Text>
+                    <Text style={styles.dot}>•</Text>
+                    <Text style={styles.placeAddress} numberOfLines={1}>
+                      {place.address}
+                    </Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             ))}
@@ -348,7 +351,7 @@ const HomeScreen = () => {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: 20 }}
+            contentContainerStyle={{ paddingRight: 20, paddingVertical: 10 }}
           >
             {bestPrices.map((item) => (
               <TouchableOpacity
@@ -362,10 +365,13 @@ const HomeScreen = () => {
                 }}
               >
                 <Image source={item.image} style={styles.priceImage} />
-                <Text style={styles.priceName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.priceText}>{item.price}</Text>
+                <View style={styles.priceContent}>
+                  {/* 👈 THÊM */}
+                  <Text style={styles.priceName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.priceText}>{item.price}</Text>
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -392,7 +398,7 @@ const HomeScreen = () => {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: 20 }}
+            contentContainerStyle={{ paddingRight: 20, paddingVertical: 10 }}
           >
             {news.map((item) => (
               <TouchableOpacity
@@ -401,9 +407,11 @@ const HomeScreen = () => {
                 style={styles.newsCard}
               >
                 <Image source={item.image} style={styles.newsImage} />
-                <Text style={styles.newsTitle} numberOfLines={2}>
-                  {item.title}
-                </Text>
+                <View style={{ padding: 12 }}>
+                  <Text style={styles.newsTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -519,7 +527,7 @@ const styles = StyleSheet.create({
   /* ================= CONTAINER ================= */
   container: {
     flex: 1,
-    backgroundColor: "#b6c1cc", // nền content
+    backgroundColor: "#ffffff", // nền content
   },
 
   /* ================= HEADER ================= */
@@ -609,10 +617,9 @@ const styles = StyleSheet.create({
 
   sectionHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingRight: 20,
-    marginBottom: 12,
+    justifyContent: "space-between",
+    width: "100%",        // ✅ QUAN TRỌNG
   },
 
   sectionTitle: {
@@ -634,6 +641,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
+
+    borderWidth: 1, // 👈 thêm
+    borderColor: "#E5E7EB", // 👈 viền xám nhạt
   },
 
   specialCard: {
@@ -642,12 +652,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     justifyContent: "space-between",
+
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)", // 👈 viền mờ đẹp
   },
 
   specialTitle: {
     fontSize: 11,
     fontWeight: "700",
     color: "#FFF",
+    marginBottom: 5,
   },
 
   discountBadges: {
@@ -688,13 +702,21 @@ const styles = StyleSheet.create({
   placeCard: {
     width: 180,
     marginRight: 15,
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    overflow: "hidden", // 👈 QUAN TRỌNG
+
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
 
   placeImage: {
     width: "100%",
     height: 120,
-    borderRadius: 12,
-    marginBottom: 6,
+    resizeMode: "cover", // 👈 ảnh tràn viền đẹp
   },
 
   placeName: {
@@ -712,6 +734,7 @@ const styles = StyleSheet.create({
 
   rating: {
     fontSize: 12,
+    fontWeight: "700",
     color: "#333",
   },
 
@@ -732,26 +755,26 @@ const styles = StyleSheet.create({
     marginRight: 15,
     backgroundColor: "#FFF",
     borderRadius: 16,
-    padding: 10,
+    overflow: "hidden", // 🔥 bắt buộc để ảnh tràn viền đẹp
 
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
     shadowRadius: 6,
-    elevation: 4,
+    elevation: 3,
   },
 
   priceImage: {
     width: "100%",
     height: 120,
-    borderRadius: 12,
-    marginBottom: 8,
+    resizeMode: "cover", // 👈 full viền
   },
 
   priceName: {
     fontSize: 14,
     fontWeight: "600",
     color: "#333",
+    textAlign: "center",
   },
 
   priceText: {
@@ -759,6 +782,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#E53935",
     marginTop: 4,
+    textAlign: "center",
+  },
+
+  priceContent: {
+    padding: 12,
   },
 
   /* ================= NEWS ================= */
@@ -767,11 +795,11 @@ const styles = StyleSheet.create({
     marginRight: 15,
     backgroundColor: "#FFF",
     borderRadius: 16,
-    padding: 10,
+    overflow: "hidden", // 👈 BẮT BUỘC
 
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
   },
@@ -779,8 +807,7 @@ const styles = StyleSheet.create({
   newsImage: {
     width: "100%",
     height: 110,
-    borderRadius: 12,
-    marginBottom: 8,
+    resizeMode: "cover",
   },
 
   newsTitle: {
