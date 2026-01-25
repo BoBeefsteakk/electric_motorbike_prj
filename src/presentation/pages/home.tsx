@@ -401,19 +401,24 @@ const HomeScreen = () => {
             contentContainerStyle={{ paddingRight: 20, paddingVertical: 10 }}
           >
             {news.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                activeOpacity={0.8}
-                style={styles.newsCard}
-              >
-                <Image source={item.image} style={styles.newsImage} />
-                <View style={{ padding: 12 }}>
-                  <Text style={styles.newsTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity
+              key={item.id}
+              activeOpacity={0.8}
+              style={styles.newsCard}
+              onPress={() => {
+                if (item.id === 1) navigation.navigate("news1");
+                if (item.id === 2) navigation.navigate("news2");
+                if (item.id === 3) navigation.navigate("news3");
+              }}
+            >
+              <Image source={item.image} style={styles.newsImage} />
+              <View style={{ padding: 12 }}>
+                <Text style={styles.newsTitle} numberOfLines={2}>
+                  {item.title}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
           </ScrollView>
         </View>
 

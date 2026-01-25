@@ -10,25 +10,24 @@ import RegisterScreen from "../pages/register";
 import { CartScreen } from "../pages/cart";
 import HomeScreen from "../pages/home";
 import { ProfileScreen } from "../pages/profile";
-import SearchScreen from "../pages/search";
 
 import HomeBannerDetail from "../pages/home_expand/home_banner_detail";
 
 /* CATEGORY */
-import CategorySpecial from "../pages/home_expand/categories_tab/CategorySpecial";
-import CategoryPhoThong from "../pages/home_expand/categories_tab/CategoryPhoThong";
-import CategoryTrungCap from "../pages/home_expand/categories_tab/CategoryTrungCap";
 import CategoryCaoCap from "../pages/home_expand/categories_tab/CategoryCaoCap";
 import CategoryOTo from "../pages/home_expand/categories_tab/CategoryOTo";
+import CategoryPhoThong from "../pages/home_expand/categories_tab/CategoryPhoThong";
 import CategoryPhuKien from "../pages/home_expand/categories_tab/CategoryPhuKien";
+import CategorySpecial from "../pages/home_expand/categories_tab/CategorySpecial";
+import CategoryTrungCap from "../pages/home_expand/categories_tab/CategoryTrungCap";
 
 /* STORE */
-import HomeStoreList from "../pages/home_expand/home_store_list";
 import Store1Screen from "../pages/home_expand/detail_store_compoment/Store1Screen";
 import Store2Screen from "../pages/home_expand/detail_store_compoment/Store2Screen";
 import Store3Screen from "../pages/home_expand/detail_store_compoment/Store3Screen";
 import Store4Screen from "../pages/home_expand/detail_store_compoment/Store4Screen";
 import Store5Screen from "../pages/home_expand/detail_store_compoment/Store5Screen";
+import HomeStoreList from "../pages/home_expand/home_store_list";
 
 /* BEST PRICES */
 import BestPriceAllScreen from "../pages/home_expand/best_prices/best_prices_screen";
@@ -36,11 +35,13 @@ import BestPrices1 from "../pages/home_expand/best_prices/BestPrices1";
 import BestPrices2 from "../pages/home_expand/best_prices/BestPrices2";
 import BestPrices3 from "../pages/home_expand/best_prices/BestPrices3";
 
-import {
-  HomeStackParamList,
-  RootStackParamList,
-  TabParamList,
-} from "./types";
+import News1 from "../pages/home_expand/news_details/news1";
+import News2 from "../pages/home_expand/news_details/news2";
+import News3 from "../pages/home_expand/news_details/news3";
+
+
+
+import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -60,8 +61,14 @@ function HomeNavigation() {
 
       {/* CATEGORY */}
       <HomeStack.Screen name="category_special" component={CategorySpecial} />
-      <HomeStack.Screen name="category_pho_thong" component={CategoryPhoThong} />
-      <HomeStack.Screen name="category_trung_cap" component={CategoryTrungCap} />
+      <HomeStack.Screen
+        name="category_pho_thong"
+        component={CategoryPhoThong}
+      />
+      <HomeStack.Screen
+        name="category_trung_cap"
+        component={CategoryTrungCap}
+      />
       <HomeStack.Screen name="category_cao_cap" component={CategoryCaoCap} />
       <HomeStack.Screen name="category_o_to" component={CategoryOTo} />
       <HomeStack.Screen name="category_phu_kien" component={CategoryPhuKien} />
@@ -80,6 +87,9 @@ function HomeNavigation() {
       <HomeStack.Screen name="best_prices_2" component={BestPrices2} />
       <HomeStack.Screen name="best_prices_3" component={BestPrices3} />
 
+      <HomeStack.Screen name="news1" component={News1} />
+      <HomeStack.Screen name="news2" component={News2} />
+      <HomeStack.Screen name="news3" component={News3} />
     </HomeStack.Navigator>
   );
 }

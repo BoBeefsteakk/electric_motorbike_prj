@@ -24,6 +24,10 @@ export type HomeStackParamList = {
   best_prices_1: undefined;
   best_prices_2: undefined;
   best_prices_3: undefined;
+
+  news1: undefined;
+  news2: undefined;
+  news3: undefined;
 };
 
 /* ================= TAB ================= */

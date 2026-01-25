@@ -181,7 +181,6 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    marginTop: 50,
     height: 56,
     paddingHorizontal: 16,
     flexDirection: "row",
