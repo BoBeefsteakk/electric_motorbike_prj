@@ -1,6 +1,5 @@
 // App.tsx
-import React from 'react';
-import { SafeAreaView, StatusBar, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 // Import file Login của bạn từ đường dẫn src
 import { AppNavigation } from './src/presentation/navigation/AppNavigation';
