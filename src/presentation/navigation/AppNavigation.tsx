@@ -42,6 +42,7 @@ import News3 from "../pages/home_expand/news_details/news3";
 
 
 import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
+import SearchScreen from "../pages/search";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();

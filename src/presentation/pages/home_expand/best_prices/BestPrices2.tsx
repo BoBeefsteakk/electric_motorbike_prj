@@ -1,21 +1,23 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Image,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 
-export default function BestPrices2() {
+export default function BestPricesDetail() {
   const navigation = useNavigation();
   const [selectedColor, setSelectedColor] = useState(2);
 
-  const variants = [
+  // 🔥 MÀU + GIÁ + TÊN
+  const colors = [
     {
       id: 1,
       label: "Đỏ",
@@ -36,12 +38,18 @@ export default function BestPrices2() {
     },
   ];
 
-  const selectedVariant = variants.find((item) => item.id === selectedColor)!;
+  // 🎯 MÀU ĐANG CHỌN
+  const selectedVariant = colors.find(
+    (item) => item.id === selectedColor
+  )!;
 
-  const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
+  const formatPrice = (price: number) =>
+    price.toLocaleString("vi-VN") + "đ";
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -80,7 +88,7 @@ export default function BestPrices2() {
 
           {/* DESC */}
           <Text style={styles.desc}>
-            VinFast Feliz S là mẫu xe máy điện hiện đại, phù hợp di chuyển hằng
+            VinFast Klara S là mẫu xe máy điện hiện đại, phù hợp di chuyển hằng
             ngày trong đô thị với khả năng vận hành êm ái và tiết kiệm chi phí.
           </Text>
 
@@ -122,52 +130,46 @@ export default function BestPrices2() {
               <Text style={styles.specValue}>~6 giờ</Text>
             </View>
           </View>
-
-          {/* COLOR */}
-          <View style={styles.colorSection}>
-            <Text style={styles.sectionTitle}>Màu sắc</Text>
-
-            <View style={styles.colorRow}>
-              {variants.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.colorItem,
-                    selectedColor === item.id && styles.colorItemActive,
-                  ]}
-                  onPress={() => setSelectedColor(item.id)}
-                >
-                  <View
-                    style={[styles.colorFill, { backgroundColor: item.color }]}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
         </View>
       </ScrollView>
 
-      {/* FOOTER */}
+      {/* FOOTER – GIÁ THEO MÀU */}
       <View style={styles.footer}>
-        <View>
-          <Text style={styles.priceLabel}>Giá bán</Text>
-          <Text style={styles.price}>{formatPrice(selectedVariant.price)}</Text>
+      {/* LEFT */}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.priceLabel}>Giá bán</Text>
+        <Text style={styles.price}>
+          {formatPrice(selectedVariant.price)}
+        </Text>
 
-          <View style={styles.colorInfo}>
-            <View
+        {/* COLOR PICKER */}
+        <View style={styles.footerColorRow}>
+          {colors.map((item) => (
+            <TouchableOpacity
+              key={item.id}
               style={[
-                styles.colorDot,
-                { backgroundColor: selectedVariant.color },
+                styles.footerColorItem,
+                selectedColor === item.id && styles.footerColorItemActive,
               ]}
-            />
-            <Text style={styles.colorText}>Màu {selectedVariant.label}</Text>
-          </View>
+              onPress={() => setSelectedColor(item.id)}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.footerColorFill,
+                  { backgroundColor: item.color },
+                ]}
+              />
+            </TouchableOpacity>
+          ))}
         </View>
-
-        <TouchableOpacity style={styles.buyBtn} activeOpacity={0.85}>
-          <Text style={styles.buyText}>ĐĂNG KÝ MUA XE</Text>
-        </TouchableOpacity>
       </View>
+
+      {/* RIGHT */}
+      <TouchableOpacity style={styles.buyBtn} activeOpacity={0.85}>
+        <Text style={styles.buyText}>ĐĂNG KÝ MUA XE</Text>
+      </TouchableOpacity>
+    </View>
     </SafeAreaView>
   );
 }
@@ -291,32 +293,6 @@ const styles = StyleSheet.create({
   specValue: {
     fontWeight: "600",
   },
-
-  colorSection: {
-    marginBottom: 10,
-  },
-  colorRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  colorItem: {
-    width: "30%",
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "#EEE",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  colorItemActive: {
-    borderColor: "#C47A4A",
-  },
-  colorFill: {
-    width: "85%",
-    height: "65%",
-    borderRadius: 10,
-  },
-
   footer: {
     position: "absolute",
     bottom: 0,
@@ -367,4 +343,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 13,
   },
+  footerColorRow: {
+  flexDirection: "row",
+  marginTop: 10,
+},
+
+footerColorItem: {
+  width: 36,
+  height: 36,
+  borderRadius: 10,
+  borderWidth: 1.5,
+  borderColor: "#EEE",
+  justifyContent: "center",
+  alignItems: "center",
+  marginRight: 10,
+},
+
+footerColorItemActive: {
+  borderColor: "#C47A4A",
+},
+
+footerColorFill: {
+  width: 22,
+  height: 22,
+  borderRadius: 6,
+},
 });

@@ -44,138 +44,131 @@ export default function BestPricesDetail() {
   const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-
-      {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <FontAwesome name="chevron-left" size={20} color="#111" />
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>Chi Tiết</Text>
-
-        <TouchableOpacity>
-          <FontAwesome name="heart-o" size={20} color="#111" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 200 }}
-      >
-        {/* IMAGE */}
-        <View style={styles.imageBox}>
-          <Image
-            source={require("../../../../../pic/home/bs3.png")}
-            style={styles.image}
-          />
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+  
+        {/* HEADER */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <FontAwesome name="chevron-left" size={20} color="#111" />
+          </TouchableOpacity>
+  
+          <Text style={styles.headerTitle}>Chi Tiết</Text>
+  
+          <TouchableOpacity>
+            <FontAwesome name="heart-o" size={20} color="#111" />
+          </TouchableOpacity>
         </View>
-
-        {/* CONTENT */}
-        <View style={styles.content}>
-          <Text style={styles.title}>VinFast Vento</Text>
-
-          {/* RATING */}
-          <View style={styles.ratingRow}>
-            <FontAwesome name="star" size={14} color="#F5A623" />
-            <Text style={styles.rating}>4.8</Text>
-            <Text style={styles.ratingCount}>(230)</Text>
-          </View>
-
-          {/* DESC */}
-          <Text style={styles.desc}>
-            VinFast Vento là mẫu xe máy điện hiện đại, phù hợp di chuyển hằng
-            ngày trong đô thị với khả năng vận hành êm ái và tiết kiệm chi phí.
-          </Text>
-
-          {/* QUICK INFO */}
-          <View style={styles.quickInfo}>
-            <View style={styles.quickItem}>
-              <Text style={styles.quickValue}>198km</Text>
-              <Text style={styles.quickLabel}>1 lần sạc</Text>
-            </View>
-            <View style={styles.quickItem}>
-              <Text style={styles.quickValue}>78km/h</Text>
-              <Text style={styles.quickLabel}>Tối đa</Text>
-            </View>
-            <View style={styles.quickItem}>
-              <Text style={styles.quickValue}>LFP</Text>
-              <Text style={styles.quickLabel}>Pin an toàn</Text>
-            </View>
-          </View>
-
-          {/* HIGHLIGHT */}
-          <View style={styles.highlightBox}>
-            <Text style={styles.sectionTitle}>Ưu điểm nổi bật</Text>
-            <Text style={styles.bullet}>• Vận hành êm ái, không tiếng ồn</Text>
-            <Text style={styles.bullet}>• Tiết kiệm chi phí nhiên liệu</Text>
-            <Text style={styles.bullet}>• Thiết kế trẻ trung, hiện đại</Text>
-          </View>
-
-          {/* SPEC */}
-          <View style={styles.specBox}>
-            <Text style={styles.sectionTitle}>Thông số chính</Text>
-
-            <View style={styles.specRow}>
-              <Text style={styles.specLabel}>Bảo hành</Text>
-              <Text style={styles.specValue}>5 năm</Text>
-            </View>
-
-            <View style={styles.specRow}>
-              <Text style={styles.specLabel}>Thời gian sạc</Text>
-              <Text style={styles.specValue}>~6 giờ</Text>
-            </View>
-          </View>
-
-          {/* COLOR PICKER */}
-          <View style={styles.colorSection}>
-            <Text style={styles.sectionTitle}>Màu sắc</Text>
-
-            <View style={styles.colorRow}>
-              {colors.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.colorItem,
-                    selectedColor === item.id && styles.colorItemActive,
-                  ]}
-                  onPress={() => setSelectedColor(item.id)}
-                  activeOpacity={0.8}
-                >
-                  <View
-                    style={[styles.colorFill, { backgroundColor: item.color }]}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* FOOTER – GIÁ THEO MÀU */}
-      <View style={styles.footer}>
-        <View>
-          <Text style={styles.priceLabel}>Giá bán</Text>
-          <Text style={styles.price}>{formatPrice(selectedVariant.price)}</Text>
-
-          <View style={styles.colorInfo}>
-            <View
-              style={[
-                styles.colorDot,
-                { backgroundColor: selectedVariant.color },
-              ]}
+  
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 200 }}
+        >
+          {/* IMAGE */}
+          <View style={styles.imageBox}>
+            <Image
+              source={require("../../../../../pic/home/bs3.png")}
+              style={styles.image}
             />
-            <Text style={styles.colorText}>Màu {selectedVariant.label}</Text>
+          </View>
+  
+          {/* CONTENT */}
+          <View style={styles.content}>
+            <Text style={styles.title}>VinFast Vento</Text>
+  
+            {/* RATING */}
+            <View style={styles.ratingRow}>
+              <FontAwesome name="star" size={14} color="#F5A623" />
+              <Text style={styles.rating}>4.8</Text>
+              <Text style={styles.ratingCount}>(230)</Text>
+            </View>
+  
+            {/* DESC */}
+            <Text style={styles.desc}>
+              VinFast Vento là mẫu xe máy điện hiện đại, phù hợp di chuyển hằng
+              ngày trong đô thị với khả năng vận hành êm ái và tiết kiệm chi phí.
+            </Text>
+  
+            {/* QUICK INFO */}
+            <View style={styles.quickInfo}>
+              <View style={styles.quickItem}>
+                <Text style={styles.quickValue}>198km</Text>
+                <Text style={styles.quickLabel}>1 lần sạc</Text>
+              </View>
+              <View style={styles.quickItem}>
+                <Text style={styles.quickValue}>78km/h</Text>
+                <Text style={styles.quickLabel}>Tối đa</Text>
+              </View>
+              <View style={styles.quickItem}>
+                <Text style={styles.quickValue}>LFP</Text>
+                <Text style={styles.quickLabel}>Pin an toàn</Text>
+              </View>
+            </View>
+  
+            {/* HIGHLIGHT */}
+            <View style={styles.highlightBox}>
+              <Text style={styles.sectionTitle}>Ưu điểm nổi bật</Text>
+              <Text style={styles.bullet}>• Vận hành êm ái, không tiếng ồn</Text>
+              <Text style={styles.bullet}>• Tiết kiệm chi phí nhiên liệu</Text>
+              <Text style={styles.bullet}>• Thiết kế trẻ trung, hiện đại</Text>
+            </View>
+  
+            {/* SPEC */}
+            <View style={styles.specBox}>
+              <Text style={styles.sectionTitle}>Thông số chính</Text>
+  
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Bảo hành</Text>
+                <Text style={styles.specValue}>5 năm</Text>
+              </View>
+  
+              <View style={styles.specRow}>
+                <Text style={styles.specLabel}>Thời gian sạc</Text>
+                <Text style={styles.specValue}>~6 giờ</Text>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+  
+        {/* FOOTER – GIÁ THEO MÀU */}
+        <View style={styles.footer}>
+        {/* LEFT */}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.priceLabel}>Giá bán</Text>
+          <Text style={styles.price}>
+            {formatPrice(selectedVariant.price)}
+          </Text>
+  
+          {/* COLOR PICKER */}
+          <View style={styles.footerColorRow}>
+            {colors.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.footerColorItem,
+                  selectedColor === item.id && styles.footerColorItemActive,
+                ]}
+                onPress={() => setSelectedColor(item.id)}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.footerColorFill,
+                    { backgroundColor: item.color },
+                  ]}
+                />
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
-
+  
+        {/* RIGHT */}
         <TouchableOpacity style={styles.buyBtn} activeOpacity={0.85}>
           <Text style={styles.buyText}>ĐĂNG KÝ MUA XE</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
-  );
+      </SafeAreaView>
+    );
 }
 
 /* ================= STYLES ================= */
@@ -298,31 +291,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  colorSection: {
-    marginBottom: 10,
-  },
-  colorRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  colorItem: {
-    width: "30%",
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "#EEE",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  colorItemActive: {
-    borderColor: "#C47A4A",
-  },
-  colorFill: {
-    width: "85%",
-    height: "65%",
-    borderRadius: 10,
-  },
-
   footer: {
     position: "absolute",
     bottom: 0,
@@ -373,4 +341,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 13,
   },
+  footerColorRow: {
+  flexDirection: "row",
+  marginTop: 10,
+},
+
+footerColorItem: {
+  width: 36,
+  height: 36,
+  borderRadius: 10,
+  borderWidth: 1.5,
+  borderColor: "#EEE",
+  justifyContent: "center",
+  alignItems: "center",
+  marginRight: 10,
+},
+
+footerColorItemActive: {
+  borderColor: "#C47A4A",
+},
+
+footerColorFill: {
+  width: 22,
+  height: 22,
+  borderRadius: 6,
+},
 });
