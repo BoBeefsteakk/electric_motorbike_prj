@@ -9,7 +9,7 @@ import SearchScreen from '../pages/search';
 
 import CartScreen from "../pages/cart";
 import HomeScreen from "../pages/home";
-import { ProfileScreen } from "../pages/profile";
+import ProfileScreen from "../pages/profile";
 
 import HomeBannerDetail from "../pages/home_expand/home_banner_detail";
 

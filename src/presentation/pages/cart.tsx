@@ -1,4 +1,4 @@
-    import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import {
     FlatList,
@@ -18,37 +18,36 @@ import { SafeAreaView } from 'react-native-safe-area-context';
     image: string;
     quantity: number;
     }
-
-    export default function CartScreen() {
-        const [selectAll, setSelectAll] = useState(false);
-        const [cartItems, setCartItems] = useState<CartItem[]>([
+export default function CartScreen() {
+    const [selectAll, setSelectAll] = useState(false);
+    const [cartItems, setCartItems] = useState<CartItem[]>([
         {
-        id: '1',
-        name: 'VinFast Feliz S',
-        color: 'Bạc',
-        price: 29900000,
-        image: 'https://vinfastauto.com/themes/custom/vinfast/images/feliz.png',
-        quantity: 1,
+            id: '1',
+            name: 'VinFast Feliz S',
+            color: 'Bạc',
+            price: 29900000,
+            image: 'https://vinfastauto.com/themes/custom/vinfast/images/feliz.png',
+            quantity: 1,
         },
         {
-        id: '2',
-        name: 'DatBike Weaver++',
-        color: 'Cam',
-        price: 65000000,
-        image: 'https://datbike.vn/wp-content/uploads/2023/07/weaver.png',
-        quantity: 1,
+            id: '2',
+            name: 'DatBike Weaver++',
+            color: 'Cam',
+            price: 65000000,
+            image: 'https://datbike.vn/wp-content/uploads/2023/07/weaver.png',
+            quantity: 1,
         },
     ]);
 
-        const updateQuantity = (id: string, delta: number) => {
-        setCartItems((prev) =>
+    const updateQuantity = (id: string, delta: number) => {
+     setCartItems((prev) =>
         prev.map((item) => {
             if (item.id === id) {
             const newQty = item.quantity + delta;
             return newQty > 0 ? { ...item, quantity: newQty } : item;
             }
             return item;
-        })
+            })
         );
     };
 
