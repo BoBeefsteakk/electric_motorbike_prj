@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+    import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo, useState } from 'react';
 import {
     FlatList,
     Image,
@@ -8,176 +8,424 @@ import {
     Text,
     View,
 } from 'react-native';
-// Sửa lỗi Warning bằng cách dùng thư viện này
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-/* 1. Định nghĩa khuôn mẫu dữ liệu (Interface) để xóa lỗi đỏ TypeScript */
-interface OrderItem {
-  id: string;
-  name: string;
-  color: string;
-  colorCode: string;
-  status: string;
-  price: number;
-  image: string;
-}
+    interface CartItem {
+    id: string;
+    name: string;
+    color: string;
+    price: number;
+    image: string;
+    quantity: number;
+    }
 
-/* 2. Dữ liệu mẫu (Data) */
-const ACTIVE_ORDERS: OrderItem[] = [
-  {
-    id: '1',
-    name: 'VinFast Feliz S',
-    color: 'Silver',
-    colorCode: '#C0C0C0',
-    status: 'In Delivery',
-    price: 29900000,
-    image: 'https://vinfastauto.com/themes/custom/vinfast/images/feliz.png',
-  },
-  {
-    id: '2',
-    name: 'DatBike Weaver++',
-    color: 'Orange',
-    colorCode: '#FFA500',
-    status: 'In Delivery',
-    price: 65000000,
-    image: 'https://datbike.vn/wp-content/uploads/2023/07/weaver.png',
-  },
-];
+    export default function CartScreen() {
+        const [selectAll, setSelectAll] = useState(false);
+        const [cartItems, setCartItems] = useState<CartItem[]>([
+        {
+        id: '1',
+        name: 'VinFast Feliz S',
+        color: 'Bạc',
+        price: 29900000,
+        image: 'https://vinfastauto.com/themes/custom/vinfast/images/feliz.png',
+        quantity: 1,
+        },
+        {
+        id: '2',
+        name: 'DatBike Weaver++',
+        color: 'Cam',
+        price: 65000000,
+        image: 'https://datbike.vn/wp-content/uploads/2023/07/weaver.png',
+        quantity: 1,
+        },
+    ]);
 
-// Khai báo kiểu OrderItem[]"
-const COMPLETED_ORDERS: OrderItem[] = []; 
+        const updateQuantity = (id: string, delta: number) => {
+        setCartItems((prev) =>
+        prev.map((item) => {
+            if (item.id === id) {
+            const newQty = item.quantity + delta;
+            return newQty > 0 ? { ...item, quantity: newQty } : item;
+            }
+            return item;
+        })
+        );
+    };
 
-/* 3. Helper format tiền */
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-};
+    const removeItem = (id: string) => {
+        setCartItems((prev) => prev.filter((item) => item.id !== id));
+    };
 
-export default function OrderScreen() {
-  const [activeTab, setActiveTab] = useState<'Active' | 'Completed'>('Active');
+    const totalPrice = useMemo(() => {
+        return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    }, [cartItems]);
 
-  /* --- RENDER: Từng thẻ đơn hàng --- */
-  const renderOrderItem = ({ item }: { item: OrderItem }) => (
-    <View style={styles.card}>
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: item.image }} style={styles.image} />
-      </View>
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        }).format(value);
+    };
 
-      <View style={styles.infoContainer}>
-        <View>
-            <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-            <View style={styles.variantRow}>
-                <View style={[styles.colorDot, { backgroundColor: item.colorCode }]} />
-                <Text style={styles.variantText}>{item.color}</Text>
-                <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>{item.status}</Text>
-                </View>
+    const renderCartItem = ({ item }: { item: CartItem }) => (
+        <View style={styles.card}>
+        <View style={styles.imageContainer}>
+            <Image source={{ uri: item.image }} style={styles.image} />
+        </View>
+
+        <View style={styles.infoContainer}>
+            <View style={styles.cardHeader}>
+            <Text style={styles.name} numberOfLines={1}>
+                {item.name}
+            </Text>
+            <Pressable onPress={() => removeItem(item.id)}>
+                <Ionicons name="trash-outline" size={20} color="#FF4D4D" />
+            </Pressable>
+            </View>
+
+            <Text style={styles.variantText}>Màu: {item.color}</Text>
+
+            <View style={styles.cardFooter}>
+            <Text style={styles.price}>{formatCurrency(item.price)}</Text>
+
+            <View style={styles.quantityControl}>
+                <Pressable
+                style={styles.qtyBtn}
+                onPress={() => updateQuantity(item.id, -1)}
+                >
+                <Ionicons name="remove" size={16} color="black" />
+                </Pressable>
+                <Text style={styles.qtyText}>{item.quantity}</Text>
+                <Pressable
+                style={styles.qtyBtn}
+                onPress={() => updateQuantity(item.id, 1)}
+                >
+                <Ionicons name="add" size={16} color="black" />
+                </Pressable>
+            </View>
             </View>
         </View>
+        </View>
+    );
 
-        <View style={styles.cardFooter}>
-            <Text style={styles.price}>{formatCurrency(item.price)}</Text>
-            <Pressable style={styles.trackButton}>
-                <Text style={styles.trackButtonText}>Đặt hàng</Text>
+    return (
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
+            <Text style={styles.headerTitle}>Giỏ hàng</Text>
+            <Ionicons name="search-outline" size={24} color="black" />
+        </View>
+
+        <FlatList
+            data={cartItems}
+            keyExtractor={(item) => item.id}
+            renderItem={renderCartItem}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+            <View style={styles.emptyContent}>
+                <Ionicons name="cart-outline" size={80} color="#EEE" />
+                <Text style={styles.emptyText}>Giỏ hàng đang trống</Text>
+            </View>
+            }
+        />
+
+    {cartItems.length > 0 && (
+    <View style={styles.footerContainer}>
+        {/* --- Phần 1: Dòng Voucher --- */}
+        <Pressable style={styles.voucherSection}>
+        <View style={styles.voucherLeft}>
+            <Ionicons
+            name="ticket-outline"
+            size={22}
+            color="#000"
+            />
+            <Text style={styles.voucherTitle}>Voucher</Text>
+        </View>
+        <View style={styles.voucherRight}>
+            <Text style={styles.voucherPlaceholder}>Chọn hoặc nhập mã</Text>
+            <Ionicons
+            name="chevron-forward"
+            size={18}
+            color="#AAA"
+            />
+        </View>
+        </Pressable>
+
+        {/* Đường kẻ mờ phân cách */}
+        <View style={styles.footerDivider} />
+
+        {/* --- Phần 2: Thanh toán & Chọn tất cả --- */}
+        <View style={styles.actionSection}>
+        {/* Bên trái: Chọn tất cả */}
+        <Pressable
+            style={styles.selectAllContainer}
+            onPress={() => setSelectAll(!selectAll)}
+        >
+            <Ionicons
+            name={selectAll ? "checkbox" : "square-outline"}
+            size={24}
+            color={selectAll ? "#000" : "#CCC"}
+            />
+            <Text style={styles.selectAllText}>Tất cả</Text>
+        </Pressable>
+
+        {/* Bên phải: Tổng cộng + Nút Thanh toán gộp lại */}
+        <View style={styles.checkoutGroup}>
+            <View style={styles.totalInfo}>
+            <Text style={styles.totalLabel}>Tổng cộng</Text>
+            <Text style={styles.totalAmount}>
+                {formatCurrency(totalPrice)}
+            </Text>
+            </View>
+            <Pressable style={styles.finalCheckoutBtn}>
+            <Text style={styles.finalCheckoutText}>Thanh toán</Text>
             </Pressable>
         </View>
-      </View>
-    </View>
-  );
-
-  /* --- RENDER: Giao diện khi trống --- */
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconContainer}>
-         <Ionicons name="clipboard-outline" size={80} color="#E0E0E0" />
-      </View>
-      <Text style={styles.emptyTitle}>Bạn chưa có đơn đặt hàng nào</Text>
-      <Text style={styles.emptySub}>Hiện tại bạn không có đơn đặt hàng nào đang thực hiện.</Text>
-    </View>
-  );
-
-  const dataToShow = activeTab === 'Active' ? ACTIVE_ORDERS : COMPLETED_ORDERS;
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-            
-            <Text style={styles.headerTitle}>Giỏ hàng</Text>
         </View>
-        <View style={styles.headerIcons}>
-            <Ionicons name="search-outline" size={24} color="black" />
-            <Ionicons name="ellipsis-horizontal-circle-outline" size={24} color="black" />
-        </View>
-      </View>
+    </View>
+    )}
+        </SafeAreaView>
+    );
+    }
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        <Pressable 
-            style={[styles.tabItem, activeTab === 'Active' && styles.tabActive]}
-            onPress={() => setActiveTab('Active')}
-        >
-            <Text style={[styles.tabText, activeTab === 'Active' && styles.tabTextActive]}>Active</Text>
-        </Pressable>
-        <Pressable 
-            style={[styles.tabItem, activeTab === 'Completed' && styles.tabActive]}
-            onPress={() => setActiveTab('Completed')}
-        >
-            <Text style={[styles.tabText, activeTab === 'Completed' && styles.tabTextActive]}>Completed</Text>
-        </Pressable>
-      </View>
-
-      {/* List Content */}
-      <View style={{ flex: 1 }}>
-        {dataToShow.length > 0 ? (
-            <FlatList
-                data={dataToShow}
-                keyExtractor={(item) => item.id}
-                renderItem={renderOrderItem}
-                contentContainerStyle={{ padding: 20 }}
-                showsVerticalScrollIndicator={false}
-            />
-        ) : (
-            renderEmptyState()
-        )}
-      </View>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerTitle: { fontSize: 22, fontWeight: 'bold' },
-  headerIcons: { flexDirection: 'row', gap: 15 },
-
-  tabContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 15, borderBottomWidth: 3, borderBottomColor: 'transparent' },
-  tabActive: { borderBottomColor: '#000000' },
-  tabText: { fontSize: 16, color: '#9E9E9E', fontWeight: '600' },
-  tabTextActive: { color: '#000000' },
-
-  card: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 24, padding: 15, marginBottom: 20,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 5 },
-  imageContainer: { width: 110, height: 110, backgroundColor: '#F5F5F5', borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  image: { width: '90%', height: '90%', resizeMode: 'contain' },
-  
-  infoContainer: { flex: 1, marginLeft: 15, justifyContent: 'space-between' },
-  name: { fontSize: 18, fontWeight: 'bold', color: '#000' },
-  variantRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5, gap: 5 },
-  colorDot: { width: 12, height: 12, borderRadius: 6 },
-  variantText: { fontSize: 13, color: '#757575' },
-  statusBadge: { backgroundColor: '#F0F0F0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginLeft: 5 },
-  statusText: { fontSize: 10, color: '#616161', fontWeight: 'bold' },
-
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  price: { fontSize: 17, fontWeight: 'bold' },
-  trackButton: { backgroundColor: '#000', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
-  trackButtonText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
-
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
-  emptyIconContainer: { marginBottom: 20 },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
-  emptySub: { fontSize: 14, color: '#9E9E9E', textAlign: 'center', marginTop: 10 },
+    const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+    },
+    listContent: {
+        padding: 20,
+        paddingBottom: 150,
+    },
+    card: {
+        flexDirection: 'row',
+        backgroundColor: '#FFF',
+        borderRadius: 24,
+        padding: 12,
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+        width: 0,
+        height: 4,
+        },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
+    },
+    imageContainer: {
+        width: 90,
+        height: 90,
+        backgroundColor: '#F8F8F8',
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    image: {
+        width: '85%',
+        height: '85%',
+        resizeMode: 'contain',
+    },
+    infoContainer: {
+        flex: 1,
+        marginLeft: 15,
+        justifyContent: 'space-between',
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    name: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    variantText: {
+        fontSize: 13,
+        color: '#888',
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    price: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#000',
+    },
+    quantityControl: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F0F0F0',
+        borderRadius: 12,
+        padding: 4,
+    },
+    qtyBtn: {
+        width: 28,
+        height: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    qtyText: {
+        paddingHorizontal: 10,
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    summaryContainer: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        backgroundColor: '#FFF',
+        borderRadius: 24,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: {
+        width: 0,
+        height: -10,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    summaryRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 15,
+    },
+    summaryLabel: {
+        color: '#888',
+        fontSize: 16,
+    },
+    summaryPrice: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    checkoutBtn: {
+        backgroundColor: '#000',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 15,
+        borderRadius: 20,
+        gap: 10,
+    },
+    checkoutText: {
+        color: '#FFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    emptyContent: {
+        alignItems: 'center',
+        marginTop: 100,
+    },
+    emptyText: {
+        marginTop: 10,
+        color: '#AAA',
+        fontSize: 16,
+    },
+    footerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingTop: 15,
+    paddingBottom: 30, // Chừa khoảng trống cho thanh điều hướng điện thoại
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -10,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
+    elevation: 20,
+  },
+  /* Style cho Voucher */
+  voucherSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  voucherLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  voucherTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  voucherRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  voucherPlaceholder: {
+    fontSize: 14,
+    color: '#999',
+  },
+  footerDivider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+    marginBottom: 15,
+  },
+  /* Style cho Thanh toán */
+  actionSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectAllContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectAllText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  checkoutGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  totalInfo: {
+    alignItems: 'flex-end',
+  },
+  totalLabel: {
+    fontSize: 12,
+    color: '#888',
+  },
+  totalAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  finalCheckoutBtn: {
+    backgroundColor: '#000',
+    paddingHorizontal: 25,
+    paddingVertical: 12,
+    borderRadius: 15,
+  },
+  finalCheckoutText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
 });
