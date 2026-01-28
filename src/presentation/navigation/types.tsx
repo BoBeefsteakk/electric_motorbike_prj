@@ -21,9 +21,9 @@ export type HomeStackParamList = {
   store_5_detail: undefined;
 
   best_price_all: undefined;
-  best_prices_1: undefined;
-  best_prices_2: undefined;
-  best_prices_3: undefined;
+  best_price_detail: {
+    id: number;
+  };
 
   news1: undefined;
   news2: undefined;
@@ -45,3 +45,4 @@ export type RootStackParamList = {
   auth: undefined;
   inapp: undefined;
 };
+
