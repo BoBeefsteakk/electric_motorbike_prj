@@ -62,14 +62,8 @@ function HomeNavigation() {
 
       {/* CATEGORY */}
       <HomeStack.Screen name="category_special" component={CategorySpecial} />
-      <HomeStack.Screen
-        name="category_pho_thong"
-        component={CategoryPhoThong}
-      />
-      <HomeStack.Screen
-        name="category_trung_cap"
-        component={CategoryTrungCap}
-      />
+      <HomeStack.Screen name="category_pho_thong" component={CategoryPhoThong} />
+      <HomeStack.Screen name="category_trung_cap" component={CategoryTrungCap} />
       <HomeStack.Screen name="category_cao_cap" component={CategoryCaoCap} />
       <HomeStack.Screen name="category_o_to" component={CategoryOTo} />
       <HomeStack.Screen name="category_phu_kien" component={CategoryPhuKien} />

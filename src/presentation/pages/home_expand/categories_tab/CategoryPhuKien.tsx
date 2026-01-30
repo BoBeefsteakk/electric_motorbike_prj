@@ -1,22 +1,5 @@
-import { View, Text, StyleSheet } from "react-native";
+import CategoryBaseScreen from "./CategoryBaseScreen";
 
 export default function CategoryPhuKien() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Special Voucher</Text>
-    </View>
-  );
+  return <CategoryBaseScreen category="phu_kien" />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-  },
-});
