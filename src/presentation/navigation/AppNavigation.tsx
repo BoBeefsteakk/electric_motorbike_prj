@@ -39,9 +39,9 @@ import News3 from "../pages/home_expand/news_details/news3";
 
 
 
-import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
-import SearchScreen from "../pages/search";
+import SearchScreen from "../../screen/searchScreen";
 import BestPriceAllScreen from "../pages/home_expand/best_prices/BestPriceAllScreen";
+import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
 
 
 const AuthStack = createNativeStackNavigator();
