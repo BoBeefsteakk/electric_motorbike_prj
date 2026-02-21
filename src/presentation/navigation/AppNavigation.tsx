@@ -1,11 +1,13 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useFocusEffect } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React, { useCallback, useEffect } from "react";
+import { Alert, BackHandler } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import ForgotPasswordScreen from "../pages/forgot";
 import LoginScreen from "../pages/login";
 import RegisterScreen from "../pages/register";
-
 
 import CartScreen from "../pages/cart";
 import HomeScreen from "../pages/home";
@@ -32,17 +34,13 @@ import HomeStoreList from "../pages/home_expand/home_store_list";
 /* BEST PRICES */
 import BestPriceDetailScreen from "../pages/home_expand/best_prices/BestPriceDetailScreen";
 
-
 import News1 from "../pages/home_expand/news_details/news1";
 import News2 from "../pages/home_expand/news_details/news2";
 import News3 from "../pages/home_expand/news_details/news3";
 
-
-
-import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
-import SearchScreen from "../pages/search";
 import BestPriceAllScreen from "../pages/home_expand/best_prices/BestPriceAllScreen";
-
+import SearchScreen from "../pages/search";
+import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -62,8 +60,14 @@ function HomeNavigation() {
 
       {/* CATEGORY */}
       <HomeStack.Screen name="category_special" component={CategorySpecial} />
-      <HomeStack.Screen name="category_pho_thong" component={CategoryPhoThong} />
-      <HomeStack.Screen name="category_trung_cap" component={CategoryTrungCap} />
+      <HomeStack.Screen
+        name="category_pho_thong"
+        component={CategoryPhoThong}
+      />
+      <HomeStack.Screen
+        name="category_trung_cap"
+        component={CategoryTrungCap}
+      />
       <HomeStack.Screen name="category_cao_cap" component={CategoryCaoCap} />
       <HomeStack.Screen name="category_o_to" component={CategoryOTo} />
       <HomeStack.Screen name="category_phu_kien" component={CategoryPhuKien} />
@@ -78,7 +82,10 @@ function HomeNavigation() {
 
       {/* BEST PRICES */}
       <HomeStack.Screen name="best_price_all" component={BestPriceAllScreen} />
-      <HomeStack.Screen name="best_price_detail" component={BestPriceDetailScreen} />
+      <HomeStack.Screen
+        name="best_price_detail"
+        component={BestPriceDetailScreen}
+      />
 
       <HomeStack.Screen name="news1" component={News1} />
       <HomeStack.Screen name="news2" component={News2} />
@@ -102,6 +109,31 @@ function AuthNavigation() {
 /* ================= TAB ================= */
 
 function InappNavigation() {
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        Alert.alert("Thoát ứng dụng", "Bạn có muốn thoát không?", [
+          { text: "Không", style: "cancel" },
+          {
+            text: "Có",
+            onPress: async () => {
+              await AsyncStorage.removeItem("token");
+              BackHandler.exitApp();
+            },
+          },
+        ]);
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+
+      return () => subscription.remove(); // 🔥 đây mới là cách đúng
+    }, []),
+  );
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -128,9 +160,20 @@ function InappNavigation() {
 /* ================= ROOT ================= */
 
 export function AppNavigation() {
+  useEffect(() => {
+    const clearSession = async () => {
+      await AsyncStorage.removeItem("token");
+    };
+
+    clearSession();
+  }, []);
+
   return (
     <NavigationContainer>
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Navigator
+        initialRouteName="auth"
+        screenOptions={{ headerShown: false }}
+      >
         <RootStack.Screen name="auth" component={AuthNavigation} />
         <RootStack.Screen name="inapp" component={InappNavigation} />
       </RootStack.Navigator>
