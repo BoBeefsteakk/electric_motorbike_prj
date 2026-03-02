@@ -21,10 +21,21 @@ type HomeNavProp = NativeStackNavigationProp<HomeStackParamList, "home_main">;
 type CategoryItem = {
   id: number;
   name: string;
-  route: keyof HomeStackParamList;
-  image?: any;
+  type?: string;        // optional
   color: string;
-  type?: string;
+  route: keyof HomeStackParamList;
+  image?: any;          // 👈 QUAN TRỌNG
+};
+
+
+
+type PlaceItem = {
+  id: number;
+  name: string;
+  rating: number;
+  address: string;
+  image: any;
+  route: keyof HomeStackParamList;
 };
 
 /* ======================= CONSTANT ======================= */
@@ -92,7 +103,7 @@ const HomeScreen = () => {
     },
   ];
 
-  const places = [
+  const places: PlaceItem[] = [
     {
       id: 1,
       name: "VIN3S VĨNH THÀNH 2",
@@ -196,7 +207,7 @@ const HomeScreen = () => {
           cat.type === "special" ? styles.specialCard : styles.categoryCard,
           { backgroundColor: cat.color },
         ]}
-        onPress={() => navigation.navigate(cat.route)}
+        onPress={() => navigation.navigate(cat.route as never)}
       >
         {cat.type === "special" ? (
           <>
@@ -307,7 +318,7 @@ const HomeScreen = () => {
                 activeOpacity={0.7}
                 style={styles.placeCard}
                 onPress={() =>
-                  navigation.navigate(place.route as keyof HomeStackParamList)
+                  navigation.navigate(place.route as any)
                 }
               >
                 <Image source={place.image} style={styles.placeImage} />
@@ -358,11 +369,11 @@ const HomeScreen = () => {
                 key={item.id}
                 style={styles.priceCard}
                 activeOpacity={0.8}
-                onPress={() => {
-                  if (item.id === 1) navigation.navigate("best_prices_1");
-                  if (item.id === 2) navigation.navigate("best_prices_2");
-                  if (item.id === 3) navigation.navigate("best_prices_3");
-                }}
+                onPress={() =>
+                  navigation.navigate("best_price_detail", {
+                    id: item.id,
+                  })
+                }
               >
                 <Image source={item.image} style={styles.priceImage} />
                 <View style={styles.priceContent}>

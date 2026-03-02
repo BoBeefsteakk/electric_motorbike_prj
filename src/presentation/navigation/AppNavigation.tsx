@@ -5,7 +5,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import ForgotPasswordScreen from "../pages/forgot";
 import LoginScreen from "../pages/login";
 import RegisterScreen from "../pages/register";
-import SearchScreen from '../pages/search';
+
 
 import CartScreen from "../pages/cart";
 import HomeScreen from "../pages/home";
@@ -30,10 +30,8 @@ import Store5Screen from "../pages/home_expand/detail_store_compoment/Store5Scre
 import HomeStoreList from "../pages/home_expand/home_store_list";
 
 /* BEST PRICES */
-import BestPriceAllScreen from "../pages/home_expand/best_prices/best_prices_screen";
-import BestPrices1 from "../pages/home_expand/best_prices/BestPrices1";
-import BestPrices2 from "../pages/home_expand/best_prices/BestPrices2";
-import BestPrices3 from "../pages/home_expand/best_prices/BestPrices3";
+import BestPriceDetailScreen from "../pages/home_expand/best_prices/BestPriceDetailScreen";
+
 
 import News1 from "../pages/home_expand/news_details/news1";
 import News2 from "../pages/home_expand/news_details/news2";
@@ -41,8 +39,10 @@ import News3 from "../pages/home_expand/news_details/news3";
 
 
 
+import SearchScreen from "../../screen/searchScreen";
+import BestPriceAllScreen from "../pages/home_expand/best_prices/BestPriceAllScreen";
 import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
-import SearchScreen from "../pages/search";
+
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -62,14 +62,8 @@ function HomeNavigation() {
 
       {/* CATEGORY */}
       <HomeStack.Screen name="category_special" component={CategorySpecial} />
-      <HomeStack.Screen
-        name="category_pho_thong"
-        component={CategoryPhoThong}
-      />
-      <HomeStack.Screen
-        name="category_trung_cap"
-        component={CategoryTrungCap}
-      />
+      <HomeStack.Screen name="category_pho_thong" component={CategoryPhoThong} />
+      <HomeStack.Screen name="category_trung_cap" component={CategoryTrungCap} />
       <HomeStack.Screen name="category_cao_cap" component={CategoryCaoCap} />
       <HomeStack.Screen name="category_o_to" component={CategoryOTo} />
       <HomeStack.Screen name="category_phu_kien" component={CategoryPhuKien} />
@@ -84,9 +78,7 @@ function HomeNavigation() {
 
       {/* BEST PRICES */}
       <HomeStack.Screen name="best_price_all" component={BestPriceAllScreen} />
-      <HomeStack.Screen name="best_prices_1" component={BestPrices1} />
-      <HomeStack.Screen name="best_prices_2" component={BestPrices2} />
-      <HomeStack.Screen name="best_prices_3" component={BestPrices3} />
+      <HomeStack.Screen name="best_price_detail" component={BestPriceDetailScreen} />
 
       <HomeStack.Screen name="news1" component={News1} />
       <HomeStack.Screen name="news2" component={News2} />
