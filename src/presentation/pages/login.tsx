@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
+import API_URL from "../../data/api/apis";
 import {
   ActivityIndicator,
   Alert,
@@ -20,9 +21,6 @@ import {
 const { height } = Dimensions.get("window");
 const BOTTOM_HEIGHT = height * 0.62;
 
-// ⚠️ ĐỔI IP THEO BACKEND CỦA PRI
-const API_URL = "http://192.168.56.100:5000/api/auth";
-
 const LoginScreen = () => {
   const navigation = useNavigation<any>();
 
@@ -40,15 +38,15 @@ const LoginScreen = () => {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           account: username,
-          password
-        })
+          password: password,
+        }),
       });
 
       const data = await response.json();
