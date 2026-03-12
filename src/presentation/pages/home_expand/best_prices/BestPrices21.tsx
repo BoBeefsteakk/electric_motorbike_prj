@@ -4,11 +4,11 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { HomeStackParamList } from "../../../navigation/types";
  
 type NavProp = NativeStackNavigationProp<HomeStackParamList, "best_price_detail">;
- 
-export default function BestPrices3() {
+    
+export default function BestPrices21() {
   const navigation = useNavigation<NavProp>();
   useEffect(() => {
-    navigation.replace("best_price_detail", { id: 3 });
+    navigation.replace("best_price_detail", { id: 21 });
   }, []);
   return null;
 }

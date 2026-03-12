@@ -29,7 +29,12 @@ import Store2Screen from "../pages/home_expand/detail_store_compoment/Store2Scre
 import Store3Screen from "../pages/home_expand/detail_store_compoment/Store3Screen";
 import Store4Screen from "../pages/home_expand/detail_store_compoment/Store4Screen";
 import Store5Screen from "../pages/home_expand/detail_store_compoment/Store5Screen";
-import HomeStoreList from "../pages/home_expand/home_store_list";
+import Store6Screen from "../pages/home_expand/detail_store_compoment/Store6Screen";
+import Store7Screen from "../pages/home_expand/detail_store_compoment/Store7Screen";
+import Store8Screen from "../pages/home_expand/detail_store_compoment/Store8Screen";
+import Store9Screen from "../pages/home_expand/detail_store_compoment/Store9Screen";
+import Store10Screen from "../pages/home_expand/detail_store_compoment/Store10Screen";
+import HomeStoreList from "../pages/home_expand/detail_store_compoment/home_store_list";
 
 /* BEST PRICES */
 import BestPriceDetailScreen from "../pages/home_expand/best_prices/BestPriceDetailScreen";
@@ -79,6 +84,11 @@ function HomeNavigation() {
       <HomeStack.Screen name="store_3_detail" component={Store3Screen} />
       <HomeStack.Screen name="store_4_detail" component={Store4Screen} />
       <HomeStack.Screen name="store_5_detail" component={Store5Screen} />
+      <HomeStack.Screen name="store_6_detail" component={Store6Screen} />
+      <HomeStack.Screen name="store_7_detail" component={Store7Screen} />
+      <HomeStack.Screen name="store_8_detail" component={Store8Screen} />
+      <HomeStack.Screen name="store_9_detail" component={Store9Screen} />
+      <HomeStack.Screen name="store_10_detail" component={Store10Screen} />
 
       {/* BEST PRICES */}
       <HomeStack.Screen name="best_price_all" component={BestPriceAllScreen} />

@@ -2,6 +2,6 @@
 import React from "react";
 import StoreBaseScreen from "./StoreBaseScreen";
  
-export default function Store5Screen() {
-  return <StoreBaseScreen storeId={5} />;
+export default function Store6Screen() {
+  return <StoreBaseScreen storeId={6} />;
 }

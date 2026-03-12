@@ -1,73 +1,148 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  FlatList,
   Image,
+  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Platform,
-  StatusBar,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import API_URL from "../../../../../src/data/api/apis";
 import { HomeStackParamList } from "../../../navigation/types";
 
 /* ================= CONFIG ================= */
 
 const TOP_OFFSET =
-  Platform.OS === "android"
-    ? (StatusBar.currentHeight ?? 0) + 8
-    : 48;
+  Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 8 : 48;
 
 /* ================= TYPES ================= */
 
 type ProductType = "Phổ thông" | "Trung cấp" | "Cao cấp";
 
+interface StoreInfo {
+  id: number;
+  name: string;
+  rating: number;
+  address: string;
+  image: string;
+  route: string;
+}
+
 interface Product {
   id: number;
   name: string;
-  price: string;
-  type: ProductType;
-  image: any;
+  price: number;
+  image: string;
+  category: string; // "electric" từ DB — mình map sang tab
 }
 
 interface Props {
-  storeName: string;
-  city: string;
-  description: string;
-  coverImage: any;
-  products: Product[];
+  storeId: number;
+  description?: string; // override nếu muốn, không bắt buộc
 }
 
 const TABS: ProductType[] = ["Phổ thông", "Trung cấp", "Cao cấp"];
 
+// Map category DB → tab hiển thị
+// Hiện tại DB chỉ có "electric" → hiển thị ở cả 3 tab
+// Bạn có thể thêm category mới vào DB và map ở đây
+const CATEGORY_MAP: Record<string, ProductType> = {
+  pho_thong: "Phổ thông",
+  trung_cap: "Trung cấp",
+  cao_cap: "Cao cấp",
+  electric: "Phổ thông", // fallback cho data hiện tại
+};
+
+const keyById = (item: { id: number }) => String(item.id);
+
 /* ================= COMPONENT ================= */
 
-export default function StoreBaseScreen({
-  storeName,
-  city,
-  description,
-  coverImage,
-  products,
-}: Props) {
+export default function StoreBaseScreen({ storeId, description }: Props) {
   const navigation =
     useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
 
   const [activeTab, setActiveTab] = useState<ProductType>("Phổ thông");
+  const [store, setStore] = useState<StoreInfo | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  /* ── Fetch store info + products song song ── */
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [storeRes, productRes] = await Promise.all([
+          fetch(`${API_URL}/api/stores/${storeId}`),
+          fetch(`${API_URL}/api/products`),
+        ]);
+        const storeData = await storeRes.json();
+        const productData = await productRes.json();
+        setStore(storeData);
+        setProducts(productData);
+      } catch (e) {
+        console.log("Lỗi fetch store detail:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [storeId]);
+
+  /* ── Lọc sản phẩm theo tab đang chọn ── */
   const filteredProducts = useMemo(
-    () => products.filter((p) => p.type === activeTab),
+    () => products.filter((p) => CATEGORY_MAP[p.category] === activeTab),
     [activeTab, products]
   );
+
+  /* ── Render product card ── */
+  const renderProduct = useCallback(
+    ({ item }: { item: Product }) => (
+      <View style={styles.productCard}>
+        <Image
+          source={{ uri: `${API_URL}/images/${item.image}` }}
+          style={styles.productImage}
+        />
+        <Text style={styles.productName}>{item.name}</Text>
+        <Text style={styles.productPrice}>
+          {Number(item.price).toLocaleString("vi-VN")}đ
+        </Text>
+      </View>
+    ),
+    []
+  );
+
+  /* ── Loading state ── */
+  if (loading) {
+    return (
+      <View style={styles.loadingBox}>
+        <ActivityIndicator size="large" color="#ff8a00" />
+      </View>
+    );
+  }
+
+  /* ── Fallback nếu không tìm thấy store ── */
+  if (!store) {
+    return (
+      <View style={styles.loadingBox}>
+        <Text style={{ color: "#666" }}>Không tìm thấy cửa hàng</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* ===== COVER ===== */}
       <View style={styles.coverWrapper}>
-        <Image source={coverImage} style={styles.coverImage} />
-
+        <Image
+          source={{ uri: `${API_URL}${store.image}` }}
+          style={styles.coverImage}
+        />
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backBtn}
@@ -79,30 +154,28 @@ export default function StoreBaseScreen({
 
       {/* ===== STORE INFO ===== */}
       <View style={styles.infoBox}>
-        {/* HÀNG 1 */}
         <View style={styles.metaRow}>
           <Ionicons name="star" size={16} color="#FFA500" />
-          <Text style={styles.metaText}>4.7</Text>
+          <Text style={styles.metaText}>{store.rating}</Text>
 
           <Text style={styles.dot}>•</Text>
 
           <Ionicons name="location-outline" size={16} color="#666" />
-          <Text style={styles.metaText}>{city}</Text>
+          <Text style={styles.metaText} numberOfLines={1}>
+            {store.address}
+          </Text>
 
           <Text style={styles.dot}>•</Text>
 
           <Ionicons name="time-outline" size={16} color="#666" />
-          <Text style={styles.metaText}>20 phút</Text>
+          <Text style={styles.metaText}>8:00 - 20:00</Text>
         </View>
 
-        {/* HÀNG 2 */}
-        <Text style={styles.storeName}>{storeName}</Text>
+        <Text style={styles.storeName}>{store.name}</Text>
 
-        {/* HÀNG 3 */}
         <Text style={styles.description}>
-          {description} Cửa hàng cung cấp đầy đủ các dòng xe điện VinFast từ phổ
-          thông đến cao cấp, bảo hành chính hãng, hỗ trợ trả góp linh hoạt, đội
-          ngũ tư vấn chuyên nghiệp và dịch vụ hậu mãi uy tín.
+          {description ??
+            "Cửa hàng cung cấp đầy đủ các dòng xe điện VinFast từ phổ thông đến cao cấp, bảo hành chính hãng, hỗ trợ trả góp linh hoạt, đội ngũ tư vấn chuyên nghiệp và dịch vụ hậu mãi uy tín."}
         </Text>
       </View>
 
@@ -125,15 +198,19 @@ export default function StoreBaseScreen({
       </View>
 
       {/* ===== PRODUCT LIST ===== */}
-      <View style={styles.productList}>
-        {filteredProducts.map((item) => (
-          <View key={item.id} style={styles.productCard}>
-            <Image source={item.image} style={styles.productImage} />
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productPrice}>{item.price}</Text>
-          </View>
-        ))}
-      </View>
+      {filteredProducts.length === 0 ? (
+        <Text style={styles.emptyText}>Không có sản phẩm</Text>
+      ) : (
+        <FlatList
+          data={filteredProducts}
+          keyExtractor={keyById}
+          renderItem={renderProduct}
+          numColumns={2}
+          scrollEnabled={false} // outer ScrollView quản lý scroll
+          contentContainerStyle={styles.productList}
+          columnWrapperStyle={{ justifyContent: "space-between" }}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -141,16 +218,12 @@ export default function StoreBaseScreen({
 /* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+
+  loadingBox: { flex: 1, justifyContent: "center", alignItems: "center" },
 
   /* ===== COVER ===== */
-  coverWrapper: {
-    position: "relative",
-    marginBottom: -24,
-  },
+  coverWrapper: { position: "relative", marginBottom: -24 },
   coverImage: {
     width: "100%",
     height: 260,
@@ -171,11 +244,7 @@ const styles = StyleSheet.create({
   },
 
   /* ===== STORE INFO ===== */
-  infoBox: {
-    padding: 16,
-    paddingTop: 32,
-  },
-
+  infoBox: { padding: 16, paddingTop: 32 },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -186,24 +255,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#2a2a2a",
     marginLeft: 4,
-    fontWeight: "700"
+    fontWeight: "700",
   },
-  dot: {
-    marginHorizontal: 10,
-    color: "#bbb",
-  },
-
+  dot: { marginHorizontal: 10, color: "#bbb" },
   storeName: {
     fontSize: 23,
     fontWeight: "800",
     color: "#111",
     marginBottom: 8,
   },
-  description: {
-    fontSize: 14,
-    color: "#666",
-    lineHeight: 22,
-  },
+  description: { fontSize: 14, color: "#666", lineHeight: 22 },
 
   /* ===== TABS ===== */
   tabs: {
@@ -226,22 +287,11 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  tabText: {
-    fontSize: 13,
-    color: "#666",
-    fontWeight: "600",
-  },
-  tabTextActive: {
-    color: "#fff",
-  },
+  tabText: { fontSize: 13, color: "#666", fontWeight: "600" },
+  tabTextActive: { color: "#fff" },
 
   /* ===== PRODUCTS ===== */
-  productList: {
-    padding: 16,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
+  productList: { padding: 16 },
   productCard: {
     width: "48%",
     backgroundColor: "#fff",
@@ -258,16 +308,19 @@ const styles = StyleSheet.create({
     height: 130,
     borderRadius: 14,
     marginBottom: 10,
+    resizeMode: "contain",
   },
-  productName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#222",
-  },
+  productName: { fontSize: 14, fontWeight: "600", color: "#222" },
   productPrice: {
     marginTop: 6,
     fontSize: 14,
     color: "#ff8a00",
     fontWeight: "700",
+  },
+  emptyText: {
+    textAlign: "center",
+    color: "#999",
+    marginTop: 30,
+    fontSize: 14,
   },
 });
