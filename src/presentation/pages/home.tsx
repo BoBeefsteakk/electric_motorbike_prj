@@ -1,14 +1,16 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
   FlatList,
   Image,
   InteractionManager,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -32,7 +34,6 @@ type CategoryItem = {
   route: keyof HomeStackParamList;
   image?: any;
 };
-
 type PlaceItem = {
   id: number;
   name: string;
@@ -41,18 +42,16 @@ type PlaceItem = {
   image: string;
   route: string;
 };
-
-type ProductItem = {
-  id: number;
-  name: string;
-  price: string;
-  image: string;
-};
+type ProductItem = { id: number; name: string; price: string; image: string };
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = (width - 40 - 24) / 3;
+const CARD_W = (width - 40 - 24) / 3;
 
-// ── Khai báo NGOÀI component → không re-create mỗi lần render ──
+const encodeImagePath = (p: string) =>
+  p.split("/").map(encodeURIComponent).join("/");
+const keyById = (item: { id: number }) => String(item.id);
+const FEATURED_IDS = [7, 12, 16, 19, 21];
+
 const CATEGORIES: CategoryItem[] = [
   {
     id: 1,
@@ -121,15 +120,74 @@ const NEWS = [
   },
 ];
 
-// Encode từng segment của path, giữ nguyên dấu /
-// "motorbike/VinFast Evo 200 Lite.jpg" → "motorbike/VinFast%20Evo%20200%20Lite.jpg"
-const encodeImagePath = (path: string) =>
-  path.split("/").map(encodeURIComponent).join("/");
+/* ── Toast notification ── */
+const Toast = ({ message, visible }: { message: string; visible: boolean }) => {
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) {
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.delay(1800),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible]);
+  return (
+    <Animated.View style={[styles.toast, { opacity }]} pointerEvents="none">
+      <FontAwesome name="check-circle" size={16} color="#fff" />
+      <Text style={styles.toastText}>{message}</Text>
+    </Animated.View>
+  );
+};
 
-const keyById = (item: { id: number }) => String(item.id);
+/* ── Skeleton card ── */
+const SkeletonCard = ({
+  width: w,
+  height: h,
+}: {
+  width: number;
+  height: number;
+}) => {
+  const anim = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim, {
+          toValue: 0.4,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, []);
+  return (
+    <Animated.View
+      style={{
+        width: w,
+        height: h,
+        borderRadius: 16,
+        backgroundColor: "#EBEBEB",
+        marginRight: 14,
+        opacity: anim,
+      }}
+    />
+  );
+};
 
 /* ======================= SCREEN ======================= */
-
 const HomeScreen = () => {
   const navigation = useNavigation<HomeNavProp>();
 
@@ -138,13 +196,20 @@ const HomeScreen = () => {
   const [email, setEmail] = useState("");
   const [selectedTab, setSelectedTab] = useState("Cao cấp");
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
 
   const [stores, setStores] = useState<PlaceItem[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
   const [productsLoading, setProductsLoading] = useState(true);
 
-  /* ── Fetch sau khi animation navigate xong → không block UI ── */
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setToastVisible(false);
+    setTimeout(() => setToastVisible(true), 50);
+  };
+
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
       fetchStores();
@@ -156,8 +221,7 @@ const HomeScreen = () => {
   const fetchStores = async () => {
     try {
       const res = await fetch(`${API_URL}/api/stores`);
-      const data = await res.json();
-      setStores(data);
+      setStores(await res.json());
     } catch (e) {
       console.log("Lỗi fetch stores:", e);
     } finally {
@@ -165,14 +229,10 @@ const HomeScreen = () => {
     }
   };
 
-  // Chỉ hiển thị 5 xe đại diện ở mục Bán Chạy
-  const FEATURED_IDS = [7, 12, 16, 19, 21];
-
   const fetchProducts = async () => {
     try {
       const res = await fetch(`${API_URL}/api/products`);
       const data = await res.json();
-      // Lọc đúng id, giữ nguyên thứ tự theo FEATURED_IDS
       const featured = FEATURED_IDS.map((id) =>
         data.find((p: ProductItem) => p.id === id),
       ).filter(Boolean);
@@ -201,10 +261,7 @@ const HomeScreen = () => {
         Alert.alert("Lỗi", data.message || "Đăng ký thất bại");
         return;
       }
-      Alert.alert(
-        "Thành công",
-        "Đăng ký tư vấn thành công! Chúng tôi sẽ liên hệ bạn sớm.",
-      );
+      showToast("Đăng ký tư vấn thành công!");
       setFullName("");
       setPhone("");
       setEmail("");
@@ -215,8 +272,7 @@ const HomeScreen = () => {
     }
   }, [fullName, phone, email, selectedTab]);
 
-  /* ── render functions dùng useCallback → không re-create khi re-render ── */
-
+  /* ── render helpers ── */
   const renderCategoryCard = useCallback(
     (cat: CategoryItem) => (
       <TouchableOpacity
@@ -234,15 +290,18 @@ const HomeScreen = () => {
               {cat.name}
             </Text>
             <View style={styles.discountBadges}>
-              <View style={[styles.badge, { backgroundColor: "#5DADE2" }]}>
-                <Text style={styles.badgeText}>-50%</Text>
-              </View>
-              <View style={[styles.badge, { backgroundColor: "#58D68D" }]}>
-                <Text style={styles.badgeText}>-25%</Text>
-              </View>
-              <View style={[styles.badge, { backgroundColor: "#F8B4D9" }]}>
-                <Text style={styles.badgeText}>-15%</Text>
-              </View>
+              {[
+                { c: "#5DADE2", t: "-50%" },
+                { c: "#58D68D", t: "-25%" },
+                { c: "#F8B4D9", t: "-15%" },
+              ].map((b) => (
+                <View
+                  key={b.t}
+                  style={[styles.badge, { backgroundColor: b.c }]}
+                >
+                  <Text style={styles.badgeText}>{b.t}</Text>
+                </View>
+              ))}
             </View>
           </>
         ) : (
@@ -259,7 +318,7 @@ const HomeScreen = () => {
   const renderStoreItem = useCallback(
     ({ item }: { item: PlaceItem }) => (
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={0.85}
         style={styles.placeCard}
         onPress={() => navigation.navigate(item.route as any)}
       >
@@ -267,12 +326,13 @@ const HomeScreen = () => {
           source={{ uri: `${API_URL}${item.image}` }}
           style={styles.placeImage}
         />
-        <View style={{ padding: 10 }}>
+        <View style={styles.placeBody}>
           <Text style={styles.placeName} numberOfLines={1}>
             {item.name}
           </Text>
           <View style={styles.placeInfoRow}>
-            <Text style={styles.rating}>⭐ {item.rating}</Text>
+            <FontAwesome name="star" size={11} color="#F5A623" />
+            <Text style={styles.ratingText}>{item.rating}</Text>
             <Text style={styles.dot}>•</Text>
             <Text style={styles.placeAddress} numberOfLines={1}>
               {item.address}
@@ -293,32 +353,23 @@ const HomeScreen = () => {
           navigation.navigate("best_price_detail", { id: item.id })
         }
       >
-        {/* Ảnh */}
         <View style={styles.priceImageBox}>
           <Image
             source={{ uri: `${API_URL}/images/${encodeImagePath(item.image)}` }}
             style={styles.priceImage}
           />
         </View>
-
-        {/* Nội dung */}
         <View style={styles.priceContent}>
           <Text style={styles.priceName} numberOfLines={2}>
             {item.name}
           </Text>
-
-          {/* Rating */}
           <View style={styles.priceRatingRow}>
             <FontAwesome name="star" size={11} color="#F5A623" />
             <Text style={styles.priceRatingText}>
               {(BEST_PRICE_DATA[item.id]?.rating ?? 4.5).toFixed(1)}
             </Text>
           </View>
-
-          {/* Divider */}
           <View style={styles.priceDivider} />
-
-          {/* Giá + nút */}
           <View style={styles.priceFooter}>
             <View>
               <Text style={styles.priceFromLabel}>Giá từ</Text>
@@ -339,12 +390,15 @@ const HomeScreen = () => {
   const renderNewsItem = useCallback(
     ({ item }: { item: (typeof NEWS)[0] }) => (
       <TouchableOpacity
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         style={styles.newsCard}
         onPress={() => navigation.navigate(item.route as any)}
       >
         <Image source={item.image} style={styles.newsImage} />
-        <View style={{ padding: 12 }}>
+        <View style={styles.newsBody}>
+          <View style={styles.newsBadge}>
+            <Text style={styles.newsBadgeText}>Tin tức</Text>
+          </View>
           <Text style={styles.newsTitle} numberOfLines={2}>
             {item.title}
           </Text>
@@ -354,11 +408,42 @@ const HomeScreen = () => {
     [navigation],
   );
 
-  /* ======================= RENDER ======================= */
+  /* ── Section header helper ── */
+  const SectionHeader = ({
+    title,
+    onPress,
+  }: {
+    title: string;
+    onPress?: () => void;
+  }) => (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionTitleRow}>
+        <View style={styles.sectionAccent} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      {onPress && (
+        <TouchableOpacity
+          activeOpacity={0.6}
+          style={styles.seeAllRow}
+          onPress={onPress}
+        >
+          <Text style={styles.seeAllText}>Xem thêm</Text>
+          <FontAwesome
+            name="chevron-right"
+            size={11}
+            color="#FF8C00"
+            style={{ marginLeft: 4 }}
+          />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 
+  /* ======================= RENDER ======================= */
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#121212" />
+      <Toast message={toastMsg} visible={toastVisible} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -395,7 +480,7 @@ const HomeScreen = () => {
         </TouchableOpacity>
 
         {/* CATEGORIES */}
-        <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
+        <View style={styles.categorySection}>
           <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
             {CATEGORIES.slice(0, 3).map(renderCategoryCard)}
           </View>
@@ -404,30 +489,18 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        {/* ── CỬA HÀNG ── FlatList thay ScrollView */}
+        {/* CỬA HÀNG */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Cửa Hàng</Text>
-            <TouchableOpacity
-              activeOpacity={0.6}
-              style={styles.seeAllRow}
-              onPress={() => navigation.navigate("home_store_list")}
-            >
-              <Text style={styles.seeAllText}>Xem thêm</Text>
-              <FontAwesome
-                name="chevron-right"
-                size={12}
-                color="#999"
-                style={{ marginLeft: 4, top: 1.5 }}
-              />
-            </TouchableOpacity>
-          </View>
+          <SectionHeader
+            title="Cửa Hàng"
+            onPress={() => navigation.navigate("home_store_list")}
+          />
           {storesLoading ? (
-            <ActivityIndicator
-              size="small"
-              color="#5DADE2"
-              style={{ marginTop: 20 }}
-            />
+            <View style={styles.skeletonRow}>
+              {[0, 1, 2].map((i) => (
+                <SkeletonCard key={i} width={180} height={155} />
+              ))}
+            </View>
           ) : (
             <FlatList
               horizontal
@@ -436,7 +509,7 @@ const HomeScreen = () => {
               renderItem={renderStoreItem}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingRight: 20, paddingVertical: 10 }}
-              removeClippedSubviews={true}
+              removeClippedSubviews
               initialNumToRender={4}
               maxToRenderPerBatch={4}
               windowSize={5}
@@ -444,30 +517,18 @@ const HomeScreen = () => {
           )}
         </View>
 
-        {/* ── BÁN CHẠY ── FlatList thay ScrollView */}
+        {/* BÁN CHẠY */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Bán Chạy</Text>
-            <TouchableOpacity
-              activeOpacity={0.6}
-              style={styles.seeAllRow}
-              onPress={() => navigation.navigate("best_price_all")}
-            >
-              <Text style={styles.seeAllText}>Xem thêm</Text>
-              <FontAwesome
-                name="chevron-right"
-                size={12}
-                color="#999"
-                style={{ marginLeft: 4, top: 1.5 }}
-              />
-            </TouchableOpacity>
-          </View>
+          <SectionHeader
+            title="Bán Chạy"
+            onPress={() => navigation.navigate("best_price_all")}
+          />
           {productsLoading ? (
-            <ActivityIndicator
-              size="small"
-              color="#5DADE2"
-              style={{ marginTop: 20 }}
-            />
+            <View style={styles.skeletonRow}>
+              {[0, 1, 2].map((i) => (
+                <SkeletonCard key={i} width={160} height={230} />
+              ))}
+            </View>
           ) : (
             <FlatList
               horizontal
@@ -476,7 +537,7 @@ const HomeScreen = () => {
               renderItem={renderProductItem}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingRight: 20, paddingVertical: 10 }}
-              removeClippedSubviews={true}
+              removeClippedSubviews
               initialNumToRender={4}
               maxToRenderPerBatch={4}
               windowSize={5}
@@ -484,20 +545,9 @@ const HomeScreen = () => {
           )}
         </View>
 
-        {/* ── TIN TỨC ── FlatList thay ScrollView */}
+        {/* TIN TỨC */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Tin Tức</Text>
-            <TouchableOpacity activeOpacity={0.6} style={styles.seeAllRow}>
-              <Text style={styles.seeAllText}>Xem thêm</Text>
-              <FontAwesome
-                name="chevron-right"
-                size={12}
-                color="#999"
-                style={{ marginLeft: 4, top: 1.5 }}
-              />
-            </TouchableOpacity>
-          </View>
+          <SectionHeader title="Tin Tức" />
           <FlatList
             horizontal
             data={NEWS}
@@ -505,12 +555,12 @@ const HomeScreen = () => {
             renderItem={renderNewsItem}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingRight: 20, paddingVertical: 10 }}
-            removeClippedSubviews={true}
+            removeClippedSubviews
             initialNumToRender={3}
           />
         </View>
 
-        {/* ── ĐĂNG KÝ TƯ VẤN ── */}
+        {/* ĐĂNG KÝ TƯ VẤN */}
         <View style={styles.consultSection}>
           <Text style={styles.consultHeading}>ĐĂNG KÝ TƯ VẤN</Text>
           <View style={styles.consultDivider} />
@@ -519,35 +569,37 @@ const HomeScreen = () => {
             VinFast
           </Text>
 
-          <View style={styles.inputBox}>
-            <TextInput
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="Họ và tên *"
-              placeholderTextColor="#999"
-              style={styles.textInputt}
-            />
-          </View>
-          <View style={styles.inputBox}>
-            <TextInput
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="Nhập số điện thoại *"
-              placeholderTextColor="#999"
-              keyboardType="phone-pad"
-              style={styles.textInputt}
-            />
-          </View>
-          <View style={styles.inputBox}>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Email *"
-              placeholderTextColor="#999"
-              keyboardType="email-address"
-              style={styles.textInputt}
-            />
-          </View>
+          {[
+            {
+              value: fullName,
+              setter: setFullName,
+              placeholder: "Họ và tên *",
+              keyboard: "default",
+            },
+            {
+              value: phone,
+              setter: setPhone,
+              placeholder: "Số điện thoại *",
+              keyboard: "phone-pad",
+            },
+            {
+              value: email,
+              setter: setEmail,
+              placeholder: "Email *",
+              keyboard: "email-address",
+            },
+          ].map((f) => (
+            <View key={f.placeholder} style={styles.inputBox}>
+              <TextInput
+                value={f.value}
+                onChangeText={f.setter}
+                placeholder={f.placeholder}
+                placeholderTextColor="#999"
+                keyboardType={f.keyboard as any}
+                style={styles.textInput}
+              />
+            </View>
+          ))}
 
           <Text style={styles.consultLabel}>Dòng xe quan tâm</Text>
           <View style={styles.tabRow}>
@@ -577,19 +629,15 @@ const HomeScreen = () => {
             <Text style={styles.radioText}>Vero X</Text>
           </View>
 
-          <View style={styles.checkboxRow}>
-            <View style={styles.checkbox} />
-            <Text style={styles.checkboxText}>
-              Bạn có phải là CBNV tập đoàn Vingroup không?
-            </Text>
-          </View>
-          <View style={styles.checkboxRow}>
-            <View style={styles.checkbox} />
-            <Text style={styles.checkboxText}>
-              Tôi đồng ý cho phép Công ty TNHH Kinh doanh Thương mại Dịch vụ
-              VinFast xử lý dữ liệu cá nhân của tôi...
-            </Text>
-          </View>
+          {[
+            "Bạn có phải là CBNV tập đoàn Vingroup không?",
+            "Tôi đồng ý cho phép Công ty TNHH Kinh doanh Thương mại Dịch vụ VinFast xử lý dữ liệu cá nhân của tôi...",
+          ].map((txt) => (
+            <View key={txt} style={styles.checkboxRow}>
+              <View style={styles.checkbox} />
+              <Text style={styles.checkboxText}>{txt}</Text>
+            </View>
+          ))}
 
           <TouchableOpacity
             style={styles.submitBtn}
@@ -611,12 +659,36 @@ const HomeScreen = () => {
 
 export default HomeScreen;
 
-/* ======================= STYLE ======================= */
-
+/* ======================= STYLES ======================= */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#ffffff" },
+  container: { flex: 1, backgroundColor: "#fff" },
 
-  headerWrapper: { backgroundColor: "#000", paddingBottom: 80 },
+  /* Toast */
+  toast: {
+    position: "absolute",
+    top: 60,
+    alignSelf: "center",
+    zIndex: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#22C55E",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  toastText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+
+  /* Header */
   headerDark: {
     backgroundColor: "#000",
     paddingHorizontal: 16,
@@ -626,6 +698,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginTop: 20,
   },
   headerImage: { width: 140, height: 120 },
   notificationBtn: {
@@ -645,6 +718,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF3B30",
   },
 
+  /* Banner */
   bannerWrapper: {
     marginHorizontal: 16,
     marginTop: -90,
@@ -657,35 +731,11 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   bannerImage: { width: "100%", height: 160, resizeMode: "cover" },
-  fixedBanner: {
-    position: "absolute",
-    top: 90,
-    left: 16,
-    right: 16,
-    height: 120,
-    borderRadius: 16,
-    overflow: "hidden",
-    zIndex: 1000,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
-  },
 
-  section: { paddingLeft: 20, marginTop: 30, paddingHorizontal: 20 },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  sectionTitle: { fontSize: 24, fontWeight: "700", color: "#111" },
-  seeAllRow: { flexDirection: "row", alignItems: "center" },
-  seeAllText: { fontSize: 14, color: "#666", fontWeight: "500" },
-
+  /* Categories */
+  categorySection: { paddingHorizontal: 20, marginTop: 20 },
   categoryCard: {
-    width: CARD_WIDTH,
+    width: CARD_W,
     aspectRatio: 1,
     borderRadius: 16,
     justifyContent: "center",
@@ -694,7 +744,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
   specialCard: {
-    width: CARD_WIDTH,
+    width: CARD_W,
     aspectRatio: 1,
     borderRadius: 16,
     padding: 12,
@@ -734,31 +784,55 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  /* Section */
+  section: { paddingLeft: 20, marginTop: 28, paddingHorizontal: 20 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sectionAccent: {
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+    backgroundColor: "#FF8C00",
+  },
+  sectionTitle: { fontSize: 22, fontWeight: "700", color: "#111" },
+  seeAllRow: { flexDirection: "row", alignItems: "center" },
+  seeAllText: { fontSize: 13, color: "#FF8C00", fontWeight: "600" },
+
+  /* Skeleton */
+  skeletonRow: { flexDirection: "row", paddingVertical: 10 },
+
+  /* Store card */
   placeCard: {
     width: 180,
-    marginRight: 15,
+    marginRight: 14,
     backgroundColor: "#FFF",
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    shadowOpacity: 0.09,
+    shadowRadius: 8,
     elevation: 3,
   },
-  placeImage: { width: "100%", height: 120, resizeMode: "cover" },
+  placeImage: { width: "100%", height: 110, resizeMode: "cover" },
+  placeBody: { padding: 10 },
   placeName: {
-    fontSize: 15,
-    fontWeight: "600",
-    lineHeight: 18,
-    height: 25,
+    fontSize: 14,
+    fontWeight: "700",
     color: "#111",
+    marginBottom: 4,
   },
   placeInfoRow: { flexDirection: "row", alignItems: "center" },
-  rating: { fontSize: 12, fontWeight: "700", color: "#333" },
-  dot: { marginHorizontal: 4, color: "#999" },
-  placeAddress: { fontSize: 12, color: "#666", flex: 1 },
+  ratingText: { fontSize: 12, fontWeight: "700", color: "#555", marginLeft: 4 },
+  dot: { marginHorizontal: 5, color: "#DDD", fontSize: 12 },
+  placeAddress: { fontSize: 12, color: "#999", flex: 1 },
 
+  /* Product card */
   priceCard: {
     width: 160,
     marginRight: 14,
@@ -771,18 +845,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  priceImageBox: {
-    height: 130,
-    overflow: "hidden",
-  },
+  priceImageBox: { height: 130, overflow: "hidden" },
   priceImage: { width: "100%", height: "100%", resizeMode: "cover" },
   priceContent: { padding: 12 },
   priceName: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     color: "#111",
-    lineHeight: 23,
-    minHeight: 46,
+    lineHeight: 21,
+    minHeight: 42,
     marginBottom: 2,
   },
   priceRatingRow: {
@@ -791,7 +862,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   priceRatingText: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#999",
     marginLeft: 4,
     fontWeight: "500",
@@ -802,8 +873,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  priceFromLabel: { fontSize: 12, color: "#BBB", marginBottom: 2 },
-  priceText: { fontSize: 15, fontWeight: "800", color: "#FF8C00" },
+  priceFromLabel: { fontSize: 11, color: "#BBB", marginBottom: 2 },
+  priceText: { fontSize: 14, fontWeight: "800", color: "#FF8C00" },
   priceArrowBtn: {
     width: 28,
     height: 28,
@@ -813,29 +884,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+  /* News card */
   newsCard: {
     width: 200,
-    marginRight: 15,
+    marginRight: 14,
     backgroundColor: "#FFF",
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
+    shadowOpacity: 0.09,
+    shadowRadius: 8,
     elevation: 3,
   },
   newsImage: { width: "100%", height: 110, resizeMode: "cover" },
-  newsTitle: { fontSize: 14, fontWeight: "400", lineHeight: 18, color: "#222" },
+  newsBody: { padding: 12 },
+  newsBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#FFF0E0",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  newsBadgeText: { fontSize: 10, fontWeight: "700", color: "#FF8C00" },
+  newsTitle: { fontSize: 13, fontWeight: "500", lineHeight: 18, color: "#222" },
 
+  /* Consult */
   consultSection: {
     backgroundColor: "#0F1B1D",
     paddingHorizontal: 20,
     paddingVertical: 32,
-    marginTop: 50,
+    marginTop: 40,
   },
   consultHeading: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "700",
     color: "#E6D5C3",
     textAlign: "center",
@@ -850,18 +933,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   inputBox: {
-    backgroundColor: "white",
-    borderRadius: 8,
-    paddingVertical: 8,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  inputPlaceholder: { color: "#888", fontSize: 14 },
+  textInput: { color: "#111", fontSize: 14 },
   consultLabel: {
     fontWeight: "700",
     color: "#DDD",
-    fontSize: 18,
-    marginTop: 10,
+    fontSize: 16,
+    marginTop: 8,
     marginBottom: 12,
     textAlign: "center",
   },
@@ -874,16 +957,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#2A3A3D",
   },
-  tabItem: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  tabItem: { flex: 1, paddingVertical: 12, alignItems: "center" },
   tabActive: { backgroundColor: "#2F80ED" },
-  tabText: { fontSize: 14, color: "#888", fontWeight: "500" },
+  tabText: { fontSize: 13, color: "#888", fontWeight: "500" },
   tabTextActive: { color: "#FFF", fontWeight: "600" },
-  radioRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  radioRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
   radioActive: {
     width: 10,
     height: 10,
@@ -904,19 +982,20 @@ const styles = StyleSheet.create({
     borderColor: "#646464",
     marginRight: 10,
     marginTop: 3,
+    borderRadius: 3,
   },
   checkboxText: { color: "#AAA", fontSize: 13, flex: 1, lineHeight: 18 },
   submitBtn: {
     backgroundColor: "#2F80ED",
-    paddingVertical: 14,
-    borderRadius: 8,
+    paddingVertical: 15,
+    borderRadius: 10,
     marginTop: 20,
   },
   submitText: {
-    color: "white",
+    color: "#fff",
     textAlign: "center",
-    fontWeight: "600",
-    fontSize: 14,
+    fontWeight: "700",
+    fontSize: 15,
+    letterSpacing: 0.5,
   },
-  textInputt: { color: "black" },
 });

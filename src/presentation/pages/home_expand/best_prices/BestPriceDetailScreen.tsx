@@ -1,32 +1,35 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
+  Pressable,
+  useWindowDimensions,
   View,
 } from "react-native";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import API_URL from "../../../../data/api/apis";
 import { HomeStackParamList } from "../../../navigation/types";
 import BEST_PRICE_DATA from "../../../../data/bestPrice";
 
-
-// Encode từng segment của path, giữ nguyên dấu /
-// "motorbike/VinFast Evo 200 Lite.jpg" → "motorbike/VinFast%20Evo%20200%20Lite.jpg"
-const encodeImagePath = (path: string) =>
-  path.split("/").map(encodeURIComponent).join("/");
-
-/* ================= TYPES ================= */
+const encodeImagePath = (p: string) =>
+  p.split("/").map(encodeURIComponent).join("/");
 
 type RouteProps = RouteProp<HomeStackParamList, "best_price_detail">;
-
 interface ProductFromDB {
   id: number;
   name: string;
@@ -35,189 +38,304 @@ interface ProductFromDB {
   category: string;
 }
 
-/* ================= SCREEN ================= */
+const CATEGORY_COLOR: Record<string, string> = {
+  pho_thong: "#FF8C00",
+  trung_cap: "#2D6BE4",
+  cao_cap: "#9B51E0",
+};
 
 export default function BestPriceDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProps>();
   const { id } = route.params;
+  const insets = useSafeAreaInsets();
 
   const [product, setProduct] = useState<ProductFromDB | null>(null);
-  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState<number>(0);
+  const [wishlisted, setWishlisted] = useState(false);
+  const heartScale = useRef(new Animated.Value(1)).current;
 
-  // Data fix cứng theo id
+  const { width: screenWidth } = useWindowDimensions();
+  const swipeBack = Gesture.Pan()
+    .activeOffsetX([5, 999])
+    .failOffsetY([-15, 15])
+    .onEnd((e) => {
+      if (e.translationX > 50) navigation.goBack();
+    })
+    .runOnJS(true);
+
   const staticData = BEST_PRICE_DATA[id];
+  const accentColor = product
+    ? (CATEGORY_COLOR[product.category] ?? "#FF8C00")
+    : "#FF8C00";
 
-  /* ── Fetch name/price/image từ DB ── */
   useEffect(() => {
-    const fetchProduct = async () => {
+    (async () => {
       try {
         const res = await fetch(`${API_URL}/api/products/${id}`);
         const data = await res.json();
         setProduct(data);
-        // Set màu đầu tiên
-        if (staticData?.colors?.length > 0) {
+        if (staticData?.colors?.length > 0)
           setSelectedColor(staticData.colors[0].id);
-        }
       } catch (e) {
         console.log("Lỗi fetch product:", e);
       } finally {
         setLoading(false);
       }
-    };
-    fetchProduct();
+    })();
   }, [id]);
 
   const selectedVariant = useMemo(
     () => staticData?.colors?.find((c) => c.id === selectedColor),
-    [selectedColor, staticData]
+    [selectedColor, staticData],
   );
 
-  const formatPrice = (price: number) =>
-    price.toLocaleString("vi-VN") + "đ";
+  const handleWishlist = () => {
+    setWishlisted((v) => !v);
+    Animated.sequence([
+      Animated.timing(heartScale, {
+        toValue: 1.4,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(heartScale, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
-  /* ── Loading ── */
+  const handleShare = () => {
+    Share.share({ message: `Xem xe ${product?.name} trên VinFast App!` });
+  };
+
+  const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
+
   if (loading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <ActivityIndicator
-          size="large"
-          color="#C47A4A"
-          style={{ marginTop: 40 }}
-        />
+      <View
+        style={[
+          styles.container,
+          {
+            paddingTop: insets.top,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
+        <ActivityIndicator size="large" color="#FF8C00" />
       </View>
     );
   }
 
-  /* ── Không tìm thấy ── */
   if (!product || !staticData) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Text style={{ textAlign: "center", marginTop: 40 }}>
+      <View
+        style={[
+          styles.container,
+          {
+            paddingTop: insets.top,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
+        <FontAwesome name="exclamation-circle" size={40} color="#DDD" />
+        <Text style={{ color: "#999", marginTop: 12, fontSize: 15 }}>
           Không tìm thấy sản phẩm
         </Text>
       </View>
     );
   }
 
-  /* ================= UI ================= */
-
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-
-      {/* ===== HEADER ===== */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <FontAwesome name="chevron-left" size={20} color="#111" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi Tiết</Text>
-        <TouchableOpacity>
-          <FontAwesome name="heart-o" size={20} color="#111" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 200 }}
-      >
-        {/* ===== IMAGE (từ DB) ===== */}
-        <View style={styles.imageBox}>
-          <Image
-            source={{ uri: `${API_URL}/images/${encodeImagePath(product.image)}` }}
-            style={styles.image}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureDetector gesture={swipeBack}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <StatusBar
+            barStyle="dark-content"
+            translucent
+            backgroundColor="transparent"
           />
-        </View>
 
-        {/* ===== CONTENT ===== */}
-        <View style={styles.content}>
-          {/* Tên (từ DB) */}
-          <Text style={styles.title}>{product.name}</Text>
-
-          {/* Rating (fix cứng) */}
-          <View style={styles.ratingRow}>
-            <FontAwesome name="star" size={14} color="#F5A623" />
-            <Text style={styles.rating}>{staticData.rating}</Text>
-            <Text style={styles.ratingCount}>({staticData.ratingCount})</Text>
-          </View>
-
-          {/* Mô tả (fix cứng) */}
-          <Text style={styles.desc}>{staticData.desc}</Text>
-
-          {/* Quick info (fix cứng) */}
-          <View style={styles.quickInfo}>
-            {staticData.quickInfo.map((item, index) => (
-              <View key={index} style={styles.quickItem}>
-                <Text style={styles.quickValue}>{item.value}</Text>
-                <Text style={styles.quickLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Ưu điểm nổi bật (fix cứng) */}
-          <View style={styles.highlightBox}>
-            <Text style={styles.sectionTitle}>Ưu điểm nổi bật</Text>
-            {staticData.highlights.map((text, index) => (
-              <Text key={index} style={styles.bullet}>• {text}</Text>
-            ))}
-          </View>
-
-          {/* Thông số (fix cứng) */}
-          <View style={styles.specBox}>
-            <Text style={styles.sectionTitle}>Thông số chính</Text>
-            {staticData.specs.map((item, index) => (
-              <View key={index} style={styles.specRow}>
-                <Text style={styles.specLabel}>{item.label}</Text>
-                <Text style={styles.specValue}>{item.value}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* ===== FOOTER ===== */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.priceLabel}>Giá bán</Text>
-          {/* Giá: ưu tiên giá màu đang chọn, fallback về giá DB */}
-          <Text style={styles.price}>
-            {formatPrice(selectedVariant?.price ?? product.price)}
-          </Text>
-
-          {/* Color picker (fix cứng) */}
-          <View style={styles.footerColorRow}>
-            {staticData.colors.map((item) => (
+          {/* HEADER */}
+          <View style={styles.header}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+              style={({ pressed }) => [
+                styles.iconBtn,
+                pressed && { backgroundColor: "#E8E8E8" },
+              ]}
+            >
+              <FontAwesome name="chevron-left" size={15} color="#111" />
+            </Pressable>
+            <Text style={styles.headerTitle}>Chi Tiết</Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
               <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.footerColorItem,
-                  selectedColor === item.id && styles.footerColorItemActive,
-                ]}
-                onPress={() => setSelectedColor(item.id)}
-                activeOpacity={0.8}
+                style={styles.iconBtn}
+                onPress={handleShare}
+                activeOpacity={0.7}
               >
-                <View
-                  style={[
-                    styles.footerColorFill,
-                    { backgroundColor: item.color },
-                  ]}
-                />
+                <FontAwesome name="share-alt" size={15} color="#111" />
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={handleWishlist}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+                  <FontAwesome
+                    name={wishlisted ? "heart" : "heart-o"}
+                    size={15}
+                    color={wishlisted ? "#E74C3C" : "#111"}
+                  />
+                </Animated.View>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 220 }}
+            scrollEventThrottle={16}
+            bounces={false}
+          >
+            {/* IMAGE */}
+            <View style={styles.imageBox}>
+              <Image
+                source={{
+                  uri: `${API_URL}/images/${encodeImagePath(product.image)}`,
+                }}
+                style={styles.image}
+              />
+            </View>
+
+            <View style={styles.content}>
+              {/* Title + rating */}
+              <Text style={styles.title}>{product.name}</Text>
+              <View style={styles.ratingRow}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <FontAwesome
+                    key={s}
+                    name={
+                      s <= Math.floor(staticData.rating)
+                        ? "star"
+                        : s - 0.5 <= staticData.rating
+                          ? "star-half-empty"
+                          : "star-o"
+                    }
+                    size={14}
+                    color="#F5A623"
+                    style={{ marginRight: 2 }}
+                  />
+                ))}
+                <Text style={styles.ratingNum}>{staticData.rating}</Text>
+                <Text style={styles.ratingCount}>
+                  ({staticData.ratingCount} đánh giá)
+                </Text>
+              </View>
+
+              <Text style={styles.desc}>{staticData.desc}</Text>
+
+              {/* Quick info */}
+              <View style={styles.quickInfo}>
+                {staticData.quickInfo.map((item: any, i: number) => (
+                  <View
+                    key={i}
+                    style={[styles.quickItem, { borderTopColor: accentColor }]}
+                  >
+                    <Text style={[styles.quickValue, { color: accentColor }]}>
+                      {item.value}
+                    </Text>
+                    <Text style={styles.quickLabel}>{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Highlights */}
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>✦ Ưu điểm nổi bật</Text>
+                {staticData.highlights.map((text: string, i: number) => (
+                  <View key={i} style={styles.bulletRow}>
+                    <View
+                      style={[
+                        styles.bulletDot,
+                        { backgroundColor: accentColor },
+                      ]}
+                    />
+                    <Text style={styles.bulletText}>{text}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Specs */}
+              <View style={[styles.card, { marginTop: 16 }]}>
+                <Text style={styles.cardTitle}>⚙ Thông số chính</Text>
+                {staticData.specs.map((item: any, i: number) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.specRow,
+                      i < staticData.specs.length - 1 && styles.specRowBorder,
+                    ]}
+                  >
+                    <Text style={styles.specLabel}>{item.label}</Text>
+                    <Text style={[styles.specValue, { color: accentColor }]}>
+                      {item.value}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* FOOTER */}
+          <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.priceLabel}>Giá bán</Text>
+              <Text style={[styles.price, { color: accentColor }]}>
+                {formatPrice(selectedVariant?.price ?? product.price)}
+              </Text>
+              <View style={styles.footerColorRow}>
+                {staticData.colors.map((item: any) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.colorSwatch,
+                      selectedColor === item.id && {
+                        borderColor: accentColor,
+                        borderWidth: 2,
+                      },
+                    ]}
+                    onPress={() => setSelectedColor(item.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={[
+                        styles.colorFill,
+                        { backgroundColor: item.color },
+                      ]}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.buyBtn, { backgroundColor: accentColor }]}
+              activeOpacity={0.85}
+            >
+              <FontAwesome name="tag" size={14} color="#fff" />
+              <Text style={styles.buyText}>ĐĂNG KÝ MUA</Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        <TouchableOpacity style={styles.buyBtn} activeOpacity={0.85}>
-          <Text style={styles.buyText}>ĐĂNG KÝ MUA XE</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      </GestureDetector>
+    </GestureHandlerRootView>
   );
 }
-
-/* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFF" },
@@ -232,31 +350,46 @@ const styles = StyleSheet.create({
     borderBottomColor: "#EEE",
     backgroundColor: "#FFF",
   },
-  headerTitle: { fontSize: 18, fontWeight: "700" },
-
-  imageBox: {
-    height: 280,
-    overflow: "hidden",
+  headerTitle: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
   },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F5F5F5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  imageBox: { height: 280, overflow: "hidden" },
   image: { width: "100%", height: "100%", resizeMode: "cover" },
 
   content: { paddingHorizontal: 16 },
-  title: { fontSize: 24, fontWeight: "800", marginBottom: 6, marginTop: 20 },
-
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    marginBottom: 8,
+    marginTop: 20,
+    color: "#111",
   },
-  rating: { marginLeft: 6, fontWeight: "600" },
-  ratingCount: { marginLeft: 4, fontSize: 12, color: "#999" },
 
-  desc: { fontSize: 14, color: "#555", lineHeight: 22, marginBottom: 18 },
+  ratingRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  ratingNum: { fontSize: 14, fontWeight: "700", color: "#333", marginLeft: 8 },
+  ratingCount: { fontSize: 13, color: "#999", marginLeft: 4 },
+
+  desc: { fontSize: 14, color: "#666", lineHeight: 22, marginBottom: 20 },
 
   quickInfo: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 22,
+    marginBottom: 20,
   },
   quickItem: {
     width: "30%",
@@ -264,24 +397,40 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "#F8F8F8",
     alignItems: "center",
+    borderTopWidth: 3,
   },
-  quickValue: { fontWeight: "700", fontSize: 15 },
-  quickLabel: { marginTop: 4, fontSize: 12, color: "#888" },
+  quickValue: { fontWeight: "800", fontSize: 15 },
+  quickLabel: { marginTop: 5, fontSize: 12, color: "#888" },
 
-  highlightBox: { marginBottom: 22 },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
-  bullet: { fontSize: 14, color: "#555", lineHeight: 22 },
+  card: { backgroundColor: "#F8F8F8", borderRadius: 16, padding: 16 },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 12,
+  },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  bulletDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginTop: 6,
+    marginRight: 10,
+  },
+  bulletText: { fontSize: 14, color: "#555", lineHeight: 22, flex: 1 },
 
-  specBox: { marginBottom: 22 },
   specRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#EEE",
+    paddingVertical: 10,
   },
-  specLabel: { color: "#777" },
-  specValue: { fontWeight: "600" },
+  specRowBorder: { borderBottomWidth: 0.5, borderBottomColor: "#EBEBEB" },
+  specLabel: { color: "#777", fontSize: 14 },
+  specValue: { fontWeight: "700", fontSize: 14 },
 
   footer: {
     position: "absolute",
@@ -289,36 +438,34 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 14,
     flexDirection: "row",
     alignItems: "center",
     borderTopWidth: 0.5,
     borderTopColor: "#EEE",
     backgroundColor: "#FFF",
   },
-  priceLabel: { fontSize: 12, color: "#888" },
-  price: { fontSize: 18, fontWeight: "700", color: "#C0392B" },
-
-  footerColorRow: { flexDirection: "row", marginTop: 10 },
-  footerColorItem: {
-    width: 36,
-    height: 36,
+  priceLabel: { fontSize: 11, color: "#999", marginBottom: 2 },
+  price: { fontSize: 20, fontWeight: "800" },
+  footerColorRow: { flexDirection: "row", marginTop: 8, gap: 8 },
+  colorSwatch: {
+    width: 34,
+    height: 34,
     borderRadius: 10,
     borderWidth: 1.5,
     borderColor: "#EEE",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
   },
-  footerColorItemActive: { borderColor: "#C47A4A" },
-  footerColorFill: { width: 22, height: 22, borderRadius: 6 },
-
+  colorFill: { width: 20, height: 20, borderRadius: 5 },
   buyBtn: {
-    marginLeft: 12,
-    backgroundColor: "#C47A4A",
-    paddingHorizontal: 24,
+    marginLeft: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 22,
     paddingVertical: 14,
     borderRadius: 18,
   },
-  buyText: { color: "#FFF", fontWeight: "700", fontSize: 13 },
+  buyText: { color: "#FFF", fontWeight: "800", fontSize: 13 },
 });
