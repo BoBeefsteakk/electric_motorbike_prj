@@ -49,28 +49,44 @@ export default function CartScreen() {
     const [isEditMode, setIsEditMode] = useState(false);
     const navigation = useNavigation<any>(); // Sửa để tránh lỗi type khi navigate
     const route = useRoute<any>();
-
+    const userId = route.params?.userId || 'user_test_123'; // Tạm hardcode userId, sau này sẽ lấy từ auth context hoặc params
     // --- 1. LẤY DỮ LIỆU THẬT TỪ DATABASE ---
     const fetchCart = async () => {
+        if (!userId) {
+            console.log("Không có userId, không thể tải giỏ hàng");
+            setLoading(false);
+            return;
+        }
         try {
             setLoading(true);
-            const response = await axiosClient.get('/cart/user_test_123'); // Đảm bảo đúng UserId
-            if (response.data.success && response.data.data) {
-                // Thêm thuộc tính 'selected' vì DB không lưu cái này
-                const itemsFromDB = response.data.data.items.map((item: any) => ({
+            const response = await axiosClient.get(`/cart/${userId}`); // Sửa endpoint nếu cần, đảm bảo đúng với API của bạn
+
+            // Xử lý linh hoạt dữ liệu trả về
+            let cartData = null;
+            if (response.data && response.data.success && response.data.data) {
+                cartData = response.data.data; 
+            } else if (response.data && response.data.items) {
+                cartData = response.data; 
+            }
+
+            // Cập nhật state
+            if (cartData && Array.isArray(cartData.items)) {
+                const itemsFromDB = cartData.items.map((item: any) => ({
                     ...item,
-                    selected: true,
+                    selected: false, // Mặc định bỏ chọn để user tự tick chọn cái muốn mua
                 }));
                 setCartItems(itemsFromDB);
+            } else {
+                setCartItems([]);
             }
-        } catch (error) {
-            console.error("Lỗi lấy giỏ hàng:", error);
-            Alert.alert("Lỗi", "Không thể kết nối tới máy chủ.");
+        } catch (error) { 
+            // Chỉ log ngầm để debug, không văng Popup lên màn hình user
+            console.error("Lỗi fetch giỏ hàng:", error);
+            setCartItems([]);
         } finally {
             setLoading(false);
         }
     };
-
     useEffect(() => {
         fetchCart();
     }, []);
@@ -94,7 +110,7 @@ export default function CartScreen() {
         setCartItems((prev) => prev.filter((item) => item.productId !== productId));
         try {
             await axiosClient.post('/cart/remove-item', {
-                userId: 'user_test_123',
+                userId: userId,
                 productId
             });
         } catch (error) {
@@ -144,7 +160,7 @@ export default function CartScreen() {
         // Gọi API update số lượng lên server để đồng bộ
         try {
             await axiosClient.post('/cart/update-quantity', {
-                userId: 'user_test_123',
+                userId: userId,
                 productId,
                 quantity: newQty
             });
@@ -193,7 +209,7 @@ export default function CartScreen() {
     const handleAddToCart = async (item: CartItem) => {
         try {
             await axiosClient.post('/cart/add', {
-                userId: 'user_test_123',
+                userId: userId,
                 productId: item.productId,
                 name: item.name,
                 price: item.price,
@@ -211,7 +227,7 @@ export default function CartScreen() {
         // Đảm bảo sản phẩm đã có trong giỏ hàng trước khi chuyển sang checkout
         try {
             await axiosClient.post('/cart/add', {
-                userId: 'user_test_123',
+                userId: userId,
                 productId: item.productId,
                 name: item.name,
                 price: item.price,
@@ -314,29 +330,27 @@ export default function CartScreen() {
                                 disabled={cartItems.filter(item => item.selected).length === 0}
                                 onPress={async () => {
                                     if (isEditMode) {
-                                        // Xoá các sản phẩm đã chọn (không cần xác nhận lại)
+                                        // Xoá các sản phẩm đã chọn
                                         const selectedIds = cartItems.filter(i => i.selected).map(i => i.productId);
                                         setCartItems(prev => prev.filter(i => !selectedIds.includes(i.productId)));
                                         for (const id of selectedIds) {
                                             try {
                                                 await axiosClient.post('/cart/remove-item', {
-                                                    userId: 'user_test_123',
+                                                    userId: userId,
                                                     productId: id
                                                 });
                                             } catch (e) {}
                                         }
                                     } else {
-                                        // Thanh toán
-                                        try {
-                                            await fetchCart();
-                                            const selectedItems = cartItems.filter(item => item.selected);
-                                            navigation.navigate('checkout', {
-                                                cartItems: selectedItems,
-                                                appliedVoucher
-                                            });
-                                        } catch (error) {
-                                            Alert.alert('Lỗi', 'Không thể chuyển sang thanh toán.');
-                                        }
+                                        // THANH TOÁN
+                                        const selectedItems = cartItems.filter(item => item.selected);
+
+                                        if (selectedItems.length === 0) return; // Đề phòng user chưa chọn gì
+
+                                        navigation.navigate('checkout', {
+                                            cartItems: selectedItems,
+                                            appliedVoucher
+                                        });
                                     }
                                 }}
                             >
