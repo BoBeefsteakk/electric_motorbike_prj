@@ -7,10 +7,14 @@ import ForgotPasswordScreen from "../pages/forgot";
 import LoginScreen from "../pages/login";
 import RegisterScreen from "../pages/register";
 
+<<<<<<< HEAD
+=======
+import DetailScreen from "../../screen/detailScreen";
+>>>>>>> 8a29b7185a24e1c90e337b2518673cb885ecd5da
 import CartScreen from "../pages/cart";
 import HomeScreen from "../pages/home";
 import ProfileScreen from "../pages/profile";
-
+import OrderScreen from "../pages/Order";
 import HomeBannerDetail from "../pages/home_expand/home_banner_detail";
 
 /* CATEGORY */
@@ -49,7 +53,12 @@ import PaymentScreen from "../pages/Payment";
 import PrivacyPolicyScreen from "../pages/PrivacyPolicy";
 import SecurityScreen from "../pages/Security";
 
+<<<<<<< HEAD
 import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
+=======
+import CheckoutScreen from '../pages/checkout';
+import PaymentSuccessScreen from '../pages/PaymentSuccess';
+>>>>>>> 8a29b7185a24e1c90e337b2518673cb885ecd5da
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -192,16 +201,30 @@ function InappNavigation() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ color }) => {
+        tabBarIcon: ({ color, size }) => {
           let icon = "home";
           if (route.name === "cart") icon = "shopping-cart";
           if (route.name === "search") icon = "search";
           if (route.name === "profile") icon = "user";
+<<<<<<< HEAD
 
           return <Icon name={icon} size={20} color={color} />;
+=======
+          return <Icon name={icon} size={size ?? 22} color={color} />;
+>>>>>>> 8a29b7185a24e1c90e337b2518673cb885ecd5da
         },
         tabBarActiveTintColor: "#39B78D",
         tabBarInactiveTintColor: "gray",
+        tabBarStyle: {
+          height: 60,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginBottom: 2,
+        },
+        tabBarItemStyle: {
+          flex: 1,
+        },
       })}
     >
       <Tab.Screen
@@ -239,6 +262,10 @@ export function AppNavigation() {
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="auth" component={AuthNavigation} />
         <RootStack.Screen name="inapp" component={InappNavigation} />
+        <RootStack.Screen name="checkout" component={CheckoutScreen} />
+        <RootStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+        <RootStack.Screen name="DetailScreen" component={DetailScreen} />
+        <RootStack.Screen name="Order" component={OrderScreen} />
       </RootStack.Navigator>
     </NavigationContainer>
   );

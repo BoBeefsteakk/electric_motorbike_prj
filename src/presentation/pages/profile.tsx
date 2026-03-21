@@ -41,14 +41,10 @@ export default function ProfileScreen() {
   const [isNotificationOn, setIsNotificationOn] = useState(true);
 
   const pickImage = async () => {
-
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (status !== 'granted') {
-      Alert.alert(
-        'Thông báo',
-        'Bạn cần cho phép truy cập thư viện ảnh'
-      );
+      Alert.alert('Thông báo', 'Bạn cần cho phép truy cập thư viện ảnh');
       return;
     }
 
@@ -62,7 +58,6 @@ export default function ProfileScreen() {
     if(!result.canceled && result.assets.length>0){
       setAvatarUri(result.assets[0].uri)
     }
-
   };
 
   const MenuItem = ({
@@ -72,7 +67,6 @@ export default function ProfileScreen() {
     isLogout,
     screen
   }: MenuItemProps) => (
-
     <Pressable
       style={styles.menuItem}
       onPress={()=>{
@@ -81,110 +75,59 @@ export default function ProfileScreen() {
         }
       }}
     >
-
       <View style={styles.menuLeft}>
-
         <Ionicons
           name={icon}
           size={24}
           color={isLogout ? "#F75555" : "#212121"}
         />
-
         <Text style={[styles.menuLabel, isLogout && styles.logoutLabel]}>
           {label}
         </Text>
-
       </View>
 
       <View style={styles.menuRight}>
-
-        {rightElement ? (
-          rightElement
-        ) : (
+        {rightElement ? rightElement : (
           !isLogout && (
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color="#212121"
-            />
+            <Ionicons name="chevron-forward" size={20} color="#212121"/>
           )
         )}
-
       </View>
-
     </Pressable>
   );
 
   return (
-
     <SafeAreaView style={styles.container}>
 
-      {/* HEADER */}
-
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          Hồ sơ cá nhân
-        </Text>
-
-        <Ionicons
-          name="ellipsis-horizontal-circle"
-          size={24}
-          color="black"
-        />
+        <Text style={styles.headerTitle}>Hồ sơ cá nhân</Text>
+        <Ionicons name="ellipsis-horizontal-circle" size={24} color="black"/>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* PROFILE */}
-
         <View style={styles.profileSection}>
-
           <View style={styles.avatarContainer}>
+            <Image source={{uri:avatarUri}} style={styles.avatar}/>
 
-            <Image
-              source={{uri:avatarUri}}
-              style={styles.avatar}
-            />
-
-            <Pressable
-              style={styles.editAvatarBtn}
-              onPress={pickImage}
-            >
-              <Ionicons
-                name="pencil"
-                size={12}
-                color="white"
-              />
+            <Pressable style={styles.editAvatarBtn} onPress={pickImage}>
+              <Ionicons name="pencil" size={12} color="white"/>
             </Pressable>
-
           </View>
 
-          <Text style={styles.userName}>
-            {name}
-          </Text>
-
-          <Text style={styles.userPhone}>
-            {phone}
-          </Text>
-
+          <Text style={styles.userName}>{name}</Text>
+          <Text style={styles.userPhone}>{phone}</Text>
         </View>
 
         <View style={styles.divider}/>
 
-        {/* MENU */}
-
         <View style={styles.menuSection}>
 
-          <MenuItem
-            icon="person-outline"
-            label="Chỉnh sửa hồ sơ"
-            screen="edit_profile"
-          />
+          <MenuItem icon="person-outline" label="Chỉnh sửa hồ sơ" screen="edit_profile"/>
 
           <MenuItem
             icon="notifications-outline"
             label="Thông báo"
-            screen="notification"
             rightElement={
               <Switch
                 value={isNotificationOn}
@@ -193,23 +136,9 @@ export default function ProfileScreen() {
             }
           />
 
-          <MenuItem
-            icon="card-outline"
-            label="Thanh toán"
-            screen="payment"
-          />
-
-          <MenuItem
-            icon="shield-checkmark-outline"
-            label="Bảo mật"
-            screen="security"
-          />
-
-          <MenuItem
-            icon="language-outline"
-            label="Ngôn ngữ"
-            screen="language"
-          />
+          <MenuItem icon="card-outline" label="Thanh toán" screen="payment"/>
+          <MenuItem icon="shield-checkmark-outline" label="Bảo mật" screen="security"/>
+          <MenuItem icon="language-outline" label="Ngôn ngữ" screen="language"/>
 
           <MenuItem
             icon="moon-outline"
@@ -222,119 +151,108 @@ export default function ProfileScreen() {
             }
           />
 
-          <MenuItem
-            icon="document-text-outline"
-            label="Chính sách bảo mật"
-            screen="privacy_policy"
-          />
+          <MenuItem icon="document-text-outline" label="Chính sách bảo mật" screen="privacy_policy"/>
 
-          <MenuItem
-            icon="log-out-outline"
-            label="Đăng xuất"
-            isLogout
-          />
+          <MenuItem icon="log-out-outline" label="Đăng xuất" isLogout/>
 
         </View>
 
       </ScrollView>
-
     </SafeAreaView>
-
   );
 }
-
 const styles = StyleSheet.create({
 
-container:{
-flex:1,
-backgroundColor:"#fff"
-},
+  container:{
+    flex:1,
+    backgroundColor:"#fff"
+  },
 
-header:{
-flexDirection:"row",
-justifyContent:"space-between",
-alignItems:"center",
-padding:20
-},
+  header:{
+    flexDirection:"row",
+    justifyContent:"space-between",
+    alignItems:"center",
+    padding:20
+  },
 
-headerTitle:{
-fontSize:24,
-fontWeight:"bold"
-},
+  headerTitle:{
+    fontSize:24,
+    fontWeight:"bold"
+  },
 
-profileSection:{
-alignItems:"center",
-marginTop:20,
-marginBottom:25
-},
+  profileSection:{
+    alignItems:"center",
+    marginTop:20,
+    marginBottom:25
+  },
 
-avatarContainer:{
-position:"relative"
-},
+  avatarContainer:{
+    position:"relative"
+  },
 
-avatar:{
-width:120,
-height:120,
-borderRadius:60
-},
+  avatar:{
+    width:120,
+    height:120,
+    borderRadius:60
+  },
 
-editAvatarBtn:{
-position:"absolute",
-bottom:5,
-right:5,
-backgroundColor:"#000",
-padding:6,
-borderRadius:8
-},
+  editAvatarBtn:{
+    position:"absolute",
+    bottom:5,
+    right:5,
+    backgroundColor:"#000",
+    padding:6,
+    borderRadius:8
+  },
 
-userName:{
-fontSize:24,
-fontWeight:"bold",
-marginTop:15
-},
+  userName:{
+    fontSize:24,
+    fontWeight:"bold",
+    marginTop:15
+  },
 
-userPhone:{
-fontSize:14,
-color:"#616161",
-marginTop:8
-},
+  userPhone:{
+    fontSize:14,
+    color:"#616161",
+    marginTop:8
+  },
 
-divider:{
-height:1,
-backgroundColor:"#eee",
-marginHorizontal:20
-},
+  divider:{
+    height:1,
+    backgroundColor:"#eee",
+    marginHorizontal:20
+  },
 
-menuSection:{
-paddingHorizontal:20,
-paddingVertical:10
-},
+  menuSection:{
+    paddingHorizontal:20,
+    paddingVertical:10
+  },
 
-menuItem:{
-flexDirection:"row",
-justifyContent:"space-between",
-alignItems:"center",
-paddingVertical:15
-},
+  menuItem:{
+    flexDirection:"row",
+    justifyContent:"space-between",
+    alignItems:"center",
+    paddingVertical:15
+  },
 
-menuLeft:{
-flexDirection:"row",
-alignItems:"center",
-gap:15
-},
+  menuLeft:{
+    flexDirection:"row",
+    alignItems:"center",
+    gap:15
+  },
 
-menuLabel:{
-fontSize:18,
-fontWeight:"600"
-},
+  menuLabel:{
+    fontSize:18,
+    fontWeight:"600"
+  },
 
-logoutLabel:{
-color:"#F75555"
-},
+  logoutLabel:{
+    color:"#F75555"
+  },
 
-menuRight:{
-flexDirection:"row",
-alignItems:"center"
-}
+  menuRight:{
+    flexDirection:"row",
+    alignItems:"center"
+  }
 
 });
