@@ -12,6 +12,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+// 1. Import useNavigation để chuyển màn hình
+import { useNavigation } from '@react-navigation/native';
 
 /* Định nghĩa kiểu dữ liệu cho từng mục Menu */
 interface MenuItemProps {
@@ -19,9 +21,11 @@ interface MenuItemProps {
   label: string;
   rightElement?: React.ReactNode;
   isLogout?: boolean;
+  onPress?: () => void; // Thêm onPress để có thể bấm chuyển trang
 }
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<any>(); // Khởi tạo navigation
   const [isDarkMode, setIsDarkMode] = useState(false);
   
   // Ảnh mặc định từ Pinterest bạn yêu cầu
@@ -53,9 +57,15 @@ export default function ProfileScreen() {
     }
   };
 
-  // Thành phần Menu Item viết gọn
-  const MenuItem = ({ icon, label, rightElement, isLogout }: MenuItemProps) => (
-    <Pressable style={styles.menuItem}>
+  // Thành phần Menu Item viết gọn (đã thêm sự kiện onPress)
+  const MenuItem = ({ icon, label, rightElement, isLogout, onPress }: MenuItemProps) => (
+    <Pressable 
+      style={({ pressed }) => [
+        styles.menuItem,
+        pressed && { opacity: 0.6 } // Thêm hiệu ứng mờ nhẹ khi bấm vào
+      ]}
+      onPress={onPress}
+    >
       <View style={styles.menuLeft}>
         <Ionicons
           name={icon}
@@ -129,6 +139,15 @@ export default function ProfileScreen() {
 
         {/* Menu List */}
         <View style={styles.menuSection}>
+
+          {/* === MỤC MỚI THÊM: ĐƠN HÀNG CỦA TÔI === */}
+          <MenuItem 
+            icon="receipt-outline" 
+            label="My Orders" 
+            onPress={() => navigation.navigate('Order')} 
+          />
+          {/* ======================================== */}
+
           <MenuItem icon="person-outline" label="Edit Profile" />
           <MenuItem icon="location-outline" label="Address" />
           <MenuItem icon="notifications-outline" label="Notification" />
@@ -164,6 +183,7 @@ export default function ProfileScreen() {
             icon="log-out-outline" 
             label="Logout" 
             isLogout={true} 
+            onPress={() => Alert.alert("Thông báo", "Bạn muốn đăng xuất?")}
           />
         </View>
       </ScrollView>
