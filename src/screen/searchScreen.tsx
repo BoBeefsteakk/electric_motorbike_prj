@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Keyboard,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Keyboard,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import FilterModal from '../../components/ui/filtermodal';
@@ -26,14 +27,21 @@ const DEFAULT_FILTERS = {
 };
 
 export default function SearchScreen() {
+  const navigation = useNavigation<any>();
   // --- STATE QUẢN LÝ ---
   const [searchText, setSearchText] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFilterVisible, setFilterVisible] = useState(false);
-  
   const [history, setHistory] = useState<string[]>([]);
   const [currentFilters, setCurrentFilters] = useState(DEFAULT_FILTERS);
+
+  // State cho dữ liệu mặc định và phân trang
+  const [defaultData, setDefaultData] = useState<any[]>([]);
+  const [currentData, setCurrentData] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const PAGE_SIZE = 10;
 
   // Kiểm tra xem người dùng có đang áp dụng bộ lọc nào không
   const isFiltering = () => {
@@ -50,8 +58,6 @@ export default function SearchScreen() {
   // Khi người dùng gõ phím
   const handleTextChange = (text: string) => {
     setSearchText(text);
-    // LOGIC: Nếu đang gõ tìm kiếm -> Reset bộ lọc về mặc định
-    // để tìm trong phạm vi "Tất cả" thay vì bị giới hạn bởi bộ lọc cũ
     if (isFiltering()) {
        setCurrentFilters(DEFAULT_FILTERS);
     }
@@ -64,7 +70,6 @@ export default function SearchScreen() {
 
   // --- CORE LOGIC TÌM KIẾM & LỌC ---
   const fetchSearchResults = async (keyword: string, filters: any) => {
-    // Nếu không có từ khóa VÀ không có bộ lọc -> Reset kết quả (để hiện lịch sử)
     if (!keyword.trim() && !isFiltering()) {
       setResults([]);
       return;
@@ -74,7 +79,6 @@ export default function SearchScreen() {
 
     try {
       const params: any = {};
-      // Chuẩn bị params gửi lên API
       if (keyword.trim()) params.keyword = keyword.trim();
       if (filters.minPrice) params.minPrice = filters.minPrice;
       if (filters.maxPrice) params.maxPrice = filters.maxPrice;
@@ -85,7 +89,6 @@ export default function SearchScreen() {
 
       let dataFromApi: any[] = [];
       
-      // 1. GỌI API (Lấy dữ liệu thô)
       if (filters.type === 'car') {
         const res = await carApi.getList(params);
         dataFromApi = (res.data?.data || []).map((item: any) => ({...item, isCar: true}));
@@ -93,7 +96,6 @@ export default function SearchScreen() {
         const res = await motorbikeApi.getList(params);
         dataFromApi = (res.data?.data || []).map((item: any) => ({...item, isCar: false}));
       } else {
-        // Mặc định hoặc chọn "Tất cả" -> Gọi cả 2 API song song
         const [carRes, motoRes] = await Promise.all([
           carApi.getList(params).catch(() => ({ data: { data: [] } })),
           motorbikeApi.getList(params).catch(() => ({ data: { data: [] } }))
@@ -102,11 +104,6 @@ export default function SearchScreen() {
         const motos = (motoRes.data?.data || []).map((m: any) => ({ ...m, isCar: false }));
         dataFromApi = [...cars, ...motos];
       }
-      
-      // 2. LỌC CLIENT-SIDE (QUAN TRỌNG)
-      // API có thể trả về kết quả rộng (do regex phía server). 
-      // Ta lọc lại bằng JS để đảm bảo chính xác logic chuỗi ký tự.
-      // Ví dụ: "Honda".includes("ho") -> TRUE / "Honda".includes("oh") -> FALSE
       
       let finalResults = dataFromApi;
 
@@ -128,6 +125,33 @@ export default function SearchScreen() {
     }
   };
 
+  // Fetch dữ liệu mặc định từ API khi chưa tìm kiếm
+  useEffect(() => {
+    const fetchDefault = async () => {
+      try {
+        // Gọi cả 2 API song song
+        const [carRes, motoRes] = await Promise.all([
+          carApi.getList({}).catch(() => ({ data: { data: [] } })),
+          motorbikeApi.getList({}).catch(() => ({ data: { data: [] } }))
+        ]);
+        const cars = (carRes.data?.data || []).map((c: any) => ({ ...c, isCar: true }));
+        const motos = (motoRes.data?.data || []).map((m: any) => ({ ...m, isCar: false }));
+        const all = [...cars, ...motos];
+        setDefaultData(all);
+        setCurrentData(all.slice(0, PAGE_SIZE));
+        setPage(1);
+        setHasMore(all.length > PAGE_SIZE);
+      } catch (e) {
+        setDefaultData([]);
+        setCurrentData([]);
+        setHasMore(false);
+      }
+    };
+    if (searchText.trim().length === 0 && !isFiltering()) {
+      fetchDefault();
+    }
+  }, [searchText, currentFilters]);
+
   // Debounce: Chỉ gọi tìm kiếm sau khi ngừng gõ 0.5s để tránh spam API
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -140,12 +164,20 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, [searchText, currentFilters]); 
 
+  // Reset khi searchText thay đổi
+  useEffect(() => {
+    if (searchText.trim().length === 0 && !isFiltering()) {
+      setCurrentData(defaultData.slice(0, 10));
+      setPage(1);
+      setHasMore(defaultData.length > 10);
+    }
+  }, [searchText, currentFilters]);
+
   // Lưu lịch sử tìm kiếm khi ấn Enter/Submit trên bàn phím
   const handleSearchSubmit = () => {
     if (searchText.trim().length > 0) {
       const trimmedText = searchText.trim();
       setHistory(prev => {
-        // Đưa từ khóa mới lên đầu, xóa trùng lặp, giữ tối đa 10 item
         const newHistory = [trimmedText, ...prev.filter(h => h !== trimmedText)];
         return newHistory.slice(0, 10);
       });
@@ -161,9 +193,26 @@ export default function SearchScreen() {
 
   const clearHistory = () => setHistory([]);
 
+  // Xóa từng item trong lịch sử
+  const removeHistoryItem = (itemToRemove: string) => {
+    setHistory(prev => prev.filter(item => item !== itemToRemove));
+  };
+
+  // Khi không tìm kiếm thì load thêm dữ liệu mặc định khi scroll
+  const loadMoreDefaultData = () => {
+    if (!hasMore || searchText.trim().length > 0 || isFiltering()) return;
+    const nextPage = page + 1;
+    const nextData = defaultData.slice(0, nextPage * PAGE_SIZE);
+    setCurrentData(nextData);
+    setPage(nextPage);
+    setHasMore(nextData.length < defaultData.length);
+  };
+
   // Render từng item xe
   const renderProductItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.itemContainer}>
+    <TouchableOpacity style={styles.itemContainer}
+       onPress={() => navigation.navigate('DetailScreen',{ item: item})}
+    >
       <Image 
         source={{ uri: item.image || 'https://via.placeholder.com/150' }} 
         style={styles.itemImage}
@@ -175,13 +224,11 @@ export default function SearchScreen() {
             {item.price ? item.price.toLocaleString('vi-VN') : 0} đ
         </Text>
         <View style={styles.badgeRow}>
-            {/* Badge Loại xe */}
             <View style={[styles.badge, { backgroundColor: '#F0F0F0' }]}>
                 <Text style={styles.badgeText}>
                     {item.category?.name || (item.isCar ? "Ô tô" : "Xe máy")}
                 </Text>
             </View>
-            {/* Badge Tình trạng (Mới/Cũ) */}
             {item.status !== undefined && (
                  <View style={[
                    styles.badge, 
@@ -205,9 +252,8 @@ export default function SearchScreen() {
 
   // Xác định trạng thái hiển thị
   const showResults = results.length > 0;
-  // Hiện lịch sử khi: Chưa có kết quả, không load, không gõ chữ, không lọc
-  const showHistory = !showResults && !isLoading && !searchText && !isFiltering();
-  // Hiện thông báo trống khi: Không kết quả, không load, NHƯNG có gõ hoặc có lọc
+  const showDefault = !showResults && !isLoading && !searchText && !isFiltering();
+  const showHistory = !showResults && !isLoading && !searchText && !isFiltering() && !showDefault;
   const showEmpty = !showResults && !isLoading && (searchText || isFiltering());
 
   return (
@@ -250,7 +296,20 @@ export default function SearchScreen() {
         </View>
       ) : (
         <>
-          {/* 1. Lịch sử tìm kiếm */}
+          {/* 1. Dữ liệu mặc định khi chưa tìm kiếm */}
+          {showDefault && (
+            <FlatList
+              data={currentData}
+              keyExtractor={(item, index) => item._id ? item._id.toString() : index.toString()}
+              renderItem={renderProductItem}
+              contentContainerStyle={styles.listContent}
+              onEndReached={loadMoreDefaultData}
+              onEndReachedThreshold={0.2}
+              ListFooterComponent={hasMore ? <ActivityIndicator size="small" color="#888" /> : null}
+            />
+          )}
+
+          {/* 2. Lịch sử tìm kiếm */}
           {showHistory && (
              <View style={styles.historyContainer}>
                 {history.length > 0 ? (
@@ -262,14 +321,21 @@ export default function SearchScreen() {
                       </TouchableOpacity>
                     </View>
                     {history.map((item, index) => (
-                      <TouchableOpacity 
-                        key={index} 
-                        style={styles.historyItem}
-                        onPress={() => handleHistorySelect(item)}
-                      >
-                        <Ionicons name="time-outline" size={20} color="#888" style={{marginRight: 10}} />
-                        <Text style={styles.historyText}>{item}</Text>
-                      </TouchableOpacity>
+                      <View key={index} style={styles.historyItem}>
+                        <TouchableOpacity 
+                          style={styles.historyItemContent}
+                          onPress={() => handleHistorySelect(item)}
+                        >
+                          <Ionicons name="time-outline" size={20} color="#888" style={{marginRight: 10}} />
+                          <Text style={styles.historyText}>{item}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.deleteHistoryBtn}
+                          onPress={() => removeHistoryItem(item)}
+                        >
+                          <Ionicons name="close" size={20} color="#999" />
+                        </TouchableOpacity>
+                      </View>
                     ))}
                   </>
                 ) : (
@@ -281,7 +347,7 @@ export default function SearchScreen() {
              </View>
           )}
 
-          {/* 2. Danh sách kết quả */}
+          {/* 3. Danh sách kết quả */}
           {showResults && (
             <FlatList
                 data={results}
@@ -291,7 +357,7 @@ export default function SearchScreen() {
             />
           )}
 
-          {/* 3. Không tìm thấy */}
+          {/* 4. Không tìm thấy */}
           {showEmpty && (
              <View style={styles.centerContent}>
                 <Text style={styles.emptyText}>Không tìm thấy kết quả nào.</Text>
@@ -333,12 +399,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#EFEFEF',
-    // Shadow for iOS
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
-    // Shadow for Android
     elevation: 2,
   },
   searchInput: {
@@ -435,7 +499,7 @@ const styles = StyleSheet.create({
   historyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 15,
+    marginBottom: 5,
     alignItems: 'center',
   },
   historyTitle: {
@@ -450,12 +514,21 @@ const styles = StyleSheet.create({
   historyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    justifyContent: 'space-between',
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+  },
+  historyItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
   },
   historyText: {
     fontSize: 16,
     color: '#444',
+  },
+  deleteHistoryBtn: {
+    padding: 10,
   },
 });
