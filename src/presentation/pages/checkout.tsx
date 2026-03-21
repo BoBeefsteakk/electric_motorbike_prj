@@ -1,14 +1,14 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, Alert } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import axiosClient from '../../services/api/axios'; 
+import axiosClient from '../../services/api/axios';
 
 export default function CheckoutScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
-  
+  const userId = route.params?.userId || 'user_test_123';
   const cartItems = route.params?.cartItems || [];
   const appliedVoucher = route.params?.appliedVoucher || null;
 
@@ -19,7 +19,7 @@ export default function CheckoutScreen() {
   const handlePayment = async () => {
     try {
         const orderData = {
-            userId: "user_test_123", 
+            userId: userId, 
             cartItems: cartItems,
             subTotal: subTotal,
             discount: appliedVoucher?.discount || 0,
