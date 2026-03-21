@@ -2,10 +2,10 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import Icon from "react-native-vector-icons/FontAwesome";
+
 import ForgotPasswordScreen from "../pages/forgot";
 import LoginScreen from "../pages/login";
 import RegisterScreen from "../pages/register";
-
 
 import CartScreen from "../pages/cart";
 import HomeScreen from "../pages/home";
@@ -30,19 +30,26 @@ import Store5Screen from "../pages/home_expand/detail_store_compoment/Store5Scre
 import HomeStoreList from "../pages/home_expand/home_store_list";
 
 /* BEST PRICES */
+import BestPriceAllScreen from "../pages/home_expand/best_prices/BestPriceAllScreen";
 import BestPriceDetailScreen from "../pages/home_expand/best_prices/BestPriceDetailScreen";
 
-
+/* NEWS */
 import News1 from "../pages/home_expand/news_details/news1";
 import News2 from "../pages/home_expand/news_details/news2";
 import News3 from "../pages/home_expand/news_details/news3";
 
-
-
 import SearchScreen from "../../screen/searchScreen";
-import BestPriceAllScreen from "../pages/home_expand/best_prices/BestPriceAllScreen";
-import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
+import AddressScreen from "../pages/Address";
+import EditProfileScreen from "../pages/EditProfile";
+import HelpCenterScreen from "../pages/HelpCenter";
+import InviteFriendsScreen from "../pages/InviteFriends";
+import LanguageScreen from "../pages/Language";
+import NotificationScreen from "../pages/Notification";
+import PaymentScreen from "../pages/Payment";
+import PrivacyPolicyScreen from "../pages/PrivacyPolicy";
+import SecurityScreen from "../pages/Security";
 
+import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -55,10 +62,7 @@ function HomeNavigation() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="home_main" component={HomeScreen} />
-      <HomeStack.Screen
-        name="home_banner_detail"
-        component={HomeBannerDetail}
-      />
+      <HomeStack.Screen name="home_banner_detail" component={HomeBannerDetail} />
 
       {/* CATEGORY */}
       <HomeStack.Screen name="category_special" component={CategorySpecial} />
@@ -91,11 +95,93 @@ function HomeNavigation() {
 
 function AuthNavigation() {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-      <AuthStack.Screen name="login" component={LoginScreen} />
-      <AuthStack.Screen name="register" component={RegisterScreen} />
-      <AuthStack.Screen name="forgot" component={ForgotPasswordScreen} />
+    <AuthStack.Navigator>
+      <AuthStack.Screen
+        name="login"
+        component={LoginScreen}
+        options={{ title: "Đăng nhập" }}
+      />
+      <AuthStack.Screen
+        name="register"
+        component={RegisterScreen}
+        options={{ title: "Đăng ký" }}
+      />
+      <AuthStack.Screen
+        name="forgot"
+        component={ForgotPasswordScreen}
+        options={{ title: "Quên mật khẩu" }}
+      />
     </AuthStack.Navigator>
+  );
+}
+
+/* ================= PROFILE STACK ================= */
+
+const ProfileStack = createNativeStackNavigator();
+
+function ProfileNavigation() {
+  return (
+    <ProfileStack.Navigator screenOptions={{ headerShown: true }}>
+      <ProfileStack.Screen
+        name="profile_main"
+        component={ProfileScreen}
+        options={{ title: "Hồ sơ cá nhân" }}
+      />
+
+      <ProfileStack.Screen
+        name="edit_profile"
+        component={EditProfileScreen}
+        options={{ title: "Chỉnh sửa hồ sơ" }}
+      />
+
+      <ProfileStack.Screen
+        name="address"
+        component={AddressScreen}
+        options={{ title: "Địa chỉ" }}
+      />
+
+      <ProfileStack.Screen
+        name="notification"
+        component={NotificationScreen}
+        options={{ title: "Thông báo" }}
+      />
+
+      <ProfileStack.Screen
+        name="payment"
+        component={PaymentScreen}
+        options={{ title: "Thanh toán" }}
+      />
+
+      <ProfileStack.Screen
+        name="security"
+        component={SecurityScreen}
+        options={{ title: "Bảo mật" }}
+      />
+
+      <ProfileStack.Screen
+        name="language"
+        component={LanguageScreen}
+        options={{ title: "Ngôn ngữ" }}
+      />
+
+      <ProfileStack.Screen
+        name="privacy_policy"
+        component={PrivacyPolicyScreen}
+        options={{ title: "Chính sách bảo mật" }}
+      />
+
+      <ProfileStack.Screen
+        name="help_center"
+        component={HelpCenterScreen}
+        options={{ title: "Trung tâm trợ giúp" }}
+      />
+
+      <ProfileStack.Screen
+        name="invite_friends"
+        component={InviteFriendsScreen}
+        options={{ title: "Mời bạn bè" }}
+      />
+    </ProfileStack.Navigator>
   );
 }
 
@@ -111,16 +197,36 @@ function InappNavigation() {
           if (route.name === "cart") icon = "shopping-cart";
           if (route.name === "search") icon = "search";
           if (route.name === "profile") icon = "user";
+
           return <Icon name={icon} size={20} color={color} />;
         },
         tabBarActiveTintColor: "#39B78D",
         tabBarInactiveTintColor: "gray",
       })}
     >
-      <Tab.Screen name="home" component={HomeNavigation} />
-      <Tab.Screen name="search" component={SearchScreen} />
-      <Tab.Screen name="cart" component={CartScreen} />
-      <Tab.Screen name="profile" component={ProfileScreen} />
+      <Tab.Screen
+        name="home"
+        component={HomeNavigation}
+        options={{ tabBarLabel: "Trang chủ" }}
+      />
+
+      <Tab.Screen
+        name="search"
+        component={SearchScreen}
+        options={{ tabBarLabel: "Tìm kiếm" }}
+      />
+
+      <Tab.Screen
+        name="cart"
+        component={CartScreen}
+        options={{ tabBarLabel: "Giỏ hàng" }}
+      />
+
+      <Tab.Screen
+        name="profile"
+        component={ProfileNavigation}
+        options={{ tabBarLabel: "Cá nhân" }}
+      />
     </Tab.Navigator>
   );
 }
