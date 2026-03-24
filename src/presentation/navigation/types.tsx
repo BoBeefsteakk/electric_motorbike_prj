@@ -48,5 +48,6 @@ export type RootStackParamList = {
   PaymentSuccess: undefined;
   DetailScreen: any;
   Order: undefined;
+  Warranty: undefined;
 };
 

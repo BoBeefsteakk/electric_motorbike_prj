@@ -9,10 +9,10 @@ import RegisterScreen from "../pages/register";
 import DetailScreen from "../../screen/detailScreen";
 import CartScreen from "../pages/cart";
 import HomeScreen from "../pages/home";
-import ProfileScreen from "../pages/profile";
-import OrderScreen from "../pages/Order";
 import HomeBannerDetail from "../pages/home_expand/home_banner_detail";
-
+import OrderScreen from "../pages/Order";
+import ProfileScreen from "../pages/profile";
+import WarrantyScreen from "../pages/WarrantyScreen";
 /* CATEGORY */
 import CategoryCaoCap from "../pages/home_expand/categories_tab/CategoryCaoCap";
 import CategoryOTo from "../pages/home_expand/categories_tab/CategoryOTo";
@@ -149,6 +149,7 @@ export function AppNavigation() {
         <RootStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
         <RootStack.Screen name="DetailScreen" component={DetailScreen} />
         <RootStack.Screen name="Order" component={OrderScreen} />
+        <RootStack.Screen name="Warranty" component={WarrantyScreen} />
       </RootStack.Navigator>
     </NavigationContainer>
   );
