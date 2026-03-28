@@ -9,11 +9,13 @@ import ForgotPasswordScreen from "../pages/forgot";
 import LoginScreen from "../pages/login";
 import RegisterScreen from "../pages/register";
 
+import DetailScreen from "../../screen/detailScreen";
 import CartScreen from "../pages/cart";
 import HomeScreen from "../pages/home";
-import ProfileScreen from "../pages/profile";
-
 import HomeBannerDetail from "../pages/home_expand/home_banner_detail";
+import OrderScreen from "../pages/Order";
+import ProfileScreen from "../pages/profile";
+import WarrantyScreen from "../pages/WarrantyScreen";
 
 /* CATEGORY */
 import CategoryCaoCap from "../pages/home_expand/categories_tab/CategoryCaoCap";
@@ -37,66 +39,59 @@ import Store10Screen from "../pages/home_expand/detail_store_compoment/Store10Sc
 import HomeStoreList from "../pages/home_expand/detail_store_compoment/home_store_list";
 
 /* BEST PRICES */
+import BestPriceAllScreen from "../pages/home_expand/best_prices/BestPriceAllScreen";
 import BestPriceDetailScreen from "../pages/home_expand/best_prices/BestPriceDetailScreen";
 
+/* NEWS */
 import News1 from "../pages/home_expand/news_details/news1";
 import News2 from "../pages/home_expand/news_details/news2";
 import News3 from "../pages/home_expand/news_details/news3";
 
-import BestPriceAllScreen from "../pages/home_expand/best_prices/BestPriceAllScreen";
+/* OTHER */
 import SearchScreen from "../pages/search";
+import CheckoutScreen from "../pages/checkout";
+import PaymentSuccessScreen from "../pages/PaymentSuccess";
 import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
-const Tab = createBottomTabNavigator<TabParamList>();
+const Tab       = createBottomTabNavigator<TabParamList>();
 
 /* ================= HOME STACK ================= */
 
 function HomeNavigation() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
-      <HomeStack.Screen name="home_main" component={HomeScreen} />
-      <HomeStack.Screen
-        name="home_banner_detail"
-        component={HomeBannerDetail}
-      />
+      <HomeStack.Screen name="home_main"         component={HomeScreen} />
+      <HomeStack.Screen name="home_banner_detail" component={HomeBannerDetail} />
 
       {/* CATEGORY */}
-      <HomeStack.Screen name="category_special" component={CategorySpecial} />
-      <HomeStack.Screen
-        name="category_pho_thong"
-        component={CategoryPhoThong}
-      />
-      <HomeStack.Screen
-        name="category_trung_cap"
-        component={CategoryTrungCap}
-      />
-      <HomeStack.Screen name="category_cao_cap" component={CategoryCaoCap} />
-      <HomeStack.Screen name="category_o_to" component={CategoryOTo} />
-      <HomeStack.Screen name="category_phu_kien" component={CategoryPhuKien} />
+      <HomeStack.Screen name="category_special"   component={CategorySpecial} />
+      <HomeStack.Screen name="category_pho_thong" component={CategoryPhoThong} />
+      <HomeStack.Screen name="category_trung_cap" component={CategoryTrungCap} />
+      <HomeStack.Screen name="category_cao_cap"   component={CategoryCaoCap} />
+      <HomeStack.Screen name="category_o_to"      component={CategoryOTo} />
+      <HomeStack.Screen name="category_phu_kien"  component={CategoryPhuKien} />
 
       {/* STORE */}
-      <HomeStack.Screen name="home_store_list" component={HomeStoreList} />
-      <HomeStack.Screen name="store_1_detail" component={Store1Screen} />
-      <HomeStack.Screen name="store_2_detail" component={Store2Screen} />
-      <HomeStack.Screen name="store_3_detail" component={Store3Screen} />
-      <HomeStack.Screen name="store_4_detail" component={Store4Screen} />
-      <HomeStack.Screen name="store_5_detail" component={Store5Screen} />
-      <HomeStack.Screen name="store_6_detail" component={Store6Screen} />
-      <HomeStack.Screen name="store_7_detail" component={Store7Screen} />
-      <HomeStack.Screen name="store_8_detail" component={Store8Screen} />
-      <HomeStack.Screen name="store_9_detail" component={Store9Screen} />
-      <HomeStack.Screen name="store_10_detail" component={Store10Screen} />
+      <HomeStack.Screen name="home_store_list"  component={HomeStoreList} />
+      <HomeStack.Screen name="store_1_detail"   component={Store1Screen} />
+      <HomeStack.Screen name="store_2_detail"   component={Store2Screen} />
+      <HomeStack.Screen name="store_3_detail"   component={Store3Screen} />
+      <HomeStack.Screen name="store_4_detail"   component={Store4Screen} />
+      <HomeStack.Screen name="store_5_detail"   component={Store5Screen} />
+      <HomeStack.Screen name="store_6_detail"   component={Store6Screen} />
+      <HomeStack.Screen name="store_7_detail"   component={Store7Screen} />
+      <HomeStack.Screen name="store_8_detail"   component={Store8Screen} />
+      <HomeStack.Screen name="store_9_detail"   component={Store9Screen} />
+      <HomeStack.Screen name="store_10_detail"  component={Store10Screen} />
 
       {/* BEST PRICES */}
-      <HomeStack.Screen name="best_price_all" component={BestPriceAllScreen} />
-      <HomeStack.Screen
-        name="best_price_detail"
-        component={BestPriceDetailScreen}
-      />
+      <HomeStack.Screen name="best_price_all"    component={BestPriceAllScreen} />
+      <HomeStack.Screen name="best_price_detail" component={BestPriceDetailScreen} />
 
+      {/* NEWS */}
       <HomeStack.Screen name="news1" component={News1} />
       <HomeStack.Screen name="news2" component={News2} />
       <HomeStack.Screen name="news3" component={News3} />
@@ -109,9 +104,9 @@ function HomeNavigation() {
 function AuthNavigation() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-      <AuthStack.Screen name="login" component={LoginScreen} />
+      <AuthStack.Screen name="login"    component={LoginScreen} />
       <AuthStack.Screen name="register" component={RegisterScreen} />
-      <AuthStack.Screen name="forgot" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="forgot"   component={ForgotPasswordScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -134,13 +129,8 @@ function InappNavigation() {
         ]);
         return true;
       };
-
-      const subscription = BackHandler.addEventListener(
-        "hardwareBackPress",
-        onBackPress,
-      );
-
-      return () => subscription.remove(); // 🔥 đây mới là cách đúng
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => subscription.remove();
     }, []),
   );
 
@@ -148,20 +138,23 @@ function InappNavigation() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ color }) => {
+        tabBarIcon: ({ color, size }) => {
           let icon = "home";
-          if (route.name === "cart") icon = "shopping-cart";
-          if (route.name === "search") icon = "search";
+          if (route.name === "cart")    icon = "shopping-cart";
+          if (route.name === "search")  icon = "search";
           if (route.name === "profile") icon = "user";
-          return <Icon name={icon} size={20} color={color} />;
+          return <Icon name={icon} size={size ?? 22} color={color} />;
         },
-        tabBarActiveTintColor: "#39B78D",
+        tabBarActiveTintColor:   "#39B78D",
         tabBarInactiveTintColor: "gray",
+        tabBarStyle:      { height: 60 },
+        tabBarLabelStyle: { fontSize: 12, marginBottom: 2 },
+        tabBarItemStyle:  { flex: 1 },
       })}
     >
-      <Tab.Screen name="home" component={HomeNavigation} />
-      <Tab.Screen name="search" component={SearchScreen} />
-      <Tab.Screen name="cart" component={CartScreen} />
+      <Tab.Screen name="home"    component={HomeNavigation} />
+      <Tab.Screen name="search"  component={SearchScreen} />
+      <Tab.Screen name="cart"    component={CartScreen} />
       <Tab.Screen name="profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -174,18 +167,19 @@ export function AppNavigation() {
     const clearSession = async () => {
       await AsyncStorage.removeItem("token");
     };
-
     clearSession();
   }, []);
 
   return (
     <NavigationContainer>
-      <RootStack.Navigator
-        initialRouteName="auth"
-        screenOptions={{ headerShown: false }}
-      >
-        <RootStack.Screen name="auth" component={AuthNavigation} />
-        <RootStack.Screen name="inapp" component={InappNavigation} />
+      <RootStack.Navigator initialRouteName="auth" screenOptions={{ headerShown: false }}>
+        <RootStack.Screen name="auth"           component={AuthNavigation} />
+        <RootStack.Screen name="inapp"          component={InappNavigation} />
+        <RootStack.Screen name="checkout"       component={CheckoutScreen} />
+        <RootStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+        <RootStack.Screen name="DetailScreen"   component={DetailScreen} />
+        <RootStack.Screen name="Order"          component={OrderScreen} />
+        <RootStack.Screen name="Warranty"       component={WarrantyScreen} />
       </RootStack.Navigator>
     </NavigationContainer>
   );

@@ -49,5 +49,10 @@ export type TabParamList = {
 export type RootStackParamList = {
   auth: undefined;
   inapp: undefined;
+  checkout: undefined;
+  PaymentSuccess: undefined;
+  DetailScreen: any;
+  Order: undefined;
+  Warranty: undefined;
 };
 

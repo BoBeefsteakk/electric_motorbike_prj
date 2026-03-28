@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
@@ -19,25 +20,21 @@ interface MenuItemProps {
   label: string;
   rightElement?: React.ReactNode;
   isLogout?: boolean;
+  onPress?: () => void;
 }
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<any>();
   const [isDarkMode, setIsDarkMode] = useState(false);
   
-  // Ảnh mặc định từ Pinterest bạn yêu cầu
   const [avatarUri, setAvatarUri] = useState(
     'https://i.pinimg.com/736x/21/6b/03/216b036577589d7010a30b696f839634.jpg'
   );
 
-  // Hàm xử lý chọn ảnh từ máy cá nhân
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
     if (status !== 'granted') {
-      Alert.alert(
-        'Thông báo', 
-        'Bạn cần cho phép ứng dụng truy cập thư viện ảnh để đổi profile!'
-      );
+      Alert.alert('Thông báo', 'Cần quyền truy cập ảnh!');
       return;
     }
 
@@ -53,118 +50,102 @@ export default function ProfileScreen() {
     }
   };
 
-  // Thành phần Menu Item viết gọn
-  const MenuItem = ({ icon, label, rightElement, isLogout }: MenuItemProps) => (
-    <Pressable style={styles.menuItem}>
+  const MenuItem = ({ icon, label, rightElement, isLogout, onPress }: MenuItemProps) => (
+    <Pressable 
+      style={({ pressed }) => [
+        styles.menuItem,
+        pressed && { backgroundColor: '#F5F5F5', borderRadius: 12 }
+      ]}
+      onPress={onPress}
+    >
       <View style={styles.menuLeft}>
-        <Ionicons
-          name={icon}
-          size={24}
-          color={isLogout ? '#F75555' : '#212121'}
-        />
+        <View style={[styles.iconWrapper, isLogout && styles.logoutIconBg]}>
+          <Ionicons
+            name={icon}
+            size={22}
+            color={isLogout ? '#F75555' : '#212121'}
+          />
+        </View>
         <Text style={[styles.menuLabel, isLogout && styles.logoutLabel]}>
           {label}
         </Text>
       </View>
       
       <View style={styles.menuRight}>
-        {rightElement ? (
-          rightElement
-        ) : (
-          !isLogout && (
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color="#212121"
-            />
-          )
+        {rightElement ? rightElement : (
+          !isLogout && <Ionicons name="chevron-forward" size={20} color="#BDBDBD" />
         )}
       </View>
     </Pressable>
   );
 
   return (
-    <SafeAreaView 
-      style={styles.container} 
-      edges={['top', 'left', 'right']}
-    >
-      {/* Header */}
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Profile</Text>
-        </View>
-        <Ionicons 
-          name="ellipsis-horizontal-circle" 
-          size={24} 
-          color="black" 
-        />
+        <Text style={styles.headerTitle}>Hồ sơ cá nhân</Text>
+        <Pressable>
+            <Ionicons name="settings-outline" size={24} color="black" />
+        </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Profile Info Section */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
-            <Image
-              key={avatarUri} // Ép React render lại khi đổi ảnh
-              source={{ uri: avatarUri }}
-              style={styles.avatar}
-            />
-            {/* Nút bút chì đã được gán hàm pickImage */}
-            <Pressable 
-              style={styles.editAvatarBtn}
-              onPress={pickImage}
-            >
-              <Ionicons 
-                name="pencil" 
-                size={12} 
-                color="white" 
-              />
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            <Pressable style={styles.editAvatarBtn} onPress={pickImage}>
+              <Ionicons name="camera" size={16} color="white" />
             </Pressable>
           </View>
           <Text style={styles.userName}>Văn Thanh</Text>
-          <Text style={styles.userPhone}>+84 123 456 789</Text>
+          <Text style={styles.userPhone}>thanhvan@example.com</Text>
         </View>
 
-        <View style={styles.divider} />
-
-        {/* Menu List */}
         <View style={styles.menuSection}>
-          <MenuItem icon="person-outline" label="Edit Profile" />
-          <MenuItem icon="location-outline" label="Address" />
-          <MenuItem icon="notifications-outline" label="Notification" />
-          <MenuItem icon="wallet-outline" label="Payment" />
-          <MenuItem icon="shield-checkmark-outline" label="Security" />
-          
+          <Text style={styles.sectionTitle}>Quản lý giao dịch</Text>
           <MenuItem 
-            icon="language-outline" 
-            label="Language" 
-            rightElement={
-              <Text style={styles.rightText}>English (US)</Text>
-            }
+            icon="receipt-outline" 
+            label="Đơn hàng của tôi" 
+            onPress={() => navigation.navigate('Order')} 
           />
-
+          
+          {/* === MỤC BẢO HÀNH MỚI THÊM === */}
           <MenuItem 
-            icon="eye-outline" 
-            label="Dark Mode" 
+            icon="shield-checkmark-outline" 
+            label="Thông tin bảo hành" 
+            onPress={() => navigation.navigate('Warranty')} 
+          />
+          {/* ============================= */}
+
+          <MenuItem icon="wallet-outline" label="Phương thức thanh toán" />
+
+          <Text style={styles.sectionTitle}>Cài đặt hệ thống</Text>
+          <MenuItem icon="person-outline" label="Chỉnh sửa hồ sơ" />
+          <MenuItem icon="location-outline" label="Địa chỉ nhận hàng" />
+          <MenuItem 
+            icon="contrast-outline" 
+            label="Chế độ tối" 
             rightElement={
               <Switch
                 value={isDarkMode}
                 onValueChange={setIsDarkMode}
-                trackColor={{ false: '#EEEEEE', true: '#000000' }}
-                thumbColor={'#FFFFFF'}
+                trackColor={{ false: '#EEEEEE', true: '#000' }}
+                thumbColor={'#FFF'}
               />
             }
           />
 
-          <MenuItem icon="lock-closed-outline" label="Privacy Policy" />
-          <MenuItem icon="help-circle-outline" label="Help Center" />
-          <MenuItem icon="people-outline" label="Invite Friends" />
+          <Text style={styles.sectionTitle}>Hỗ trợ</Text>
+          <MenuItem icon="help-circle-outline" label="Trung tâm trợ giúp" />
+          <MenuItem icon="information-circle-outline" label="Chính sách bảo mật" />
           
-          <MenuItem 
-            icon="log-out-outline" 
-            label="Logout" 
-            isLogout={true} 
-          />
+          <View style={{ marginTop: 10 }}>
+            <MenuItem 
+                icon="log-out-outline" 
+                label="Đăng xuất" 
+                isLogout={true} 
+                onPress={() => Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn thoát?")}
+            />
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -172,97 +153,58 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 15,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  profileSection: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 25,
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#F2F2F2',
-  },
+  headerTitle: { fontSize: 22, fontWeight: '700', color: '#1A1A1A' },
+  profileSection: { alignItems: 'center', marginVertical: 20 },
+  avatarContainer: { position: 'relative' },
+  avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#F5F5F5' },
   editAvatarBtn: {
     position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: '#000',
-    padding: 6,
-    borderRadius: 8,
-    borderWidth: 2,
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#00B14F', // Đổi màu xanh cho nổi bật
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 3,
     borderColor: '#FFF',
   },
-  userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 15,
-  },
-  userPhone: {
+  userName: { fontSize: 20, fontWeight: '700', marginTop: 12, color: '#1A1A1A' },
+  userPhone: { fontSize: 14, color: '#8C8C8C', marginTop: 4 },
+  menuSection: { paddingHorizontal: 20 },
+  sectionTitle: {
     fontSize: 14,
-    color: '#616161',
-    marginTop: 8,
-    fontWeight: '500',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#EEEEEE',
-    marginHorizontal: 20,
-  },
-  menuSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    paddingBottom: 40,
+    fontWeight: '700',
+    color: '#BDBDBD',
+    marginTop: 25,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   menuItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
-  menuLeft: {
-    flexDirection: 'row',
+  menuLeft: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+  iconWrapper: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
     alignItems: 'center',
-    gap: 15,
+    justifyContent: 'center',
   },
-  menuLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#212121',
-  },
-  logoutLabel: {
-    color: '#F75555',
-  },
-  menuRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rightText: {
-    fontSize: 16,
-    color: '#424242',
-    marginRight: 10,
-    fontWeight: '500',
-  },
+  menuLabel: { fontSize: 16, fontWeight: '500', color: '#333' },
+  logoutLabel: { color: '#F75555' },
+  logoutIconBg: { backgroundColor: '#FFF5F5' },
+  menuRight: { flexDirection: 'row', alignItems: 'center' },
 });
