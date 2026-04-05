@@ -1,595 +1,645 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import React, { useEffect, useMemo, useState } from 'react';
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
     Alert,
+    Animated,
     FlatList,
     Image,
     Modal,
     Platform,
     Pressable,
-    Alert as RNAlert,
     StyleSheet,
     Text,
     ToastAndroid,
-    View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import axiosClient from '../../services/api/axios'; // Đảm bảo đường dẫn này đúng
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import API_URL from "../../data/api/apis";
 
 interface CartItem {
-    productId: string; // Khớp với Backend
-    name: string;
-    price: number;
-    image: string;
-    quantity: number;
-    selected: boolean;
-    color?: string; // Có thể không có từ DB, mình sẽ xử lý sau
+  productId: string;
+  name: string;
+  price: number;
+  image: string;
+  quantity: number;
+  selected: boolean;
 }
 
 interface Voucher {
-    id: string;
-    code: string;
-    discount: number;
-    minSpend: number;
-    description: string;
+  id: string;
+  code: string;
+  discount: number;
+  minSpend: number;
+  description: string;
 }
+
+const USER_ID = "user_test_123"; // TODO: thay bằng userId từ AsyncStorage sau khi có auth
 
 const VOUCHERS_MOCK: Voucher[] = [
-    { id: '1', code: 'GIAM100K', discount: 100000, minSpend: 0, description: 'Giảm 100K cho mọi đơn hàng' },
-    { id: '2', code: 'DATBIKE500', discount: 500000, minSpend: 50000000, description: 'Giảm 500K cho đơn từ 50 Triệu' },
+  {
+    id: "1",
+    code: "GIAM100K",
+    discount: 100000,
+    minSpend: 0,
+    description: "Giảm 100K cho mọi đơn hàng",
+  },
+  {
+    id: "2",
+    code: "DATBIKE500",
+    discount: 500000,
+    minSpend: 50000000,
+    description: "Giảm 500K cho đơn từ 50 Triệu",
+  },
 ];
 
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+    v,
+  );
+
+/* ── Skeleton ── */
+const SkeletonCard = () => {
+  const anim = useRef(new Animated.Value(0.4)).current;
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim, {
+          toValue: 0.4,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, []);
+  return (
+    <Animated.View style={[styles.card, { opacity: anim }]}>
+      <View
+        style={{
+          width: 85,
+          height: 85,
+          backgroundColor: "#EBEBEB",
+          borderRadius: 16,
+        }}
+      />
+      <View style={{ flex: 1, marginLeft: 15, gap: 10 }}>
+        <View
+          style={{
+            height: 14,
+            width: "70%",
+            backgroundColor: "#EBEBEB",
+            borderRadius: 6,
+          }}
+        />
+        <View
+          style={{
+            height: 12,
+            width: "40%",
+            backgroundColor: "#F2F2F2",
+            borderRadius: 6,
+          }}
+        />
+        <View
+          style={{
+            height: 12,
+            width: "55%",
+            backgroundColor: "#F2F2F2",
+            borderRadius: 6,
+          }}
+        />
+      </View>
+    </Animated.View>
+  );
+};
+
 export default function CartScreen() {
-    const [cartItems, setCartItems] = useState<CartItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isVoucherModalVisible, setVoucherModalVisible] = useState(false);
-    const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const navigation = useNavigation<any>(); // Sửa để tránh lỗi type khi navigate
-    const route = useRoute<any>();
-    const userId = route.params?.userId || 'user_test_123'; // Tạm hardcode userId, sau này sẽ lấy từ auth context hoặc params
-    // --- 1. LẤY DỮ LIỆU THẬT TỪ DATABASE ---
-    const fetchCart = async () => {
-        if (!userId) {
-            console.log("Không có userId, không thể tải giỏ hàng");
-            setLoading(false);
-            return;
-        }
-        try {
-            setLoading(true);
-            const response = await axiosClient.get(`/cart/${userId}`); // Sửa endpoint nếu cần, đảm bảo đúng với API của bạn
+  const navigation = useNavigation<any>();
 
-            // Xử lý linh hoạt dữ liệu trả về
-            let cartData = null;
-            if (response.data && response.data.success && response.data.data) {
-                cartData = response.data.data; 
-            } else if (response.data && response.data.items) {
-                cartData = response.data; 
-            }
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isVoucherModal, setVoucherModal] = useState(false);
+  const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
-            // Cập nhật state
-            if (cartData && Array.isArray(cartData.items)) {
-                const itemsFromDB = cartData.items.map((item: any) => ({
-                    ...item,
-                    selected: false, // Mặc định bỏ chọn để user tự tick chọn cái muốn mua
-                }));
-                setCartItems(itemsFromDB);
-            } else {
-                setCartItems([]);
-            }
-        } catch (error) { 
-            // Chỉ log ngầm để debug, không văng Popup lên màn hình user
-            console.error("Lỗi fetch giỏ hàng:", error);
-            setCartItems([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-    useEffect(() => {
-        fetchCart();
-    }, []);
+  /* ── Fetch giỏ hàng từ MySQL ── */
+  const fetchCart = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/cart/${USER_ID}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data?.items)) {
+        setCartItems(
+          data.data.items.map((i: any) => ({ ...i, selected: false })),
+        );
+      } else {
+        setCartItems([]);
+      }
+    } catch (e) {
+      console.log("Lỗi fetch cart:", e);
+      setCartItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    // Reload cart nếu có param reload từ navigation
-    useEffect(() => {
-        if (route?.params?.reload) {
-            fetchCart();
-        }
-    }, [route?.params?.reload]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchCart();
+    }, [fetchCart]),
+  );
 
-    useFocusEffect(
-        React.useCallback(() => {
-            fetchCart();
-        }, [])
+  /* ── Actions ── */
+  const removeItemDirect = async (productId: string) => {
+    setCartItems((prev) => prev.filter((i) => i.productId !== productId));
+    try {
+      await fetch(`${API_URL}/api/cart/remove-item`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: USER_ID, productId }),
+      });
+    } catch (e) {
+      console.log("Lỗi xoá item:", e);
+    }
+  };
+
+  const removeItem = (productId: string) => {
+    Alert.alert("Xóa sản phẩm", "Bạn có chắc muốn bỏ sản phẩm này?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: () => removeItemDirect(productId),
+      },
+    ]);
+  };
+
+  const updateQuantity = async (productId: string, delta: number) => {
+    const item = cartItems.find((i) => i.productId === productId);
+    if (!item) return;
+    if (item.quantity === 1 && delta === -1) {
+      Alert.alert("Xác nhận xoá", "Bạn có muốn xoá sản phẩm này không?", [
+        { text: "Không", style: "cancel" },
+        {
+          text: "Có",
+          style: "destructive",
+          onPress: () => removeItemDirect(productId),
+        },
+      ]);
+      return;
+    }
+    const newQty = Math.max(1, item.quantity + delta);
+    setCartItems((prev) =>
+      prev.map((i) =>
+        i.productId === productId ? { ...i, quantity: newQty } : i,
+      ),
+    );
+    try {
+      await fetch(`${API_URL}/api/cart/update-quantity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: USER_ID, productId, quantity: newQty }),
+      });
+    } catch (e) {
+      console.log("Lỗi update qty:", e);
+    }
+  };
+
+  const toggleSelect = (productId: string) =>
+    setCartItems((prev) =>
+      prev.map((i) =>
+        i.productId === productId ? { ...i, selected: !i.selected } : i,
+      ),
+    );
+  const isAllSelected =
+    cartItems.length > 0 && cartItems.every((i) => i.selected);
+  const toggleSelectAll = () =>
+    setCartItems((prev) =>
+      prev.map((i) => ({ ...i, selected: !isAllSelected })),
     );
 
-    // --- 2. LOGIC SẢN PHẨM (Sửa id -> productId) ---
-    // Hàm xoá sản phẩm KHÔNG hiện Alert, chỉ thực hiện xoá thật sự
-    const removeItemDirect = async (productId: string) => {
-        setCartItems((prev) => prev.filter((item) => item.productId !== productId));
-        try {
-            await axiosClient.post('/cart/remove-item', {
-                userId: userId,
-                productId
-            });
-        } catch (error) {
-            Alert.alert('Lỗi', 'Không thể xóa sản phẩm trên server.');
-        }
-    };
+  const subTotal = useMemo(
+    () =>
+      cartItems
+        .filter((i) => i.selected)
+        .reduce((s, i) => s + i.price * i.quantity, 0),
+    [cartItems],
+  );
+  const finalPrice = Math.max(0, subTotal - (appliedVoucher?.discount || 0));
+  const selectedCount = cartItems.filter((i) => i.selected).length;
 
-    // Hàm xác nhận xoá khi bấm nút thùng rác
-    const removeItem = (productId: string) => {
-        Alert.alert('Xóa sản phẩm', 'Bạn có chắc muốn bỏ sản phẩm này?', [
-            { text: 'Hủy', style: 'cancel' },
-            {
-                text: 'Xóa',
-                style: 'destructive',
-                onPress: () => removeItemDirect(productId),
-            },
-        ]);
-    };
+  const showToast = (msg: string) => {
+    if (Platform.OS === "android") ToastAndroid.show(msg, ToastAndroid.SHORT);
+    else Alert.alert("Thông báo", msg);
+  };
 
-    const updateQuantity = async (productId: string, delta: number) => {
-        const item = cartItems.find(i => i.productId === productId);
-        if (!item) return;
-        const newQty = item.quantity + delta;
-        if (item.quantity === 1 && delta === -1) {
-            Alert.alert(
-                'Xác nhận xoá',
-                'Bạn có muốn xoá sản phẩm này không?',
-                [
-                    { text: 'Không', style: 'cancel' },
-                    {
-                        text: 'Có',
-                        style: 'destructive',
-                        onPress: () => removeItemDirect(productId),
-                    },
-                ]
-            );
-            return;
-        }
-        setCartItems((prev) =>
-            prev.map((item) => {
-                if (item.productId === productId) {
-                    return newQty > 0 ? { ...item, quantity: newQty } : item;
-                }
-                return item;
-            })
-        );
-        // Gọi API update số lượng lên server để đồng bộ
-        try {
-            await axiosClient.post('/cart/update-quantity', {
-                userId: userId,
-                productId,
-                quantity: newQty
-            });
-        } catch (error) {
-            Alert.alert('Lỗi', 'Không thể cập nhật số lượng trên server.');
-        }
-    };
+  const handleCheckout = async () => {
+    const selectedItems = cartItems.filter((i) => i.selected);
+    if (!selectedItems.length) return;
+    navigation.navigate("checkout", {
+      cartItems: selectedItems,
+      appliedVoucher,
+      userId: USER_ID,
+    });
+  };
 
-    const toggleSelect = (productId: string) => {
-        setCartItems((prev) =>
-            prev.map((item) =>
-                item.productId === productId ? { ...item, selected: !item.selected } : item
-            )
-        );
-    };
+  const handleDeleteSelected = async () => {
+    const ids = cartItems.filter((i) => i.selected).map((i) => i.productId);
+    setCartItems((prev) => prev.filter((i) => !ids.includes(i.productId)));
+    for (const id of ids) {
+      try {
+        await fetch(`${API_URL}/api/cart/remove-item`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: USER_ID, productId: id }),
+        });
+      } catch (e) {}
+    }
+  };
 
-    const isAllSelected = cartItems.length > 0 && cartItems.every((item) => item.selected);
-    const toggleSelectAll = () => {
-        const newValue = !isAllSelected;
-        setCartItems((prev) => prev.map((item) => ({ ...item, selected: newValue })));
-    };
-
-    // --- 3. TÍNH TOÁN TIỀN ---
-    const subTotal = useMemo(() => {
-        return cartItems
-            .filter((item) => item.selected)
-            .reduce((sum, item) => sum + item.price * item.quantity, 0);
-    }, [cartItems]);
-
-    const finalPrice = Math.max(0, subTotal - (appliedVoucher?.discount || 0));
-
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-    };
-
-    // Hàm hiển thị thông báo thêm vào giỏ hàng
-    const showAddToCartMessage = () => {
-        if (Platform.OS === 'android') {
-            ToastAndroid.show('Đã thêm vào giỏ hàng!', ToastAndroid.SHORT);
-        } else {
-            RNAlert.alert('Thông báo', 'Đã thêm vào giỏ hàng!');
-        }
-    };
-
-    // Hàm xử lý khi bấm nút "Thêm vào giỏ hàng"
-    const handleAddToCart = async (item: CartItem) => {
-        try {
-            await axiosClient.post('/cart/add', {
-                userId: userId,
-                productId: item.productId,
-                name: item.name,
-                price: item.price,
-                image: item.image,
-                quantity: 1
-            });
-            showAddToCartMessage();
-        } catch (error) {
-            Alert.alert('Lỗi', 'Không thể thêm vào giỏ hàng.');
-        }
-    };
-
-    // Hàm xử lý khi bấm nút "Mua ngay"
-    const handleBuyNow = async (item: CartItem) => {
-        // Đảm bảo sản phẩm đã có trong giỏ hàng trước khi chuyển sang checkout
-        try {
-            await axiosClient.post('/cart/add', {
-                userId: userId,
-                productId: item.productId,
-                name: item.name,
-                price: item.price,
-                image: item.image,
-                quantity: 1
-            });
-            navigation.navigate('checkout');
-        } catch (error) {
-            Alert.alert('Lỗi', 'Không thể mua ngay.');
-        }
-    };
-
-    if (loading) return (
-        <View style={{flex: 1, justifyContent: 'center'}}><ActivityIndicator size="large" color="#000" /></View>
-    );
-
-    // --- RENDER ---
-    const renderCartItem = ({ item }: { item: CartItem }) => (
-        <View style={styles.card}>
-            <Pressable style={styles.checkboxWrapper} onPress={() => toggleSelect(item.productId)}>
-                <Ionicons name={item.selected ? "checkbox" : "square-outline"} size={24} color={item.selected ? "#000" : "#CCC"} />
-            </Pressable>
-            <View style={styles.imageContainer}>
-                <Image source={{ uri: item.image }} style={styles.image} />
-            </View>
-            <View style={styles.infoContainer}>
-                <View style={styles.cardHeader}>
-                    <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                    <Pressable onPress={() => removeItem(item.productId)}>
-                        <Ionicons name="trash-outline" size={20} color="#FF4D4D" />
-                    </Pressable>
-                </View>
-                <Text style={styles.variantText}>Sản phẩm xe điện</Text>
-                <View style={styles.cardFooter}>
-                    <Text style={styles.price}>{formatCurrency(item.price)}</Text>
-                    <View style={styles.quantityControl}>
-                        <Pressable style={styles.qtyBtn} onPress={() => updateQuantity(item.productId, -1)}>
-                            <Ionicons name="remove" size={16} color="black" />
-                        </Pressable>
-                        <Text style={styles.qtyText}>{item.quantity}</Text>
-                        <Pressable style={styles.qtyBtn} onPress={() => updateQuantity(item.productId, 1)}>
-                            <Ionicons name="add" size={16} color="black" />
-                        </Pressable>
-                    </View>
-                </View>
-            </View>
+  /* ── Render item ── */
+  const renderItem = ({ item }: { item: CartItem }) => (
+    <View style={styles.card}>
+      <Pressable
+        style={styles.checkboxWrapper}
+        onPress={() => toggleSelect(item.productId)}
+        hitSlop={8}
+      >
+        <Ionicons
+          name={item.selected ? "checkbox" : "square-outline"}
+          size={24}
+          color={item.selected ? "#000" : "#CCC"}
+        />
+      </Pressable>
+      <View style={styles.imageBox}>
+        <Image
+          source={{ uri: item.image }}
+          style={styles.image}
+          resizeMode="contain"
+        />
+      </View>
+      <View style={styles.infoBox}>
+        <View style={styles.cardTop}>
+          <Text style={styles.itemName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Pressable onPress={() => removeItem(item.productId)} hitSlop={8}>
+            <Ionicons name="trash-outline" size={20} color="#FF4D4D" />
+          </Pressable>
         </View>
-    );
+        <Text style={styles.itemSub}>Xe điện VinFast</Text>
+        <View style={styles.cardBottom}>
+          <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
+          <View style={styles.qtyControl}>
+            <Pressable
+              style={styles.qtyBtn}
+              onPress={() => updateQuantity(item.productId, -1)}
+            >
+              <FontAwesome name="minus" size={12} color="#333" />
+            </Pressable>
+            <Text style={styles.qtyText}>{item.quantity}</Text>
+            <Pressable
+              style={styles.qtyBtn}
+              onPress={() => updateQuantity(item.productId, 1)}
+            >
+              <FontAwesome name="plus" size={12} color="#333" />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
 
-    return (
-        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Giỏ hàng</Text>
-                {cartItems.length > 0 && (
-                    <Pressable onPress={() => setIsEditMode((prev) => !prev)}>
-                        <Text style={{ color: '#007AFF', fontWeight: 'bold', fontSize: 16 }}>
-                            {isEditMode ? 'Xong' : 'Sửa'}
-                        </Text>
-                    </Pressable>
-                )}
+  return (
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Giỏ Hàng</Text>
+        {cartItems.length > 0 && (
+          <Pressable onPress={() => setIsEditMode((p) => !p)}>
+            <Text style={styles.editBtn}>{isEditMode ? "Xong" : "Sửa"}</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* List */}
+      {loading ? (
+        <View style={{ padding: 20, gap: 14 }}>
+          {[0, 1, 2].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={cartItems}
+          keyExtractor={(i) => i.productId}
+          renderItem={renderItem}
+          contentContainerStyle={[
+            styles.listContent,
+            cartItems.length === 0 && { flex: 1 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyBox}>
+              <Ionicons name="cart-outline" size={80} color="#EEE" />
+              <Text style={styles.emptyText}>Giỏ hàng đang trống</Text>
             </View>
+          }
+        />
+      )}
 
-            <FlatList
-                data={cartItems}
-                keyExtractor={(item) => item.productId}
-                renderItem={renderCartItem}
-                contentContainerStyle={styles.listContent}
-                ListEmptyComponent={
-                    <View style={styles.emptyContent}>
-                        <Ionicons name="cart-outline" size={80} color="#EEE" />
-                        <Text style={styles.emptyText}>Giỏ hàng đang trống</Text>
-                    </View>
-                }
-            />
+      {/* Footer */}
+      {cartItems.length > 0 && (
+        <View style={styles.footer}>
+          {/* Voucher row */}
+          <Pressable
+            style={styles.voucherRow}
+            onPress={() => setVoucherModal(true)}
+          >
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Ionicons name="ticket-outline" size={20} color="#FF8C00" />
+              <Text style={styles.voucherLabel}>Voucher</Text>
+            </View>
+            <Text
+              style={[
+                styles.voucherValue,
+                appliedVoucher && { color: "#00B14F" },
+              ]}
+            >
+              {appliedVoucher
+                ? `${appliedVoucher.code} (-${formatCurrency(appliedVoucher.discount)})`
+                : "Chọn mã giảm giá"}
+            </Text>
+          </Pressable>
 
-            {cartItems.length > 0 && (
-                <View style={styles.footerContainer}>
-                    <Pressable style={styles.voucherSection} onPress={() => setVoucherModalVisible(true)}>
-                        <View style={styles.voucherLeft}>
-                            <Ionicons name="ticket-outline" size={22} color="#000" />
-                            <Text style={styles.voucherTitle}>Voucher</Text>
-                        </View>
-                        <Text style={[styles.voucherPlaceholder, appliedVoucher && {color: '#00B14F'}]}>
-                            {appliedVoucher ? appliedVoucher.code : 'Chọn mã giảm giá'}
-                        </Text>
-                    </Pressable>
+          {/* Action row */}
+          <View style={styles.actionRow}>
+            <Pressable style={styles.selectAllBtn} onPress={toggleSelectAll}>
+              <Ionicons
+                name={isAllSelected ? "checkbox" : "square-outline"}
+                size={22}
+                color={isAllSelected ? "#000" : "#CCC"}
+              />
+              <Text style={styles.selectAllText}>Tất cả</Text>
+            </Pressable>
+            <View style={styles.checkoutGroup}>
+              <View>
+                <Text style={styles.totalLabel}>Tổng cộng</Text>
+                <Text style={styles.totalAmount}>
+                  {formatCurrency(finalPrice)}
+                </Text>
+              </View>
+              <Pressable
+                style={[
+                  styles.checkoutBtn,
+                  selectedCount === 0 && { opacity: 0.4 },
+                  isEditMode && { backgroundColor: "#FF4D4D" },
+                ]}
+                disabled={selectedCount === 0}
+                onPress={isEditMode ? handleDeleteSelected : handleCheckout}
+              >
+                <Text style={styles.checkoutText}>
+                  {isEditMode ? `Xoá (${selectedCount})` : "Thanh toán"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
 
-                    <View style={styles.actionSection}>
-                        <Pressable style={styles.selectAllContainer} onPress={toggleSelectAll}>
-                            <Ionicons name={isAllSelected ? "checkbox" : "square-outline"} size={24} color={isAllSelected ? "#000" : "#CCC"} />
-                            <Text style={styles.selectAllText}>Tất cả</Text>
-                        </Pressable>
-                        <View style={styles.checkoutGroup}>
-                            <View style={{alignItems: 'flex-end'}}>
-                                <Text style={styles.totalLabel}>Tổng cộng</Text>
-                                <Text style={styles.totalAmount}>{formatCurrency(finalPrice)}</Text>
-                            </View>
-                            <Pressable
-                                style={[styles.finalCheckoutBtn, cartItems.filter(item => item.selected).length === 0 && { opacity: 0.5 }, isEditMode && { backgroundColor: '#FF4D4D' }]}
-                                disabled={cartItems.filter(item => item.selected).length === 0}
-                                onPress={async () => {
-                                    if (isEditMode) {
-                                        // Xoá các sản phẩm đã chọn
-                                        const selectedIds = cartItems.filter(i => i.selected).map(i => i.productId);
-                                        setCartItems(prev => prev.filter(i => !selectedIds.includes(i.productId)));
-                                        for (const id of selectedIds) {
-                                            try {
-                                                await axiosClient.post('/cart/remove-item', {
-                                                    userId: userId,
-                                                    productId: id
-                                                });
-                                            } catch (e) {}
-                                        }
-                                    } else {
-                                        // THANH TOÁN
-                                        const selectedItems = cartItems.filter(item => item.selected);
-
-                                        if (selectedItems.length === 0) return; // Đề phòng user chưa chọn gì
-
-                                        navigation.navigate('checkout', {
-                                            cartItems: selectedItems,
-                                            appliedVoucher
-                                        });
-                                    }
-                                }}
-                            >
-                                <Text style={styles.finalCheckoutText}>{isEditMode ? 'Xoá' : 'Thanh toán'}</Text>
-                            </Pressable>
-                        </View>
-                    </View>
+      {/* Voucher Modal */}
+      <Modal visible={isVoucherModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn Voucher</Text>
+              <Pressable onPress={() => setVoucherModal(false)} hitSlop={12}>
+                <Ionicons name="close" size={24} color="#333" />
+              </Pressable>
+            </View>
+            {VOUCHERS_MOCK.map((v) => (
+              <Pressable
+                key={v.id}
+                style={[
+                  styles.voucherItem,
+                  appliedVoucher?.id === v.id && styles.voucherItemActive,
+                ]}
+                onPress={() => {
+                  setAppliedVoucher(v);
+                  setVoucherModal(false);
+                }}
+              >
+                <View style={styles.voucherItemLeft}>
+                  <Text style={styles.voucherCode}>{v.code}</Text>
+                  <Text style={styles.voucherDesc}>{v.description}</Text>
                 </View>
+                <Text style={styles.voucherDiscount}>
+                  -{formatCurrency(v.discount)}
+                </Text>
+              </Pressable>
+            ))}
+            {appliedVoucher && (
+              <Pressable
+                style={styles.removeVoucherBtn}
+                onPress={() => {
+                  setAppliedVoucher(null);
+                  setVoucherModal(false);
+                }}
+              >
+                <Text style={styles.removeVoucherText}>Bỏ voucher</Text>
+              </Pressable>
             )}
-
-            {/* Modal Voucher giữ nguyên như của bạn nhưng sửa logic chọn */}
-            <Modal visible={isVoucherModalVisible} animationType="slide" transparent>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Chọn Voucher</Text>
-                            <Pressable onPress={() => setVoucherModalVisible(false)}><Ionicons name="close" size={24}/></Pressable>
-                        </View>
-                        {VOUCHERS_MOCK.map(v => (
-                            <Pressable key={v.id} style={styles.voucherItem} onPress={() => { setAppliedVoucher(v); setVoucherModalVisible(false); }}>
-                                <Text style={{fontWeight: 'bold'}}>{v.code}</Text>
-                                <Text>{v.description}</Text>
-                            </Pressable>
-                        ))}
-                    </View>
-                </View>
-            </Modal>
-        </SafeAreaView>
-    );
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
 }
 
-// Giữ nguyên các styles cũ của bạn dưới đây...
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#FFFFFF',
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-    },
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-    },
-    listContent: {
-        padding: 20,
-        paddingBottom: 160,
-    },
-    card: {
-        flexDirection: 'row',
-        backgroundColor: '#FFF',
-        borderRadius: 20,
-        padding: 12,
-        marginBottom: 16,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    checkboxWrapper: {
-        marginRight: 10,
-        padding: 4,
-    },
-    imageContainer: {
-        width: 85,
-        height: 85,
-        backgroundColor: '#F8F8F8',
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    image: {
-        width: '85%',
-        height: '85%',
-        resizeMode: 'contain',
-    },
-    infoContainer: {
-        flex: 1,
-        marginLeft: 15,
-        height: 85,
-        justifyContent: 'space-between',
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-    },
-    name: {
-        flex: 1,
-        fontSize: 15,
-        fontWeight: 'bold',
-        paddingRight: 10,
-    },
-    variantText: {
-        fontSize: 13,
-        color: '#888',
-        marginTop: -5,
-    },
-    cardFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    price: {
-        fontSize: 15,
-        fontWeight: 'bold',
-        color: '#000',
-    },
-    quantityControl: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F0F0F0',
-        borderRadius: 12,
-    },
-    qtyBtn: {
-        width: 30,
-        height: 30,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    qtyText: {
-        paddingHorizontal: 8,
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-    emptyContent: {
-        alignItems: 'center',
-        marginTop: 100,
-    },
-    emptyText: {
-        marginTop: 10,
-        color: '#AAA',
-        fontSize: 16,
-    },
-    footerContainer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#FFF',
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        paddingTop: 15,
-        paddingBottom: 35,
-        paddingHorizontal: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -10 },
-        shadowOpacity: 0.08,
-        shadowRadius: 15,
-        elevation: 20,
-    },
-    voucherSection: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
-    voucherLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    voucherTitle: {
-        fontSize: 15,
-        fontWeight: '600',
-    },
-    voucherPlaceholder: {
-        fontSize: 14,
-        color: '#999',
-    },
-    actionSection: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    selectAllContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    selectAllText: {
-        fontSize: 14,
-        color: '#666',
-    },
-    checkoutGroup: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 15,
-    },
-    totalLabel: {
-        fontSize: 12,
-        color: '#888',
-    },
-    totalAmount: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#000',
-    },
-    finalCheckoutBtn: {
-        backgroundColor: '#000',
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-        borderRadius: 16,
-    },
-    finalCheckoutText: {
-        color: '#FFF',
-        fontSize: 15,
-        fontWeight: 'bold',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: '#FFF',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 20,
-        minHeight: '40%',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 20,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    voucherItem: {
-        padding: 15,
-        borderBottomWidth: 1,
-        borderColor: '#EEE',
-    },
+  safe: { flex: 1, backgroundColor: "#F7F8FA" },
+
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#EBEBEB",
+  },
+  headerTitle: { fontSize: 22, fontWeight: "800", color: "#111" },
+  editBtn: { fontSize: 15, fontWeight: "700", color: "#007AFF" },
+
+  listContent: { padding: 16, paddingBottom: 200 },
+
+  card: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 12,
+    marginBottom: 14,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  checkboxWrapper: { marginRight: 10, padding: 4 },
+  imageBox: {
+    width: 85,
+    height: 85,
+    backgroundColor: "#F8F8F8",
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  image: { width: "85%", height: "85%" },
+  infoBox: {
+    flex: 1,
+    marginLeft: 14,
+    height: 85,
+    justifyContent: "space-between",
+  },
+  cardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  itemName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111",
+    paddingRight: 8,
+  },
+  itemSub: { fontSize: 12, color: "#AAA" },
+  cardBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  itemPrice: { fontSize: 15, fontWeight: "800", color: "#111" },
+  qtyControl: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F0F0",
+    borderRadius: 12,
+  },
+  qtyBtn: {
+    width: 30,
+    height: 30,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  qtyText: { paddingHorizontal: 10, fontWeight: "700", fontSize: 14 },
+
+  emptyBox: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  emptyText: { color: "#CCC", fontSize: 16, fontWeight: "600" },
+
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 14,
+    paddingBottom: 32,
+    paddingHorizontal: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 16,
+  },
+
+  voucherRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#F0F0F0",
+  },
+  voucherLabel: { fontSize: 14, fontWeight: "600", color: "#111" },
+  voucherValue: { fontSize: 13, color: "#AAA", fontWeight: "500" },
+
+  actionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  selectAllBtn: { flexDirection: "row", alignItems: "center", gap: 8 },
+  selectAllText: { fontSize: 14, color: "#666" },
+  checkoutGroup: { flexDirection: "row", alignItems: "center", gap: 14 },
+  totalLabel: { fontSize: 11, color: "#AAA", marginBottom: 2 },
+  totalAmount: { fontSize: 16, fontWeight: "800", color: "#111" },
+  checkoutBtn: {
+    backgroundColor: "#111",
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    borderRadius: 16,
+  },
+  checkoutText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  modalBox: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#111" },
+  voucherItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: "#F8F8F8",
+    marginBottom: 10,
+  },
+  voucherItemActive: {
+    backgroundColor: "#E8F8F5",
+    borderWidth: 1.5,
+    borderColor: "#00B14F",
+  },
+  voucherItemLeft: { flex: 1 },
+  voucherCode: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#111",
+    marginBottom: 3,
+  },
+  voucherDesc: { fontSize: 12, color: "#888" },
+  voucherDiscount: { fontSize: 15, fontWeight: "800", color: "#FF4D4D" },
+  removeVoucherBtn: { alignItems: "center", marginTop: 6, paddingVertical: 12 },
+  removeVoucherText: { color: "#FF4D4D", fontWeight: "700", fontSize: 14 },
 });
