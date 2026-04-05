@@ -1,534 +1,374 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Dimensions,
   FlatList,
   Image,
   Keyboard,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import FilterModal from '../../components/ui/filtermodal';
-import { carApi } from '../services/api/car.api';
-import { motorbikeApi } from '../services/api/motorbikes.api';
+import API_URL from "../data/api/apis";
+import BEST_PRICE_DATA from "../data/bestPrice";
 
-// Giá trị mặc định cho bộ lọc
-const DEFAULT_FILTERS = {
-  type: 'all',
-  minPrice: undefined,
-  maxPrice: undefined,
-  minRating: 0,
-  status: undefined,
+const { width } = Dimensions.get("window");
+
+const encodeImagePath = (p: string) =>
+  p.split("/").map(encodeURIComponent).join("/");
+
+/* ── Types ── */
+interface Motorbike {
+  id: number;
+  name: string;
+  price: number;
+  image: string;
+  category: string;
+  _type: "motorbike";
+}
+interface Car {
+  id: number;
+  name: string;
+  price: number;
+  image: string;
+  _type: "car";
+}
+interface Accessory {
+  id: number;
+  name: string;
+  price: number;
+  image: string;
+  _type: "accessory";
+}
+type SearchItem = Motorbike | Car | Accessory;
+
+const CATEGORY_COLOR: Record<string, string> = {
+  pho_thong: "#FF8C00",
+  trung_cap: "#2D6BE4",
+  cao_cap:   "#9B51E0",
+};
+const CATEGORY_LABEL: Record<string, string> = {
+  pho_thong: "Phổ Thông",
+  trung_cap: "Trung Cấp",
+  cao_cap:   "Cao Cấp",
+};
+
+const TYPE_FILTERS = [
+  { key: "all",       label: "Tất Cả"   },
+  { key: "motorbike", label: "Xe Máy"   },
+  { key: "car",       label: "Ô Tô"     },
+  { key: "accessory", label: "Phụ Kiện" },
+];
+
+/* ── Skeleton ── */
+const SkeletonItem = () => {
+  const anim = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(anim, { toValue: 1, duration: 750, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 0.4, duration: 750, useNativeDriver: true }),
+    ])).start();
+  }, []);
+  return (
+    <Animated.View style={[styles.card, { opacity: anim, flexDirection: "row", height: 90 }]}>
+      <View style={{ width: 90, backgroundColor: "#EBEBEB", borderRadius: 12 }} />
+      <View style={{ flex: 1, marginLeft: 14, gap: 10, justifyContent: "center" }}>
+        <View style={{ height: 14, width: "75%", backgroundColor: "#EBEBEB", borderRadius: 6 }} />
+        <View style={{ height: 12, width: "45%", backgroundColor: "#F2F2F2", borderRadius: 6 }} />
+        <View style={{ height: 12, width: "30%", backgroundColor: "#F2F2F2", borderRadius: 6 }} />
+      </View>
+    </Animated.View>
+  );
 };
 
 export default function SearchScreen() {
   const navigation = useNavigation<any>();
-  // --- STATE QUẢN LÝ ---
-  const [searchText, setSearchText] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFilterVisible, setFilterVisible] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
-  const [currentFilters, setCurrentFilters] = useState(DEFAULT_FILTERS);
+  const insets     = useSafeAreaInsets();
 
-  // State cho dữ liệu mặc định và phân trang
-  const [defaultData, setDefaultData] = useState<any[]>([]);
-  const [currentData, setCurrentData] = useState<any[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const PAGE_SIZE = 10;
+  const [query, setQuery]           = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [allData, setAllData]       = useState<SearchItem[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [history, setHistory]       = useState<string[]>([]);
 
-  // Kiểm tra xem người dùng có đang áp dụng bộ lọc nào không
-  const isFiltering = () => {
-    return (
-      currentFilters.type !== 'all' ||
-      currentFilters.minPrice !== undefined ||
-      currentFilters.maxPrice !== undefined ||
-      currentFilters.status !== undefined
-    );
-  };
-
-  // --- XỬ LÝ SỰ KIỆN ---
-  
-  // Khi người dùng gõ phím
-  const handleTextChange = (text: string) => {
-    setSearchText(text);
-    if (isFiltering()) {
-       setCurrentFilters(DEFAULT_FILTERS);
-    }
-  };
-
-  // Khi người dùng bấm "Áp dụng" từ Filter Modal
-  const handleApplyFilter = (filters: any) => {
-    setCurrentFilters(filters);
-  };
-
-  // --- CORE LOGIC TÌM KIẾM & LỌC ---
-  const fetchSearchResults = async (keyword: string, filters: any) => {
-    if (!keyword.trim() && !isFiltering()) {
-      setResults([]);
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const params: any = {};
-      if (keyword.trim()) params.keyword = keyword.trim();
-      if (filters.minPrice) params.minPrice = filters.minPrice;
-      if (filters.maxPrice) params.maxPrice = filters.maxPrice;
-      if (filters.status !== undefined && filters.status !== 'all') {
-          params.status = filters.status;
-      }
-      if (filters.minRating) params.rating = filters.minRating;
-
-      let dataFromApi: any[] = [];
-      
-      if (filters.type === 'car') {
-        const res = await carApi.getList(params);
-        dataFromApi = (res.data?.data || []).map((item: any) => ({...item, isCar: true}));
-      } else if (filters.type === 'motorbike') {
-        const res = await motorbikeApi.getList(params);
-        dataFromApi = (res.data?.data || []).map((item: any) => ({...item, isCar: false}));
-      } else {
-        const [carRes, motoRes] = await Promise.all([
-          carApi.getList(params).catch(() => ({ data: { data: [] } })),
-          motorbikeApi.getList(params).catch(() => ({ data: { data: [] } }))
-        ]);
-        const cars = (carRes.data?.data || []).map((c: any) => ({ ...c, isCar: true }));
-        const motos = (motoRes.data?.data || []).map((m: any) => ({ ...m, isCar: false }));
-        dataFromApi = [...cars, ...motos];
-      }
-      
-      let finalResults = dataFromApi;
-
-      if (keyword.trim()) {
-        const searchKey = keyword.trim().toLowerCase();
-        finalResults = dataFromApi.filter(item => {
-             const name = item.name ? item.name.toLowerCase() : '';
-             return name.includes(searchKey); 
-        });
-      }
-      
-      setResults(finalResults);
-
-    } catch (error) {
-      console.error("Search Error:", error);
-      setResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch dữ liệu mặc định từ API khi chưa tìm kiếm
+  /* ── Fetch tất cả data 1 lần ── */
   useEffect(() => {
-    const fetchDefault = async () => {
+    (async () => {
+      setLoading(true);
       try {
-        // Gọi cả 2 API song song
-        const [carRes, motoRes] = await Promise.all([
-          carApi.getList({}).catch(() => ({ data: { data: [] } })),
-          motorbikeApi.getList({}).catch(() => ({ data: { data: [] } }))
+        const [motoRes, carRes, accRes] = await Promise.all([
+          fetch(`${API_URL}/api/products`).then((r) => r.json()).catch(() => []),
+          fetch(`${API_URL}/api/cars`).then((r) => r.json()).catch(() => []),
+          fetch(`${API_URL}/api/accessories`).then((r) => r.json()).catch(() => []),
         ]);
-        const cars = (carRes.data?.data || []).map((c: any) => ({ ...c, isCar: true }));
-        const motos = (motoRes.data?.data || []).map((m: any) => ({ ...m, isCar: false }));
-        const all = [...cars, ...motos];
-        setDefaultData(all);
-        setCurrentData(all.slice(0, PAGE_SIZE));
-        setPage(1);
-        setHasMore(all.length > PAGE_SIZE);
+        // Normalize: handle cả array thẳng lẫn { data: [...] } wrapper
+        const toArr = (res: any) => Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+        const motorbikes: Motorbike[] = toArr(motoRes).map((i: any) => ({ ...i, _type: "motorbike" }));
+        const cars: Car[]             = toArr(carRes).map((i: any) => ({ ...i, _type: "car" }));
+        const accessories: Accessory[]= toArr(accRes).map((i: any) => ({ ...i, _type: "accessory" }));
+        setAllData([...motorbikes, ...cars, ...accessories]);
       } catch (e) {
-        setDefaultData([]);
-        setCurrentData([]);
-        setHasMore(false);
+        console.log("fetch search error:", e);
+      } finally {
+        setLoading(false);
       }
-    };
-    if (searchText.trim().length === 0 && !isFiltering()) {
-      fetchDefault();
+    })();
+  }, []);
+
+  /* ── Filter logic ── */
+  const filtered = useCallback((): SearchItem[] => {
+    let data = allData;
+    if (typeFilter !== "all") data = data.filter((i) => i._type === typeFilter);
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      data = data.filter((i) => i.name.toLowerCase().includes(q));
     }
-  }, [searchText, currentFilters]);
+    return data;
+  }, [allData, query, typeFilter]);
 
-  // Debounce: Chỉ gọi tìm kiếm sau khi ngừng gõ 0.5s để tránh spam API
-  useEffect(() => {
-    const timer = setTimeout(() => {
-        if (searchText.trim().length > 0 || isFiltering()) {
-            fetchSearchResults(searchText, currentFilters);
-        } else {
-            setResults([]);
-        }
-    }, 500); 
-    return () => clearTimeout(timer);
-  }, [searchText, currentFilters]); 
+  const results = filtered();
 
-  // Reset khi searchText thay đổi
-  useEffect(() => {
-    if (searchText.trim().length === 0 && !isFiltering()) {
-      setCurrentData(defaultData.slice(0, 10));
-      setPage(1);
-      setHasMore(defaultData.length > 10);
-    }
-  }, [searchText, currentFilters]);
-
-  // Lưu lịch sử tìm kiếm khi ấn Enter/Submit trên bàn phím
-  const handleSearchSubmit = () => {
-    if (searchText.trim().length > 0) {
-      const trimmedText = searchText.trim();
-      setHistory(prev => {
-        const newHistory = [trimmedText, ...prev.filter(h => h !== trimmedText)];
-        return newHistory.slice(0, 10);
-      });
-      Keyboard.dismiss();
-    }
+  /* ── Search submit → lưu history ── */
+  const handleSubmit = () => {
+    if (!query.trim()) return;
+    setHistory((prev) => {
+      const next = [query.trim(), ...prev.filter((h) => h !== query.trim())];
+      return next.slice(0, 10);
+    });
+    Keyboard.dismiss();
   };
 
-  // Chọn từ khóa từ lịch sử -> Tìm kiếm & Reset Filter
-  const handleHistorySelect = (text: string) => {
-    setSearchText(text); 
-    setCurrentFilters(DEFAULT_FILTERS);
-  };
+  /* ── Render card ── */
+  const renderItem = useCallback(({ item }: { item: SearchItem }) => {
+    const isMotorbike = item._type === "motorbike";
+    const isCar       = item._type === "car";
+    const isAccessory = item._type === "accessory";
 
-  const clearHistory = () => setHistory([]);
+    const imageUri = isMotorbike
+      ? `${API_URL}/images/${encodeImagePath(item.image)}`
+      : isCar
+      ? `${API_URL}/images/${encodeImagePath(item.image)}`
+      : `${API_URL}/${encodeImagePath(item.image)}`;
 
-  // Xóa từng item trong lịch sử
-  const removeHistoryItem = (itemToRemove: string) => {
-    setHistory(prev => prev.filter(item => item !== itemToRemove));
-  };
+    const rating = isMotorbike ? (BEST_PRICE_DATA[(item as Motorbike).id]?.rating ?? null) : null;
+    const catLabel = isMotorbike ? CATEGORY_LABEL[(item as Motorbike).category] : isCar ? "Ô Tô" : "Phụ Kiện";
+    const catColor = isMotorbike ? (CATEGORY_COLOR[(item as Motorbike).category] ?? "#FF8C00") : isCar ? "#0CAF60" : "#E84393";
 
-  // Khi không tìm kiếm thì load thêm dữ liệu mặc định khi scroll
-  const loadMoreDefaultData = () => {
-    if (!hasMore || searchText.trim().length > 0 || isFiltering()) return;
-    const nextPage = page + 1;
-    const nextData = defaultData.slice(0, nextPage * PAGE_SIZE);
-    setCurrentData(nextData);
-    setPage(nextPage);
-    setHasMore(nextData.length < defaultData.length);
-  };
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.88}
+        onPress={() => {
+          if (isMotorbike) navigation.navigate("best_price_detail", { id: item.id });
+        }}
+      >
+        <Image source={{ uri: imageUri }} style={styles.cardImage} resizeMode="cover" />
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
 
-  // Render từng item xe
-  const renderProductItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.itemContainer}
-       onPress={() => navigation.navigate('DetailScreen',{ item: item})}
-    >
-      <Image 
-        source={{ uri: item.image || 'https://via.placeholder.com/150' }} 
-        style={styles.itemImage}
-        resizeMode="cover"
-      />
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.itemPrice}>
-            {item.price ? item.price.toLocaleString('vi-VN') : 0} đ
-        </Text>
-        <View style={styles.badgeRow}>
-            <View style={[styles.badge, { backgroundColor: '#F0F0F0' }]}>
-                <Text style={styles.badgeText}>
-                    {item.category?.name || (item.isCar ? "Ô tô" : "Xe máy")}
-                </Text>
+          {/* Category badge */}
+          <View style={[styles.badge, { backgroundColor: catColor + "18", borderColor: catColor + "55" }]}>
+            <Text style={[styles.badgeText, { color: catColor }]}>{catLabel}</Text>
+          </View>
+
+          <View style={styles.cardFooter}>
+            <View>
+              <Text style={styles.priceLabel}>Giá từ</Text>
+              <Text style={[styles.price, { color: catColor }]}>
+                {Number(item.price).toLocaleString("vi-VN")}đ
+              </Text>
             </View>
-            {item.status !== undefined && (
-                 <View style={[
-                   styles.badge, 
-                   { 
-                     backgroundColor: item.status === 1 ? '#E3F2FD' : '#FFEBEE', 
-                     marginLeft: 8 
-                   }
-                 ]}>
-                    <Text style={[
-                      styles.badgeText, 
-                      { color: item.status === 1 ? '#1976D2' : '#D32F2F' }
-                    ]}>
-                        {item.status === 1 ? "Xe Mới" : "Xe Cũ"}
-                    </Text>
-                </View>
+            {rating && (
+              <View style={styles.ratingBox}>
+                <FontAwesome name="star" size={11} color="#F5A623" />
+                <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+              </View>
             )}
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  }, [navigation]);
 
-  // Xác định trạng thái hiển thị
-  const showResults = results.length > 0;
-  const showDefault = !showResults && !isLoading && !searchText && !isFiltering();
-  const showHistory = !showResults && !isLoading && !searchText && !isFiltering() && !showDefault;
-  const showEmpty = !showResults && !isLoading && (searchText || isFiltering());
+  const showHistory  = !query && history.length > 0;
+  const showEmpty    = !loading && query.trim() && results.length === 0;
 
   return (
-    <View style={styles.container}>
-      {/* --- HEADER TÌM KIẾM --- */}
-      <View style={styles.headerWrapper}>
-        <View style={styles.unifiedSearchBar}>
-            <Ionicons name="search" size={20} color="#888" style={{ marginRight: 10 }} />
-            <TextInput 
-                placeholder="Tìm tên xe..." 
-                style={styles.searchInput}
-                value={searchText}
-                onChangeText={handleTextChange} 
-                onSubmitEditing={handleSearchSubmit}
-                returnKeyType="search"
-            />
-            {searchText.length > 0 && (
-                <TouchableOpacity onPress={() => handleTextChange('')}>
-                    <Ionicons name="close-circle" size={18} color="#ccc" />
-                </TouchableOpacity>
-            )}
-            <View style={styles.verticalDivider} />
-            <TouchableOpacity 
-                style={styles.filterBtn}
-                onPress={() => setFilterVisible(true)}
-            >
-                <Ionicons 
-                    name="options-outline" 
-                    size={22} 
-                    color={isFiltering() ? "#007BFF" : "#333"} 
-                />
-            </TouchableOpacity>
-        </View>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+
+      {/* Search bar */}
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={18} color="#888" style={{ marginRight: 8 }} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Tìm tên xe, phụ kiện..."
+          placeholderTextColor="#BBB"
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={handleSubmit}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {query.length > 0 && (
+          <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="close-circle" size={18} color="#CCC" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* --- BODY CONTENT --- */}
-      {isLoading ? (
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#000" />
+      {/* Type filter tabs */}
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        data={TYPE_FILTERS}
+        keyExtractor={(i) => i.key}
+        contentContainerStyle={styles.filterBar}
+        renderItem={({ item }) => {
+          const active = item.key === typeFilter;
+          return (
+            <TouchableOpacity
+              style={[styles.filterBtn, active && styles.filterActive]}
+              onPress={() => setTypeFilter(item.key)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>{item.label}</Text>
+            </TouchableOpacity>
+          );
+        }}
+      />
+
+      {/* Count */}
+      {!loading && (
+        <View style={styles.countRow}>
+          <View style={styles.accentBar} />
+          <Text style={styles.countText}>
+            {query.trim() ? `${results.length} kết quả cho "${query}"` : `${results.length} sản phẩm`}
+          </Text>
         </View>
-      ) : (
-        <>
-          {/* 1. Dữ liệu mặc định khi chưa tìm kiếm */}
-          {showDefault && (
-            <FlatList
-              data={currentData}
-              keyExtractor={(item, index) => item._id ? item._id.toString() : index.toString()}
-              renderItem={renderProductItem}
-              contentContainerStyle={styles.listContent}
-              onEndReached={loadMoreDefaultData}
-              onEndReachedThreshold={0.2}
-              ListFooterComponent={hasMore ? <ActivityIndicator size="small" color="#888" /> : null}
-            />
-          )}
-
-          {/* 2. Lịch sử tìm kiếm */}
-          {showHistory && (
-             <View style={styles.historyContainer}>
-                {history.length > 0 ? (
-                  <>
-                    <View style={styles.historyHeader}>
-                      <Text style={styles.historyTitle}>Lịch sử tìm kiếm</Text>
-                      <TouchableOpacity onPress={clearHistory}>
-                        <Text style={styles.clearHistoryText}>Xóa tất cả</Text>
-                      </TouchableOpacity>
-                    </View>
-                    {history.map((item, index) => (
-                      <View key={index} style={styles.historyItem}>
-                        <TouchableOpacity 
-                          style={styles.historyItemContent}
-                          onPress={() => handleHistorySelect(item)}
-                        >
-                          <Ionicons name="time-outline" size={20} color="#888" style={{marginRight: 10}} />
-                          <Text style={styles.historyText}>{item}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={styles.deleteHistoryBtn}
-                          onPress={() => removeHistoryItem(item)}
-                        >
-                          <Ionicons name="close" size={20} color="#999" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </>
-                ) : (
-                   <View style={styles.centerContent}>
-                      <Ionicons name="search-outline" size={48} color="#ddd" />
-                      <Text style={styles.emptyText}>Nhập tên xe để tìm kiếm</Text>
-                   </View>
-                )}
-             </View>
-          )}
-
-          {/* 3. Danh sách kết quả */}
-          {showResults && (
-            <FlatList
-                data={results}
-                keyExtractor={(item, index) => item._id ? item._id.toString() : index.toString()}
-                renderItem={renderProductItem}
-                contentContainerStyle={styles.listContent}
-            />
-          )}
-
-          {/* 4. Không tìm thấy */}
-          {showEmpty && (
-             <View style={styles.centerContent}>
-                <Text style={styles.emptyText}>Không tìm thấy kết quả nào.</Text>
-             </View>
-          )}
-        </>
       )}
 
-      {/* --- MODAL BỘ LỌC --- */}
-      <FilterModal 
-        isVisible={isFilterVisible}
-        onClose={() => setFilterVisible(false)}
-        onApply={handleApplyFilter}
-        currentValues={currentFilters}
-      />
+      {/* Content */}
+      {loading ? (
+        <View style={{ padding: 16, gap: 12 }}>
+          {[0,1,2,3,4].map((i) => <SkeletonItem key={i} />)}
+        </View>
+      ) : showEmpty ? (
+        <View style={styles.emptyBox}>
+          <Ionicons name="search-outline" size={52} color="#DDD" />
+          <Text style={styles.emptyText}>Không tìm thấy "{query}"</Text>
+          <Text style={styles.emptySub}>Thử tìm với từ khóa khác</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={showHistory && !query ? [] : results}
+          keyExtractor={(item, i) => `${item._type}-${item.id}-${i}`}
+          renderItem={renderItem}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 32 }]}
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews
+          initialNumToRender={10}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ListHeaderComponent={
+            showHistory ? (
+              <View style={styles.historyBox}>
+                <View style={styles.historyHeader}>
+                  <Text style={styles.historyTitle}>Tìm kiếm gần đây</Text>
+                  <TouchableOpacity onPress={() => setHistory([])}>
+                    <Text style={styles.clearText}>Xóa tất cả</Text>
+                  </TouchableOpacity>
+                </View>
+                {history.map((h, i) => (
+                  <TouchableOpacity key={i} style={styles.historyItem} onPress={() => setQuery(h)}>
+                    <Ionicons name="time-outline" size={16} color="#BBB" />
+                    <Text style={styles.historyText}>{h}</Text>
+                    <TouchableOpacity onPress={() => setHistory((prev) => prev.filter((_, idx) => idx !== i))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name="close" size={16} color="#CCC" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            !query && !showHistory ? (
+              <View style={styles.emptyBox}>
+                <Ionicons name="search-outline" size={52} color="#DDD" />
+                <Text style={styles.emptyText}>Nhập tên xe để tìm kiếm</Text>
+              </View>
+            ) : null
+          }
+        />
+      )}
     </View>
   );
 }
 
-// ================= STYLES =================
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-    paddingTop: 50,
-  },
-  
-  // --- Header Styles ---
-  headerWrapper: {
-    paddingHorizontal: 20,
-    marginBottom: 10,
-  },
-  unifiedSearchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#EFEFEF',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-    height: '100%',
-    paddingRight: 10,
-  },
-  verticalDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#E0E0E0',
-    marginHorizontal: 12,
-  },
-  filterBtn: {
-    padding: 4,
-  },
+  safe: { flex: 1, backgroundColor: "#F7F8FA" },
 
-  // --- Content Styles ---
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    paddingTop: 10,
+  /* Search bar */
+  searchBar: {
+    flexDirection: "row", alignItems: "center",
+    marginHorizontal: 16, marginBottom: 10,
+    backgroundColor: "#fff", borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 12,
+    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
-  centerContent: {
-    marginTop: 80,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#999',
-    fontSize: 16,
-    marginTop: 10,
-  },
+  searchInput: { flex: 1, fontSize: 15, color: "#111" },
 
-  // --- Item (Card) Styles ---
-  itemContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    marginBottom: 15,
-    borderRadius: 16,
-    padding: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
+  /* Filter tabs */
+  filterBar: { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
+  filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: "#EFEFEF", marginRight: 8 },
+  filterActive:     { backgroundColor: "#111" },
+  filterText:       { fontSize: 13, fontWeight: "600", color: "#777" },
+  filterTextActive: { color: "#fff" },
+
+  /* Count row */
+  countRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, marginBottom: 6 },
+  accentBar: { width: 3, height: 16, borderRadius: 2, backgroundColor: "#FF8C00", marginRight: 8 },
+  countText: { fontSize: 13, color: "#AAA", fontWeight: "500" },
+
+  /* List */
+  list: { paddingHorizontal: 16, paddingTop: 4 },
+
+  /* Card */
+  card: {
+    flexDirection: "row", backgroundColor: "#fff", borderRadius: 18, overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
-  itemImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 12,
-    backgroundColor: '#F0F0F0',
-  },
-  itemInfo: {
-    flex: 1,
-    marginLeft: 15,
-    justifyContent: 'center',
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111',
-    marginBottom: 6,
-  },
-  itemPrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#009900',
-    marginBottom: 6,
-  },
-  
-  // --- Badge Styles ---
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
+  cardImage: { width: 110, height: 110, resizeMode: "cover" },
+  cardInfo:  { flex: 1, padding: 12, justifyContent: "space-between" },
+  cardName:  { fontSize: 14, fontWeight: "700", color: "#111", lineHeight: 20 },
   badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 8, borderWidth: 1, marginTop: 4,
   },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
+  badgeText: { fontSize: 11, fontWeight: "700" },
+  cardFooter:  { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 6 },
+  priceLabel:  { fontSize: 10, color: "#BBB", marginBottom: 1 },
+  price:       { fontSize: 14, fontWeight: "800" },
+  ratingBox:   { flexDirection: "row", alignItems: "center", gap: 4 },
+  ratingText:  { fontSize: 12, color: "#999", fontWeight: "600" },
 
-  // --- History Styles ---
-  historyContainer: {
-    paddingHorizontal: 20,
-    marginTop: 10,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-    alignItems: 'center',
-  },
-  historyTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  clearHistoryText: {
-    fontSize: 14,
-    color: '#FF3B30',
-  },
-  historyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  historyItemContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  historyText: {
-    fontSize: 16,
-    color: '#444',
-  },
-  deleteHistoryBtn: {
-    padding: 10,
-  },
+  /* History */
+  historyBox:    { marginBottom: 16 },
+  historyHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  historyTitle:  { fontSize: 15, fontWeight: "700", color: "#111" },
+  clearText:     { fontSize: 13, color: "#FF3B30", fontWeight: "600" },
+  historyItem:   { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: "#F0F0F0" },
+  historyText:   { flex: 1, fontSize: 14, color: "#555" },
+
+  /* Empty */
+  emptyBox:  { alignItems: "center", paddingTop: 80, gap: 10 },
+  emptyText: { fontSize: 16, color: "#CCC", fontWeight: "600" },
+  emptySub:  { fontSize: 13, color: "#DDD" },
 });

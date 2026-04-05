@@ -48,7 +48,7 @@ import News2 from "../pages/home_expand/news_details/news2";
 import News3 from "../pages/home_expand/news_details/news3";
 
 /* OTHER */
-import SearchScreen from "../pages/search";
+import SearchScreen from "../../screen/searchScreen";
 import CheckoutScreen from "../pages/checkout";
 import PaymentSuccessScreen from "../pages/PaymentSuccess";
 import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
