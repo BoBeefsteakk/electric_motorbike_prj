@@ -15,7 +15,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
+import { darkTheme, lightTheme } from "../../theme/colors";
 
 interface CartItem {
   productId: string;
@@ -131,7 +133,7 @@ const toastStyles = StyleSheet.create({
 });
 
 /* ── Skeleton ── */
-const SkeletonCard = () => {
+const SkeletonCard = ({ dark = false }: { dark?: boolean }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
 
   React.useEffect(() => {
@@ -152,12 +154,24 @@ const SkeletonCard = () => {
   }, [anim]);
 
   return (
-    <Animated.View style={[styles.card, { opacity: anim }]}>
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: anim,
+          backgroundColor: dark ? "#1F2937" : "#fff",
+          shadowOpacity: dark ? 0 : 0.06,
+          elevation: dark ? 0 : 2,
+          borderWidth: dark ? 1 : 0,
+          borderColor: dark ? "#334155" : "transparent",
+        },
+      ]}
+    >
       <View
         style={{
           width: 85,
           height: 85,
-          backgroundColor: "#EBEBEB",
+          backgroundColor: dark ? "#334155" : "#EBEBEB",
           borderRadius: 16,
         }}
       />
@@ -166,7 +180,7 @@ const SkeletonCard = () => {
           style={{
             height: 14,
             width: "70%",
-            backgroundColor: "#EBEBEB",
+            backgroundColor: dark ? "#334155" : "#EBEBEB",
             borderRadius: 6,
           }}
         />
@@ -174,7 +188,7 @@ const SkeletonCard = () => {
           style={{
             height: 12,
             width: "40%",
-            backgroundColor: "#F2F2F2",
+            backgroundColor: dark ? "#475569" : "#F2F2F2",
             borderRadius: 6,
           }}
         />
@@ -182,7 +196,7 @@ const SkeletonCard = () => {
           style={{
             height: 12,
             width: "55%",
-            backgroundColor: "#F2F2F2",
+            backgroundColor: dark ? "#475569" : "#F2F2F2",
             borderRadius: 6,
           }}
         />
@@ -221,6 +235,8 @@ const buildImageUri = (image?: string) => {
 };
 
 export default function CartScreen() {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
@@ -361,8 +377,18 @@ export default function CartScreen() {
     const itemKey = getCartItemKey(item);
 
     return (
-      <View style={styles.card}>
-        {/* Checkbox */}
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.card,
+            shadowOpacity: theme === "dark" ? 0 : 0.06,
+            elevation: theme === "dark" ? 0 : 2,
+            borderWidth: theme === "dark" ? 1 : 0,
+            borderColor: theme === "dark" ? "#334155" : "transparent",
+          },
+        ]}
+      >
         <Pressable
           style={styles.checkboxWrapper}
           onPress={() => toggleSelect(itemKey)}
@@ -371,12 +397,18 @@ export default function CartScreen() {
           <Ionicons
             name={item.selected ? "checkbox" : "square-outline"}
             size={24}
-            color={item.selected ? "#39B78D" : "#CCC"}
+            color={
+              item.selected ? "#39B78D" : theme === "dark" ? "#64748B" : "#CCC"
+            }
           />
         </Pressable>
 
-        {/* Image */}
-        <View style={styles.imageBox}>
+        <View
+          style={[
+            styles.imageBox,
+            { backgroundColor: theme === "dark" ? "#0F172A" : "#F8F8F8" },
+          ]}
+        >
           <Image
             source={{ uri: buildImageUri(item.image) }}
             style={styles.image}
@@ -384,10 +416,12 @@ export default function CartScreen() {
           />
         </View>
 
-        {/* Info */}
         <View style={styles.infoBox}>
           <View style={styles.cardTop}>
-            <Text style={styles.itemName} numberOfLines={2}>
+            <Text
+              style={[styles.itemName, { color: colors.text }]}
+              numberOfLines={2}
+            >
               {item.name}
             </Text>
             <Pressable
@@ -400,22 +434,53 @@ export default function CartScreen() {
             </Pressable>
           </View>
 
-          <Text style={styles.itemSub}>Xe điện VinFast</Text>
+          <Text
+            style={[
+              styles.itemSub,
+              { color: theme === "dark" ? "#94A3B8" : "#BBB" },
+            ]}
+          >
+            Xe điện VinFast
+          </Text>
 
           <View style={styles.colorRow}>
-            <Text style={styles.metaLabel}>Màu đã chọn:</Text>
+            <Text
+              style={[
+                styles.metaLabel,
+                { color: theme === "dark" ? "#CBD5E1" : "#666" },
+              ]}
+            >
+              Màu đã chọn:
+            </Text>
             <View
               style={[
                 styles.colorDot,
-                { backgroundColor: item.colorValue || "#DDD" },
+                {
+                  backgroundColor: item.colorValue || "#DDD",
+                  borderColor: theme === "dark" ? "#475569" : "#DDD",
+                },
               ]}
             />
-            <Text style={styles.metaValue}>{item.colorName || "Mặc định"}</Text>
+            <Text
+              style={[
+                styles.metaValue,
+                { color: theme === "dark" ? "#F8FAFC" : "#222" },
+              ]}
+            >
+              {item.colorName || "Mặc định"}
+            </Text>
           </View>
 
           <View style={styles.cardBottom}>
-            <Text style={styles.itemPrice}>{fmt(item.price)}</Text>
-            <View style={styles.qtyControl}>
+            <Text style={[styles.itemPrice, { color: colors.text }]}>
+              {fmt(item.price)}
+            </Text>
+            <View
+              style={[
+                styles.qtyControl,
+                { backgroundColor: theme === "dark" ? "#0F172A" : "#F0F0F0" },
+              ]}
+            >
               <Pressable
                 style={styles.qtyBtn}
                 onPress={() =>
@@ -427,9 +492,20 @@ export default function CartScreen() {
                   )
                 }
               >
-                <Ionicons name="remove" size={16} color="#333" />
+                <Ionicons
+                  name="remove"
+                  size={16}
+                  color={theme === "dark" ? "#E2E8F0" : "#333"}
+                />
               </Pressable>
-              <Text style={styles.qtyText}>{item.quantity}</Text>
+              <Text
+                style={[
+                  styles.qtyText,
+                  { color: theme === "dark" ? "#F8FAFC" : "#111" },
+                ]}
+              >
+                {item.quantity}
+              </Text>
               <Pressable
                 style={styles.qtyBtn}
                 onPress={() =>
@@ -441,7 +517,11 @@ export default function CartScreen() {
                   )
                 }
               >
-                <Ionicons name="add" size={16} color="#333" />
+                <Ionicons
+                  name="add"
+                  size={16}
+                  color={theme === "dark" ? "#E2E8F0" : "#333"}
+                />
               </Pressable>
             </View>
           </View>
@@ -451,10 +531,27 @@ export default function CartScreen() {
   };
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Giỏ Hàng</Text>
+    <View
+      style={[
+        styles.safe,
+        {
+          paddingTop: insets.top,
+          backgroundColor: theme === "dark" ? "#0F172A" : "#F7F8FA",
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: theme === "dark" ? "#243041" : "#EBEBEB",
+          },
+        ]}
+      >
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Giỏ Hàng
+        </Text>
         {cartItems.length > 0 && (
           <View style={styles.countBadge}>
             <Text style={styles.countBadgeText}>{cartItems.length}</Text>
@@ -462,17 +559,27 @@ export default function CartScreen() {
         )}
       </View>
 
-      {/* List */}
       {loading ? (
         <View style={{ padding: 16, gap: 14 }}>
           {[0, 1, 2].map((i) => (
-            <SkeletonCard key={i} />
+            <SkeletonCard key={i} dark={theme === "dark"} />
           ))}
         </View>
       ) : cartItems.length === 0 ? (
         <View style={styles.emptyBox}>
-          <Ionicons name="cart-outline" size={72} color="#DDD" />
-          <Text style={styles.emptyText}>Giỏ hàng trống</Text>
+          <Ionicons
+            name="cart-outline"
+            size={72}
+            color={theme === "dark" ? "#475569" : "#DDD"}
+          />
+          <Text
+            style={[
+              styles.emptyText,
+              { color: theme === "dark" ? "#94A3B8" : "#CCC" },
+            ]}
+          >
+            Giỏ hàng trống
+          </Text>
           <TouchableOpacity
             style={styles.shopBtn}
             onPress={() => navigation.navigate("home")}
@@ -494,47 +601,94 @@ export default function CartScreen() {
         />
       )}
 
-      {/* Footer */}
       {!loading && cartItems.length > 0 && (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          {/* Voucher row */}
+        <View
+          style={[
+            styles.footer,
+            {
+              paddingBottom: insets.bottom + 12,
+              backgroundColor: colors.background,
+              shadowOpacity: theme === "dark" ? 0 : 0.08,
+              elevation: theme === "dark" ? 0 : 18,
+              borderTopWidth: theme === "dark" ? 1 : 0,
+              borderTopColor: theme === "dark" ? "#243041" : "transparent",
+            },
+          ]}
+        >
           <Pressable
-            style={styles.voucherRow}
+            style={[
+              styles.voucherRow,
+              { borderBottomColor: theme === "dark" ? "#243041" : "#F0F0F0" },
+            ]}
             onPress={() => setVoucherModal(true)}
           >
             <View style={styles.voucherLeft}>
               <Ionicons name="pricetag-outline" size={16} color="#39B78D" />
-              <Text style={styles.voucherLabel}>Voucher</Text>
+              <Text style={[styles.voucherLabel, { color: colors.text }]}>
+                Voucher
+              </Text>
             </View>
             <View style={styles.voucherRight}>
               <Text
                 style={[
                   styles.voucherValue,
-                  appliedVoucher && { color: "#39B78D", fontWeight: "700" },
+                  {
+                    color: appliedVoucher
+                      ? "#39B78D"
+                      : theme === "dark"
+                        ? "#94A3B8"
+                        : "#AAA",
+                    fontWeight: appliedVoucher ? "700" : "500",
+                  },
                 ]}
               >
                 {appliedVoucher
                   ? `${appliedVoucher.code} (-${fmt(appliedVoucher.discount)})`
                   : "Chọn mã giảm giá"}
               </Text>
-              <Ionicons name="chevron-forward" size={16} color="#CCC" />
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={theme === "dark" ? "#94A3B8" : "#CCC"}
+              />
             </View>
           </Pressable>
 
-          {/* Summary + checkout */}
           <View style={styles.actionRow}>
             <Pressable style={styles.selectAllBtn} onPress={toggleSelectAll}>
               <Ionicons
                 name={isAllSelected ? "checkbox" : "square-outline"}
                 size={22}
-                color={isAllSelected ? "#39B78D" : "#CCC"}
+                color={
+                  isAllSelected
+                    ? "#39B78D"
+                    : theme === "dark"
+                      ? "#64748B"
+                      : "#CCC"
+                }
               />
-              <Text style={styles.selectAllText}>Tất cả</Text>
+              <Text
+                style={[
+                  styles.selectAllText,
+                  { color: theme === "dark" ? "#CBD5E1" : "#666" },
+                ]}
+              >
+                Tất cả
+              </Text>
             </Pressable>
             <View style={styles.checkoutGroup}>
               <View>
-                <Text style={styles.totalLabel}>Tổng cộng</Text>
-                <Text style={styles.totalAmount}>{fmt(finalPrice)}</Text>
+                <Text
+                  style={[
+                    styles.totalLabel,
+                    { color: theme === "dark" ? "#94A3B8" : "#AAA" },
+                  ]}
+                >
+                  Tổng cộng
+                </Text>
+                <Text style={[styles.totalAmount, { color: colors.text }]}>
+                  {fmt(finalPrice)}
+                </Text>
               </View>
               <Pressable
                 style={[
@@ -553,15 +707,34 @@ export default function CartScreen() {
         </View>
       )}
 
-      {/* Voucher Modal */}
       <Modal visible={isVoucherModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.modalHandle} />
+          <View
+            style={[
+              styles.modalBox,
+              {
+                backgroundColor: colors.background,
+                borderTopWidth: theme === "dark" ? 1 : 0,
+                borderTopColor: theme === "dark" ? "#243041" : "transparent",
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.modalHandle,
+                { backgroundColor: theme === "dark" ? "#475569" : "#E0E0E0" },
+              ]}
+            />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chọn Voucher</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Chọn Voucher
+              </Text>
               <Pressable onPress={() => setVoucherModal(false)} hitSlop={12}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={theme === "dark" ? "#E2E8F0" : "#333"}
+                />
               </Pressable>
             </View>
 
@@ -570,7 +743,17 @@ export default function CartScreen() {
                 key={v.id}
                 style={[
                   styles.voucherItem,
-                  appliedVoucher?.id === v.id && styles.voucherItemActive,
+                  {
+                    backgroundColor: theme === "dark" ? "#1F2937" : "#F8F8F8",
+                    borderColor:
+                      appliedVoucher?.id === v.id
+                        ? "#39B78D"
+                        : theme === "dark"
+                          ? "#334155"
+                          : "transparent",
+                    borderWidth:
+                      appliedVoucher?.id === v.id || theme === "dark" ? 1.5 : 0,
+                  },
                 ]}
                 onPress={() => {
                   setAppliedVoucher(v);
@@ -579,8 +762,22 @@ export default function CartScreen() {
               >
                 <View style={styles.voucherTagStrip} />
                 <View style={styles.voucherItemLeft}>
-                  <Text style={styles.voucherCode}>{v.code}</Text>
-                  <Text style={styles.voucherDesc}>{v.description}</Text>
+                  <Text
+                    style={[
+                      styles.voucherCode,
+                      { color: theme === "dark" ? "#F8FAFC" : "#111" },
+                    ]}
+                  >
+                    {v.code}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.voucherDesc,
+                      { color: theme === "dark" ? "#94A3B8" : "#888" },
+                    ]}
+                  >
+                    {v.description}
+                  </Text>
                 </View>
                 <View style={styles.voucherDiscountBox}>
                   <Text style={styles.voucherDiscount}>-{fmt(v.discount)}</Text>

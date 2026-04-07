@@ -13,6 +13,8 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../context/themeContext";
+import { darkTheme, lightTheme } from "../../theme/colors";
 
 type PaymentOption = "card" | "bank" | "paypal" | "wallet";
 
@@ -23,6 +25,9 @@ const PRIMARY_SOFT_BG = "#EFF6FF";
 const PAYMENT_KEY = "PAYMENT_DATA";
 
 export default function PaymentMethodScreen() {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
@@ -139,13 +144,37 @@ export default function PaymentMethodScreen() {
     return (
       <Pressable
         onPress={() => setSelectedMethod(id)}
-        style={[styles.paymentItem, active && styles.paymentItemActive]}
+        style={[
+          styles.paymentItem,
+          {
+            backgroundColor: active
+              ? theme === "dark"
+                ? "#0F1E35"
+                : PRIMARY_SOFT_BG
+              : theme === "dark"
+                ? colors.card
+                : "#F3F4F6",
+            borderColor: active
+              ? PRIMARY
+              : theme === "dark"
+                ? "#334155"
+                : "#E5E7EB",
+          },
+        ]}
       >
         <View style={styles.paymentItemLeft}>
           <View
             style={[
               styles.paymentIconBox,
-              active && styles.paymentIconBoxActive,
+              {
+                backgroundColor: active
+                  ? theme === "dark"
+                    ? "#1E3A5F"
+                    : PRIMARY_SOFT
+                  : theme === "dark"
+                    ? "#0F172A"
+                    : "#E5E7EB",
+              },
             ]}
           >
             {icon}
@@ -153,15 +182,36 @@ export default function PaymentMethodScreen() {
 
           <View style={{ flex: 1 }}>
             <Text
-              style={[styles.paymentTitle, active && styles.paymentTitleActive]}
+              style={[
+                styles.paymentTitle,
+                { color: active ? PRIMARY_DARK : colors.text },
+              ]}
             >
               {title}
             </Text>
-            <Text style={styles.paymentSubtitle}>{subtitle}</Text>
+            <Text
+              style={[
+                styles.paymentSubtitle,
+                { color: theme === "dark" ? "#94A3B8" : "#9CA3AF" },
+              ]}
+            >
+              {subtitle}
+            </Text>
           </View>
         </View>
 
-        <View style={[styles.radioOuter, active && styles.radioOuterActive]}>
+        <View
+          style={[
+            styles.radioOuter,
+            {
+              borderColor: active
+                ? PRIMARY
+                : theme === "dark"
+                  ? "#475569"
+                  : "#D1D5DB",
+            },
+          ]}
+        >
           {active && <View style={styles.radioInner} />}
         </View>
       </Pressable>
@@ -169,7 +219,7 @@ export default function PaymentMethodScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={PRIMARY} />
 
       <ScrollView
@@ -188,7 +238,17 @@ export default function PaymentMethodScreen() {
             <Text style={styles.headerTitle}>Payment Method</Text>
           </View>
 
-          <View style={styles.summaryCardCompact}>
+          <View
+            style={[
+              styles.summaryCardCompact,
+              {
+                backgroundColor:
+                  theme === "dark"
+                    ? "rgba(15, 23, 42, 0.35)"
+                    : "rgba(255,255,255,0.12)",
+              },
+            ]}
+          >
             <View>
               <Text style={styles.summaryLabel}>Order Total</Text>
               <Text style={styles.summaryAmount}>${orderTotal.toFixed(2)}</Text>
@@ -202,7 +262,14 @@ export default function PaymentMethodScreen() {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.sectionMiniTitle}>SELECT PAYMENT</Text>
+          <Text
+            style={[
+              styles.sectionMiniTitle,
+              { color: theme === "dark" ? "#94A3B8" : "#9CA3AF" },
+            ]}
+          >
+            SELECT PAYMENT
+          </Text>
 
           <PaymentItem
             id="card"
@@ -219,7 +286,7 @@ export default function PaymentMethodScreen() {
               <MaterialCommunityIcons
                 name="bank-outline"
                 size={22}
-                color="#6B7280"
+                color={theme === "dark" ? "#CBD5E1" : "#6B7280"}
               />
             }
           />
@@ -228,7 +295,13 @@ export default function PaymentMethodScreen() {
             id="paypal"
             title="PayPal"
             subtitle="Pay with your PayPal account"
-            icon={<Feather name="credit-card" size={20} color="#6B7280" />}
+            icon={
+              <Feather
+                name="credit-card"
+                size={20}
+                color={theme === "dark" ? "#CBD5E1" : "#6B7280"}
+              />
+            }
           />
 
           <PaymentItem
@@ -239,7 +312,7 @@ export default function PaymentMethodScreen() {
               <Ionicons
                 name="phone-portrait-outline"
                 size={22}
-                color="#6B7280"
+                color={theme === "dark" ? "#CBD5E1" : "#6B7280"}
               />
             }
           />
@@ -277,58 +350,103 @@ export default function PaymentMethodScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.inputLabel}>Card Number</Text>
+            <Text style={[styles.inputLabel, { color: colors.text }]}>
+              Card Number
+            </Text>
             <TextInput
               value={formattedCardNumber}
               onChangeText={handleCardNumberChange}
               placeholder="1234 5678 9012 3456"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
               keyboardType="number-pad"
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                  borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                  color: colors.text,
+                },
+              ]}
             />
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.inputLabel}>Cardholder Name</Text>
+            <Text style={[styles.inputLabel, { color: colors.text }]}>
+              Cardholder Name
+            </Text>
             <TextInput
               value={cardholderName}
               onChangeText={setCardholderName}
               placeholder="John Smith"
-              placeholderTextColor="#9CA3AF"
-              style={styles.input}
+              placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                  borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                  color: colors.text,
+                },
+              ]}
             />
           </View>
 
           <View style={styles.row}>
             <View style={[styles.formGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>Expiry Date</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Expiry Date
+              </Text>
               <TextInput
                 value={expiryDate}
                 onChangeText={handleExpiryChange}
                 placeholder="MM/YY"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
                 keyboardType="number-pad"
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
             </View>
 
             <View style={[styles.formGroup, { flex: 1 }]}>
-              <Text style={styles.inputLabel}>CVV</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                CVV
+              </Text>
               <TextInput
                 value={cvv}
                 onChangeText={handleCvvChange}
                 placeholder="•••"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
                 keyboardType="number-pad"
                 secureTextEntry
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
             </View>
           </View>
 
           <View style={styles.securityRow}>
-            <Ionicons name="lock-closed-outline" size={14} color="#9CA3AF" />
-            <Text style={styles.securityText}>
+            <Ionicons
+              name="lock-closed-outline"
+              size={14}
+              color={theme === "dark" ? "#94A3B8" : "#9CA3AF"}
+            />
+            <Text
+              style={[
+                styles.securityText,
+                { color: theme === "dark" ? "#94A3B8" : "#9CA3AF" },
+              ]}
+            >
               256-bit SSL encryption. Your payment is 100% secure.
             </Text>
           </View>

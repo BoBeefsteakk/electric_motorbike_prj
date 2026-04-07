@@ -12,12 +12,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useTheme } from "../context/themeContext";
 import API_URL from "../data/api/apis";
 import BEST_PRICE_DATA from "../data/bestPrice";
+import { darkTheme, lightTheme } from "../theme/colors";
 
 const { width } = Dimensions.get("window");
 
@@ -66,8 +68,9 @@ const TYPE_FILTERS = [
   { key: "accessory", label: "Phụ Kiện", icon: "bag-outline" },
 ];
 
-const SkeletonItem = () => {
+const SkeletonItem = ({ dark }: { dark: boolean }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -84,13 +87,30 @@ const SkeletonItem = () => {
       ]),
     ).start();
   }, []);
+
+  const sk1 = dark ? "#233041" : "#EBEBEB";
+  const sk2 = dark ? "#1B2635" : "#F2F2F2";
+  const cardBg = dark ? "#1F2937" : "#FFFFFF";
+
   return (
-    <Animated.View style={[styles.card, { opacity: anim }]}>
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: anim,
+          backgroundColor: cardBg,
+          shadowOpacity: dark ? 0 : 0.07,
+          elevation: dark ? 0 : 3,
+          borderWidth: dark ? 1 : 0,
+          borderColor: dark ? "#334155" : "transparent",
+        },
+      ]}
+    >
       <View
         style={{
           width: 100,
           height: 100,
-          backgroundColor: "#EBEBEB",
+          backgroundColor: sk1,
           borderRadius: 14,
         }}
       />
@@ -101,7 +121,7 @@ const SkeletonItem = () => {
           style={{
             height: 14,
             width: "75%",
-            backgroundColor: "#EBEBEB",
+            backgroundColor: sk1,
             borderRadius: 6,
           }}
         />
@@ -109,7 +129,7 @@ const SkeletonItem = () => {
           style={{
             height: 12,
             width: "40%",
-            backgroundColor: "#F2F2F2",
+            backgroundColor: sk2,
             borderRadius: 6,
           }}
         />
@@ -117,7 +137,7 @@ const SkeletonItem = () => {
           style={{
             height: 12,
             width: "55%",
-            backgroundColor: "#F2F2F2",
+            backgroundColor: sk2,
             borderRadius: 6,
           }}
         />
@@ -129,6 +149,9 @@ const SkeletonItem = () => {
 export default function SearchScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+  const isDark = theme === "dark";
 
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -216,15 +239,30 @@ export default function SearchScreen() {
 
       return (
         <TouchableOpacity
-          style={styles.card}
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.card,
+              shadowOpacity: isDark ? 0 : 0.07,
+              elevation: isDark ? 0 : 3,
+              borderWidth: isDark ? 1 : 0,
+              borderColor: isDark ? "#334155" : "transparent",
+            },
+          ]}
           activeOpacity={0.85}
           onPress={() => {
-            if (isMotorbike) navigation.navigate("best_price_detail", { id: item.id });
+            if (isMotorbike)
+              navigation.navigate("best_price_detail", { id: item.id });
             else if (isCar) navigation.navigate("car_detail", { id: item.id });
             else navigation.navigate("accessory_detail", { id: item.id });
           }}
         >
-          <View style={styles.cardImageBox}>
+          <View
+            style={[
+              styles.cardImageBox,
+              { backgroundColor: isDark ? "#0F172A" : "#F5F5F5" },
+            ]}
+          >
             <Image
               source={{ uri: imageUri }}
               style={styles.cardImage}
@@ -232,7 +270,10 @@ export default function SearchScreen() {
             />
           </View>
           <View style={styles.cardInfo}>
-            <Text style={styles.cardName} numberOfLines={2}>
+            <Text
+              style={[styles.cardName, { color: colors.text }]}
+              numberOfLines={2}
+            >
               {item.name}
             </Text>
             <View
@@ -250,7 +291,14 @@ export default function SearchScreen() {
             </View>
             <View style={styles.cardFooter}>
               <View>
-                <Text style={styles.priceLabel}>Giá từ</Text>
+                <Text
+                  style={[
+                    styles.priceLabel,
+                    { color: isDark ? "#94A3B8" : "#BBB" },
+                  ]}
+                >
+                  Giá từ
+                </Text>
                 <Text style={[styles.price, { color: catColor }]}>
                   {Number(item.price).toLocaleString("vi-VN")}đ
                 </Text>
@@ -258,7 +306,14 @@ export default function SearchScreen() {
               {rating && (
                 <View style={styles.ratingBox}>
                   <FontAwesome name="star" size={11} color="#F5A623" />
-                  <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+                  <Text
+                    style={[
+                      styles.ratingText,
+                      { color: isDark ? "#CBD5E1" : "#999" },
+                    ]}
+                  >
+                    {rating.toFixed(1)}
+                  </Text>
                 </View>
               )}
             </View>
@@ -266,27 +321,42 @@ export default function SearchScreen() {
         </TouchableOpacity>
       );
     },
-    [navigation],
+    [navigation, colors, isDark],
   );
 
   const showHistory = !query && history.length > 0;
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.safe,
+        { paddingTop: insets.top, backgroundColor: colors.background },
+      ]}
+    >
       <StatusBar
-        barStyle="dark-content"
+        barStyle={isDark ? "light-content" : "dark-content"}
         translucent
         backgroundColor="transparent"
       />
 
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tìm kiếm</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Tìm kiếm
+        </Text>
       </View>
 
-      {/* Search bar */}
       <View style={styles.searchBarWrap}>
-        <View style={styles.searchBar}>
+        <View
+          style={[
+            styles.searchBar,
+            {
+              backgroundColor: colors.card,
+              shadowOpacity: isDark ? 0 : 0.07,
+              elevation: isDark ? 0 : 4,
+              borderColor: isDark ? "#1E3A2F" : "#39B78D20",
+            },
+          ]}
+        >
           <Ionicons
             name="search"
             size={18}
@@ -294,9 +364,9 @@ export default function SearchScreen() {
             style={{ marginRight: 8 }}
           />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Tìm tên xe, phụ kiện..."
-            placeholderTextColor="#C0C0C0"
+            placeholderTextColor={isDark ? "#64748B" : "#C0C0C0"}
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={handleSubmit}
@@ -308,31 +378,48 @@ export default function SearchScreen() {
               onPress={() => setQuery("")}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close-circle" size={20} color="#CCC" />
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color={isDark ? "#94A3B8" : "#CCC"}
+              />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Filter tabs */}
       <View style={styles.filterBarWrap}>
         {TYPE_FILTERS.map((f) => {
           const active = f.key === typeFilter;
           return (
             <TouchableOpacity
               key={f.key}
-              style={[styles.filterBtn, active && styles.filterActive]}
+              style={[
+                styles.filterBtn,
+                {
+                  backgroundColor: active
+                    ? "#39B78D"
+                    : isDark
+                      ? "#1F2937"
+                      : "#EFEFEF",
+                  borderWidth: isDark && !active ? 1 : 0,
+                  borderColor: isDark && !active ? "#334155" : "transparent",
+                },
+              ]}
               onPress={() => setTypeFilter(f.key)}
               activeOpacity={0.8}
             >
               <Ionicons
                 name={f.icon as any}
                 size={14}
-                color={active ? "#fff" : "#888"}
+                color={active ? "#fff" : isDark ? "#CBD5E1" : "#888"}
                 style={{ marginRight: 4 }}
               />
               <Text
-                style={[styles.filterText, active && styles.filterTextActive]}
+                style={[
+                  styles.filterText,
+                  { color: active ? "#fff" : isDark ? "#CBD5E1" : "#888" },
+                ]}
               >
                 {f.label}
               </Text>
@@ -341,11 +428,12 @@ export default function SearchScreen() {
         })}
       </View>
 
-      {/* Count */}
       {!loading && (
         <View style={styles.countRow}>
           <View style={styles.accentBar} />
-          <Text style={styles.countText}>
+          <Text
+            style={[styles.countText, { color: isDark ? "#94A3B8" : "#AAA" }]}
+          >
             {query.trim()
               ? `${results.length} kết quả cho "${query}"`
               : `${results.length} sản phẩm`}
@@ -353,11 +441,10 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {/* Content */}
       {loading ? (
         <View style={{ padding: 16, gap: 12 }}>
           {[0, 1, 2, 3, 4].map((i) => (
-            <SkeletonItem key={i} />
+            <SkeletonItem key={i} dark={isDark} />
           ))}
         </View>
       ) : (
@@ -377,7 +464,9 @@ export default function SearchScreen() {
             showHistory ? (
               <View style={styles.historyBox}>
                 <View style={styles.historyHeader}>
-                  <Text style={styles.historyTitle}>Tìm kiếm gần đây</Text>
+                  <Text style={[styles.historyTitle, { color: colors.text }]}>
+                    Tìm kiếm gần đây
+                  </Text>
                   <TouchableOpacity onPress={() => setHistory([])}>
                     <Text style={styles.clearText}>Xóa tất cả</Text>
                   </TouchableOpacity>
@@ -385,18 +474,38 @@ export default function SearchScreen() {
                 {history.map((h, i) => (
                   <TouchableOpacity
                     key={i}
-                    style={styles.historyItem}
+                    style={[
+                      styles.historyItem,
+                      {
+                        borderBottomColor: isDark ? "#233041" : "#F0F0F0",
+                      },
+                    ]}
                     onPress={() => setQuery(h)}
                   >
-                    <Ionicons name="time-outline" size={16} color="#BBB" />
-                    <Text style={styles.historyText}>{h}</Text>
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color={isDark ? "#94A3B8" : "#BBB"}
+                    />
+                    <Text
+                      style={[
+                        styles.historyText,
+                        { color: isDark ? "#CBD5E1" : "#555" },
+                      ]}
+                    >
+                      {h}
+                    </Text>
                     <TouchableOpacity
                       onPress={() =>
                         setHistory((prev) => prev.filter((_, idx) => idx !== i))
                       }
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Ionicons name="close" size={16} color="#CCC" />
+                      <Ionicons
+                        name="close"
+                        size={16}
+                        color={isDark ? "#64748B" : "#CCC"}
+                      />
                     </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
@@ -406,14 +515,43 @@ export default function SearchScreen() {
           ListEmptyComponent={
             query.trim() ? (
               <View style={styles.emptyBox}>
-                <Ionicons name="search-outline" size={52} color="#DDD" />
-                <Text style={styles.emptyText}>Không tìm thấy "{query}"</Text>
-                <Text style={styles.emptySub}>Thử tìm với từ khóa khác</Text>
+                <Ionicons
+                  name="search-outline"
+                  size={52}
+                  color={isDark ? "#475569" : "#DDD"}
+                />
+                <Text
+                  style={[
+                    styles.emptyText,
+                    { color: isDark ? "#CBD5E1" : "#CCC" },
+                  ]}
+                >
+                  Không tìm thấy "{query}"
+                </Text>
+                <Text
+                  style={[
+                    styles.emptySub,
+                    { color: isDark ? "#64748B" : "#DDD" },
+                  ]}
+                >
+                  Thử tìm với từ khóa khác
+                </Text>
               </View>
             ) : !showHistory ? (
               <View style={styles.emptyBox}>
-                <Ionicons name="search-outline" size={52} color="#DDD" />
-                <Text style={styles.emptyText}>Nhập tên xe để tìm kiếm</Text>
+                <Ionicons
+                  name="search-outline"
+                  size={52}
+                  color={isDark ? "#475569" : "#DDD"}
+                />
+                <Text
+                  style={[
+                    styles.emptyText,
+                    { color: isDark ? "#CBD5E1" : "#CCC" },
+                  ]}
+                >
+                  Nhập tên xe để tìm kiếm
+                </Text>
               </View>
             ) : null
           }
@@ -447,7 +585,6 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 15, color: "#111" },
 
-  /* Filter tabs — full width, 4 equal buttons */
   filterBarWrap: {
     flexDirection: "row",
     paddingHorizontal: 16,
@@ -463,9 +600,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#EFEFEF",
   },
-  filterActive: { backgroundColor: "#39B78D" },
   filterText: { fontSize: 12, fontWeight: "700", color: "#888" },
-  filterTextActive: { color: "#fff" },
 
   countRow: {
     flexDirection: "row",

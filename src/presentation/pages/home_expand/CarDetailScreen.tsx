@@ -17,7 +17,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../../context/themeContext";
 import API_URL from "../../../data/api/apis";
+import { darkTheme, lightTheme } from "../../../theme/colors";
 
 interface Car {
   id: number;
@@ -59,6 +61,9 @@ const SPECS = [
 ];
 
 export default function CarDetailScreen() {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { id } = route.params;
@@ -141,7 +146,15 @@ export default function CarDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
+      <View
+        style={[
+          styles.center,
+          {
+            paddingTop: insets.top,
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
         <ActivityIndicator size="large" color="#C8902A" />
       </View>
     );
@@ -149,9 +162,28 @@ export default function CarDetailScreen() {
 
   if (!car) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <FontAwesome name="exclamation-circle" size={40} color="#DDD" />
-        <Text style={styles.notFound}>Không tìm thấy xe</Text>
+      <View
+        style={[
+          styles.center,
+          {
+            paddingTop: insets.top,
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
+        <FontAwesome
+          name="exclamation-circle"
+          size={40}
+          color={theme === "dark" ? "#64748B" : "#DDD"}
+        />
+        <Text
+          style={[
+            styles.notFound,
+            { color: theme === "dark" ? "#94A3B8" : "#999" },
+          ]}
+        >
+          Không tìm thấy xe
+        </Text>
       </View>
     );
   }
@@ -161,14 +193,27 @@ export default function CarDetailScreen() {
   const uri = buildUri(car.image);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, backgroundColor: colors.background },
+      ]}
+    >
       <StatusBar
-        barStyle="dark-content"
+        barStyle={theme === "dark" ? "light-content" : "dark-content"}
         translucent
         backgroundColor="transparent"
       />
 
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: theme === "dark" ? "#243041" : "#EEE",
+          },
+        ]}
+      >
         <View style={styles.headerSideLeft}>
           <TouchableOpacity
             onPress={handleGoBack}
@@ -177,11 +222,22 @@ export default function CarDetailScreen() {
             style={[styles.headerBtn, isClosing && styles.headerBtnPressed]}
             activeOpacity={0.7}
           >
-            <FontAwesome name="chevron-left" size={18} color="#111" />
+            <FontAwesome
+              name="chevron-left"
+              size={18}
+              color={theme === "dark" ? "#FFF" : "#111"}
+            />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.headerTitle}>Chi Tiết</Text>
+        <Text
+          style={[
+            styles.headerTitle,
+            { color: theme === "dark" ? "#FFF" : "#111" },
+          ]}
+        >
+          Chi Tiết
+        </Text>
 
         <View style={styles.headerSideRight}>
           <TouchableOpacity
@@ -194,7 +250,11 @@ export default function CarDetailScreen() {
             activeOpacity={0.7}
             hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           >
-            <FontAwesome name="share-alt" size={18} color="#111" />
+            <FontAwesome
+              name="share-alt"
+              size={18}
+              color={theme === "dark" ? "#FFF" : "#111"}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -207,7 +267,9 @@ export default function CarDetailScreen() {
               <FontAwesome
                 name={wishlisted ? "heart" : "heart-o"}
                 size={18}
-                color={wishlisted ? "#E74C3C" : "#111"}
+                color={
+                  wishlisted ? "#E74C3C" : theme === "dark" ? "#FFF" : "#111"
+                }
               />
             </Animated.View>
           </TouchableOpacity>
@@ -223,7 +285,15 @@ export default function CarDetailScreen() {
           {uri ? (
             <Image source={{ uri }} style={styles.image} resizeMode="cover" />
           ) : (
-            <View style={[styles.image, styles.imageFallback]}>
+            <View
+              style={[
+                styles.image,
+                styles.imageFallback,
+                {
+                  backgroundColor: theme === "dark" ? "#1F2937" : "#F0ECE8",
+                },
+              ]}
+            >
               <Text style={{ fontSize: 60 }}>🚗</Text>
             </View>
           )}
@@ -234,9 +304,14 @@ export default function CarDetailScreen() {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.title}>{car.name}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{car.name}</Text>
 
-          <Text style={styles.desc}>
+          <Text
+            style={[
+              styles.desc,
+              { color: theme === "dark" ? "#94A3B8" : "#666" },
+            ]}
+          >
             {car.name} là mẫu xe thuộc dòng {catLabel.toLowerCase()} của
             VinFast, thiết kế hiện đại, trang bị công nghệ tiên tiến và cam kết
             an toàn tiêu chuẩn quốc tế.
@@ -244,16 +319,45 @@ export default function CarDetailScreen() {
 
           <View style={styles.quickInfo}>
             {SPECS.map((s, i) => (
-              <View key={i} style={[styles.quickItem, { borderTopColor: accent }]}>
+              <View
+                key={i}
+                style={[
+                  styles.quickItem,
+                  {
+                    borderTopColor: accent,
+                    backgroundColor: theme === "dark" ? colors.card : "#F8F8F8",
+                  },
+                ]}
+              >
                 <FontAwesome name={s.icon as any} size={16} color={accent} />
-                <Text style={[styles.quickValue, { color: accent }]}>{s.val}</Text>
-                <Text style={styles.quickLabel}>{s.label}</Text>
+                <Text style={[styles.quickValue, { color: accent }]}>
+                  {s.val}
+                </Text>
+                <Text
+                  style={[
+                    styles.quickLabel,
+                    { color: theme === "dark" ? "#94A3B8" : "#888" },
+                  ]}
+                >
+                  {s.label}
+                </Text>
               </View>
             ))}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>✦ Điểm nổi bật</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: theme === "dark" ? colors.card : "#F8F8F8",
+                borderWidth: theme === "dark" ? 1 : 0,
+                borderColor: theme === "dark" ? "#334155" : "transparent",
+              },
+            ]}
+          >
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              ✦ Điểm nổi bật
+            </Text>
             {[
               "Thiết kế sang trọng, hiện đại mang phong cách quốc tế",
               "Hệ thống an toàn chủ động tiêu chuẩn 5 sao",
@@ -262,13 +366,32 @@ export default function CarDetailScreen() {
             ].map((text, i) => (
               <View key={i} style={styles.bulletRow}>
                 <View style={[styles.bulletDot, { backgroundColor: accent }]} />
-                <Text style={styles.bulletText}>{text}</Text>
+                <Text
+                  style={[
+                    styles.bulletText,
+                    { color: theme === "dark" ? "#CBD5E1" : "#555" },
+                  ]}
+                >
+                  {text}
+                </Text>
               </View>
             ))}
           </View>
 
-          <View style={[styles.card, { marginTop: 16 }]}>
-            <Text style={styles.cardTitle}>⚙ Thông số chính</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                marginTop: 16,
+                backgroundColor: theme === "dark" ? colors.card : "#F8F8F8",
+                borderWidth: theme === "dark" ? 1 : 0,
+                borderColor: theme === "dark" ? "#334155" : "transparent",
+              },
+            ]}
+          >
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              ⚙ Thông số chính
+            </Text>
             {[
               {
                 label: "Loại động cơ",
@@ -282,9 +405,22 @@ export default function CarDetailScreen() {
             ].map((item, i, arr) => (
               <View
                 key={i}
-                style={[styles.specRow, i < arr.length - 1 && styles.specRowBorder]}
+                style={[
+                  styles.specRow,
+                  i < arr.length - 1 && {
+                    borderBottomWidth: 0.5,
+                    borderBottomColor: theme === "dark" ? "#334155" : "#EBEBEB",
+                  },
+                ]}
               >
-                <Text style={styles.specLabel}>{item.label}</Text>
+                <Text
+                  style={[
+                    styles.specLabel,
+                    { color: theme === "dark" ? "#CBD5E1" : "#777" },
+                  ]}
+                >
+                  {item.label}
+                </Text>
                 <Text style={[styles.specValue, { color: accent }]}>
                   {item.value}
                 </Text>
@@ -294,13 +430,36 @@ export default function CarDetailScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingBottom: insets.bottom + 12,
+            backgroundColor: colors.background,
+            borderTopColor: theme === "dark" ? "#243041" : "#EEE",
+          },
+        ]}
+      >
         <View style={{ flex: 1 }}>
-          <Text style={styles.priceLabel}>Giá bán</Text>
+          <Text
+            style={[
+              styles.priceLabel,
+              { color: theme === "dark" ? "#94A3B8" : "#999" },
+            ]}
+          >
+            Giá bán
+          </Text>
           <Text style={[styles.price, { color: accent }]}>
             {formatPrice(car.price)}
           </Text>
-          <Text style={styles.priceSub}>Giá tham khảo · Liên hệ để biết thêm</Text>
+          <Text
+            style={[
+              styles.priceSub,
+              { color: theme === "dark" ? "#64748B" : "#BBB" },
+            ]}
+          >
+            Giá tham khảo · Liên hệ để biết thêm
+          </Text>
         </View>
 
         <TouchableOpacity

@@ -14,22 +14,34 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../context/themeContext";
+import { lightTheme, darkTheme } from "../../theme/colors";
 
 const PRIMARY = "#2563EB";
 const PRIMARY_DARK = "#1D4ED8";
 const PRIMARY_SOFT = "#DBEAFE";
 const ADDRESS_KEY = "ADDRESS_DATA";
 
+const DEFAULT_RECEIVER = "Văn Thanh";
+const DEFAULT_PHONE = "0987654321";
+const DEFAULT_PROVINCE = "Hà Nội";
+const DEFAULT_DISTRICT = "Nam Từ Liêm";
+const DEFAULT_WARD = "Mỹ Đình 1";
+const DEFAULT_STREET = "12 Trần Hữu Dực";
+
 export default function AddressScreen() {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
-  const [receiverName, setReceiverName] = useState("Văn Thanh");
-  const [phone, setPhone] = useState("0987654321");
-  const [province, setProvince] = useState("Hà Nội");
-  const [district, setDistrict] = useState("Nam Từ Liêm");
-  const [ward, setWard] = useState("Mỹ Đình 1");
-  const [street, setStreet] = useState("12 Trần Hữu Dực");
+  const [receiverName, setReceiverName] = useState(DEFAULT_RECEIVER);
+  const [phone, setPhone] = useState(DEFAULT_PHONE);
+  const [province, setProvince] = useState(DEFAULT_PROVINCE);
+  const [district, setDistrict] = useState(DEFAULT_DISTRICT);
+  const [ward, setWard] = useState(DEFAULT_WARD);
+  const [street, setStreet] = useState(DEFAULT_STREET);
   const [note, setNote] = useState("");
   const [isDefault, setIsDefault] = useState(true);
 
@@ -41,12 +53,12 @@ export default function AddressScreen() {
 
         const data = JSON.parse(raw);
 
-        setReceiverName(data.receiverName ?? "Văn Thanh");
-        setPhone(data.phone ?? "0987654321");
-        setProvince(data.province ?? "Hà Nội");
-        setDistrict(data.district ?? "Nam Từ Liêm");
-        setWard(data.ward ?? "Mỹ Đình 1");
-        setStreet(data.street ?? "12 Trần Hữu Dực");
+        setReceiverName(data.receiverName ?? DEFAULT_RECEIVER);
+        setPhone(data.phone ?? DEFAULT_PHONE);
+        setProvince(data.province ?? DEFAULT_PROVINCE);
+        setDistrict(data.district ?? DEFAULT_DISTRICT);
+        setWard(data.ward ?? DEFAULT_WARD);
+        setStreet(data.street ?? DEFAULT_STREET);
         setNote(data.note ?? "");
         setIsDefault(data.isDefault ?? true);
       } catch (e) {
@@ -121,7 +133,7 @@ export default function AddressScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" backgroundColor={PRIMARY} />
 
       <ScrollView
@@ -139,46 +151,100 @@ export default function AddressScreen() {
         </View>
 
         <View style={styles.content}>
-          <View style={styles.previewCard}>
+          <View
+            style={[
+              styles.previewCard,
+              {
+                backgroundColor: theme === "dark" ? "#0F1E35" : "#EFF6FF",
+                borderColor: theme === "dark" ? "#1E3A5F" : "#DBEAFE",
+              },
+            ]}
+          >
             <View style={styles.previewTop}>
               <Ionicons name="location" size={18} color={PRIMARY_DARK} />
               <Text style={styles.previewTitle}>Địa chỉ hiện tại</Text>
             </View>
 
-            <Text style={styles.previewName}>
+            <Text style={[styles.previewName, { color: colors.text }]}>
               {receiverName || "Người nhận"} · {phone || "Số điện thoại"}
             </Text>
 
-            <Text style={styles.previewAddress}>
+            <Text
+              style={[
+                styles.previewAddress,
+                { color: theme === "dark" ? "#CBD5E1" : "#374151" },
+              ]}
+            >
               {fullAddress || "Chưa có địa chỉ hoàn chỉnh"}
             </Text>
 
             {note.trim() ? (
-              <Text style={styles.previewNote}>Ghi chú: {note}</Text>
+              <Text
+                style={[
+                  styles.previewNote,
+                  { color: theme === "dark" ? "#94A3B8" : "#6B7280" },
+                ]}
+              >
+                Ghi chú: {note}
+              </Text>
             ) : null}
           </View>
 
-          <View style={styles.formCard}>
+          <View
+            style={[
+              styles.formCard,
+              {
+                backgroundColor: colors.card,
+                shadowOpacity: theme === "dark" ? 0 : 0.06,
+                elevation: theme === "dark" ? 0 : 4,
+                borderWidth: theme === "dark" ? 1 : 0,
+                borderColor: theme === "dark" ? "#334155" : "transparent",
+              },
+            ]}
+          >
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Tên người nhận</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Tên người nhận
+              </Text>
               <TextInput
                 value={receiverName}
                 onChangeText={setReceiverName}
                 placeholder="Nhập tên người nhận"
-                placeholderTextColor="#9CA3AF"
-                style={styles.input}
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Số điện thoại</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Số điện thoại
+              </Text>
               <TextInput
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="Nhập số điện thoại"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
                 keyboardType="number-pad"
-                style={[styles.input, phone.length > 0 && !phoneValid && styles.inputError]}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor:
+                      phone.length > 0 && !phoneValid
+                        ? "#EF4444"
+                        : theme === "dark"
+                        ? "#334155"
+                        : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
               {phone.length > 0 && !phoneValid ? (
                 <Text style={styles.errorText}>
@@ -188,67 +254,120 @@ export default function AddressScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Tỉnh / Thành phố</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Tỉnh / Thành phố
+              </Text>
               <TextInput
                 value={province}
                 onChangeText={setProvince}
                 placeholder="Ví dụ: Hà Nội"
-                placeholderTextColor="#9CA3AF"
-                style={styles.input}
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
             </View>
 
             <View style={styles.row}>
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Quận / Huyện</Text>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>
+                  Quận / Huyện
+                </Text>
                 <TextInput
                   value={district}
                   onChangeText={setDistrict}
                   placeholder="Ví dụ: Nam Từ Liêm"
-                  placeholderTextColor="#9CA3AF"
-                  style={styles.input}
+                  placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                      borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                      color: colors.text,
+                    },
+                  ]}
                 />
               </View>
 
               <View style={[styles.inputGroup, { flex: 1 }]}>
-                <Text style={styles.inputLabel}>Phường / Xã</Text>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>
+                  Phường / Xã
+                </Text>
                 <TextInput
                   value={ward}
                   onChangeText={setWard}
                   placeholder="Ví dụ: Mỹ Đình 1"
-                  placeholderTextColor="#9CA3AF"
-                  style={styles.input}
+                  placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                      borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                      color: colors.text,
+                    },
+                  ]}
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Địa chỉ cụ thể</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Địa chỉ cụ thể
+              </Text>
               <TextInput
                 value={street}
                 onChangeText={setStreet}
                 placeholder="Số nhà, tên đường..."
-                placeholderTextColor="#9CA3AF"
-                style={styles.input}
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Ghi chú giao hàng</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Ghi chú giao hàng
+              </Text>
               <TextInput
                 value={note}
                 onChangeText={setNote}
                 placeholder="Ví dụ: Giao giờ hành chính"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
                 multiline
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
             </View>
 
             <View style={styles.defaultRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.defaultTitle}>Đặt làm địa chỉ mặc định</Text>
-                <Text style={styles.defaultSubtitle}>
+                <Text style={[styles.defaultTitle, { color: colors.text }]}>
+                  Đặt làm địa chỉ mặc định
+                </Text>
+                <Text
+                  style={[
+                    styles.defaultSubtitle,
+                    { color: theme === "dark" ? "#94A3B8" : "#6B7280" },
+                  ]}
+                >
                   Địa chỉ này sẽ được ưu tiên khi thanh toán
                 </Text>
               </View>
@@ -256,7 +375,10 @@ export default function AddressScreen() {
               <Switch
                 value={isDefault}
                 onValueChange={setIsDefault}
-                trackColor={{ false: "#E5E7EB", true: PRIMARY_SOFT }}
+                trackColor={{
+                  false: theme === "dark" ? "#334155" : "#E5E7EB",
+                  true: PRIMARY_SOFT,
+                }}
                 thumbColor={isDefault ? PRIMARY : "#FFF"}
               />
             </View>
@@ -387,10 +509,6 @@ const styles = StyleSheet.create({
     height: 92,
     textAlignVertical: "top",
     paddingTop: 14,
-  },
-
-  inputError: {
-    borderColor: "#EF4444",
   },
 
   errorText: {

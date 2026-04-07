@@ -10,12 +10,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
+import { darkTheme, lightTheme } from "../../theme/colors";
 
 const USER_ID = "user_test_123";
 
 export default function WarrantyScreen() {
   const navigation = useNavigation<any>();
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<any[]>([]);
 
@@ -46,37 +51,105 @@ export default function WarrantyScreen() {
     expiryDate.setFullYear(startDate.getFullYear() + 3);
 
     return (
-      <View key={order.id ?? order.orderId} style={styles.ticketCard}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.orderIdText}>
+      <View
+        key={order.id ?? order.orderId}
+        style={[
+          styles.ticketCard,
+          {
+            backgroundColor: colors.card,
+            shadowOpacity: theme === "dark" ? 0 : 0.08,
+            elevation: theme === "dark" ? 0 : 4,
+            borderWidth: theme === "dark" ? 1 : 0,
+            borderColor: theme === "dark" ? "#334155" : "transparent",
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.cardHeader,
+            { backgroundColor: theme === "dark" ? "#0F172A" : "#FAFAFA" },
+          ]}
+        >
+          <Text
+            style={[
+              styles.orderIdText,
+              { color: theme === "dark" ? "#94A3B8" : "#8C8C8C" },
+            ]}
+          >
             Mã đơn: {order.id ?? order.orderId}
           </Text>
-          <View style={styles.statusBadge}>
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: theme === "dark" ? "#123226" : "#E6F7ED",
+              },
+            ]}
+          >
             <Text style={styles.statusText}>Chính hãng</Text>
           </View>
         </View>
 
         {(order.items ?? []).map((item: any, index: number) => (
           <View key={index} style={styles.productRow}>
-            <Text style={styles.productName}>{item.name}</Text>
+            <Text style={[styles.productName, { color: colors.text }]}>
+              {item.name}
+            </Text>
           </View>
         ))}
 
         <View style={styles.divider}>
-          <View style={[styles.cutout, { left: -25 }]} />
-          <View style={styles.dashLine} />
-          <View style={[styles.cutout, { right: -25 }]} />
+          <View
+            style={[
+              styles.cutout,
+              {
+                left: -25,
+                backgroundColor:
+                  theme === "dark" ? colors.background : "#F5F7FA",
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.dashLine,
+              { borderColor: theme === "dark" ? "#475569" : "#DDD" },
+            ]}
+          />
+          <View
+            style={[
+              styles.cutout,
+              {
+                right: -25,
+                backgroundColor:
+                  theme === "dark" ? colors.background : "#F5F7FA",
+              },
+            ]}
+          />
         </View>
 
         <View style={styles.cardFooter}>
           <View style={styles.dateBox}>
-            <Text style={styles.dateLabel}>Ngày mua</Text>
-            <Text style={styles.dateValue}>
+            <Text
+              style={[
+                styles.dateLabel,
+                { color: theme === "dark" ? "#94A3B8" : "#8C8C8C" },
+              ]}
+            >
+              Ngày mua
+            </Text>
+            <Text style={[styles.dateValue, { color: colors.text }]}>
               {startDate.toLocaleDateString("vi-VN")}
             </Text>
           </View>
           <View style={[styles.dateBox, { alignItems: "flex-end" }]}>
-            <Text style={styles.dateLabel}>Hết hạn bảo hành</Text>
+            <Text
+              style={[
+                styles.dateLabel,
+                { color: theme === "dark" ? "#94A3B8" : "#8C8C8C" },
+              ]}
+            >
+              Hết hạn bảo hành
+            </Text>
             <Text style={[styles.dateValue, { color: "#FF4D4F" }]}>
               {expiryDate.toLocaleDateString("vi-VN")}
             </Text>
@@ -87,12 +160,28 @@ export default function WarrantyScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.card,
+            borderBottomColor: theme === "dark" ? "#334155" : "#EBEBEB",
+          },
+        ]}
+      >
         <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={28} color="#1A1A1A" />
+          <Ionicons
+            name="chevron-back"
+            size={28}
+            color={theme === "dark" ? "#FFFFFF" : "#1A1A1A"}
+          />
         </Pressable>
-        <Text style={styles.headerTitle}>Bảo hành của tôi</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Bảo hành của tôi
+        </Text>
         <View style={{ width: 28 }} />
       </View>
 
@@ -109,9 +198,14 @@ export default function WarrantyScreen() {
               <Ionicons
                 name="shield-checkmark-outline"
                 size={60}
-                color="#DDD"
+                color={theme === "dark" ? "#475569" : "#DDD"}
               />
-              <Text style={styles.emptyText}>
+              <Text
+                style={[
+                  styles.emptyText,
+                  { color: theme === "dark" ? "#94A3B8" : "#8C8C8C" },
+                ]}
+              >
                 Bạn chưa có sản phẩm nào được bảo hành.
               </Text>
             </View>
@@ -126,6 +220,7 @@ export default function WarrantyScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7FA" },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -135,7 +230,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: "#EBEBEB",
   },
-  headerTitle: { fontSize: 20, fontWeight: "700" },
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+
   scrollContent: { padding: 20 },
 
   ticketCard: {
@@ -148,20 +248,33 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     overflow: "hidden",
   },
+
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 16,
     backgroundColor: "#FAFAFA",
   },
-  orderIdText: { fontSize: 13, color: "#8C8C8C", fontWeight: "600" },
+
+  orderIdText: {
+    fontSize: 13,
+    color: "#8C8C8C",
+    fontWeight: "600",
+  },
+
   statusBadge: {
     backgroundColor: "#E6F7ED",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
-  statusText: { color: "#39B78D", fontSize: 11, fontWeight: "700" },
+
+  statusText: {
+    color: "#39B78D",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
   productRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -169,7 +282,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 10,
   },
-  productName: { fontSize: 16, fontWeight: "700", color: "#1A1A1A" },
+
+  productName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1A1A1A",
+  },
 
   divider: {
     height: 30,
@@ -177,6 +295,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginVertical: 10,
   },
+
   cutout: {
     position: "absolute",
     width: 20,
@@ -184,6 +303,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#F5F7FA",
   },
+
   dashLine: {
     width: "90%",
     height: 1,
@@ -198,10 +318,26 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 0,
   },
+
   dateBox: { flex: 1 },
-  dateLabel: { fontSize: 11, color: "#8C8C8C", marginBottom: 4 },
-  dateValue: { fontSize: 14, fontWeight: "700", color: "#434343" },
+
+  dateLabel: {
+    fontSize: 11,
+    color: "#8C8C8C",
+    marginBottom: 4,
+  },
+
+  dateValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#434343",
+  },
 
   emptyBox: { alignItems: "center", marginTop: 100, gap: 14 },
-  emptyText: { textAlign: "center", color: "#8C8C8C", fontSize: 15 },
+
+  emptyText: {
+    textAlign: "center",
+    color: "#8C8C8C",
+    fontSize: 15,
+  },
 });

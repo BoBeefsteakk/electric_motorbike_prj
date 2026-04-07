@@ -18,6 +18,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import API_URL from "../../../data/api/apis";
+import { useTheme } from "../../../context/themeContext";
+import { lightTheme, darkTheme } from "../../../theme/colors";
 
 interface Accessory {
   id: number;
@@ -30,6 +32,10 @@ const encodeImagePath = (p: string) =>
   p.split("/").map(encodeURIComponent).join("/");
 
 export default function AccessoryDetailScreen() {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+  const isDark = theme === "dark";
+
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { id } = route.params;
@@ -112,7 +118,12 @@ export default function AccessoryDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
+      <View
+        style={[
+          styles.center,
+          { paddingTop: insets.top, backgroundColor: colors.background },
+        ]}
+      >
         <ActivityIndicator size="large" color="#C47A4A" />
       </View>
     );
@@ -120,9 +131,25 @@ export default function AccessoryDetailScreen() {
 
   if (!item) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <FontAwesome name="exclamation-circle" size={40} color="#DDD" />
-        <Text style={styles.notFound}>Không tìm thấy sản phẩm</Text>
+      <View
+        style={[
+          styles.center,
+          { paddingTop: insets.top, backgroundColor: colors.background },
+        ]}
+      >
+        <FontAwesome
+          name="exclamation-circle"
+          size={40}
+          color={isDark ? "#475569" : "#DDD"}
+        />
+        <Text
+          style={[
+            styles.notFound,
+            { color: isDark ? "#94A3B8" : "#999" },
+          ]}
+        >
+          Không tìm thấy sản phẩm
+        </Text>
       </View>
     );
   }
@@ -130,14 +157,27 @@ export default function AccessoryDetailScreen() {
   const accent = "#C47A4A";
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, backgroundColor: colors.background },
+      ]}
+    >
       <StatusBar
-        barStyle="dark-content"
+        barStyle={isDark ? "light-content" : "dark-content"}
         translucent
         backgroundColor="transparent"
       />
 
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: isDark ? "#243041" : "#EEE",
+          },
+        ]}
+      >
         <View style={styles.headerSideLeft}>
           <TouchableOpacity
             onPress={handleGoBack}
@@ -146,11 +186,17 @@ export default function AccessoryDetailScreen() {
             style={[styles.headerBtn, isClosing && styles.headerBtnPressed]}
             activeOpacity={0.7}
           >
-            <FontAwesome name="chevron-left" size={18} color="#111" />
+            <FontAwesome
+              name="chevron-left"
+              size={18}
+              color={isDark ? "#E5E7EB" : "#111"}
+            />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.headerTitle}>Chi Tiết</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Chi Tiết
+        </Text>
 
         <View style={styles.headerSideRight}>
           <TouchableOpacity
@@ -163,7 +209,11 @@ export default function AccessoryDetailScreen() {
             activeOpacity={0.7}
             hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           >
-            <FontAwesome name="share-alt" size={18} color="#111" />
+            <FontAwesome
+              name="share-alt"
+              size={18}
+              color={isDark ? "#E5E7EB" : "#111"}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -176,7 +226,7 @@ export default function AccessoryDetailScreen() {
               <FontAwesome
                 name={wishlisted ? "heart" : "heart-o"}
                 size={18}
-                color={wishlisted ? "#E74C3C" : "#111"}
+                color={wishlisted ? "#E74C3C" : isDark ? "#E5E7EB" : "#111"}
               />
             </Animated.View>
           </TouchableOpacity>
@@ -200,8 +250,13 @@ export default function AccessoryDetailScreen() {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.title}>{item.name}</Text>
-          <Text style={styles.desc}>
+          <Text style={[styles.title, { color: colors.text }]}>{item.name}</Text>
+          <Text
+            style={[
+              styles.desc,
+              { color: isDark ? "#94A3B8" : "#666" },
+            ]}
+          >
             Phụ kiện chính hãng VinFast — được sản xuất và kiểm định đạt tiêu
             chuẩn chất lượng quốc tế, bảo hành 12 tháng, tương thích hoàn toàn
             với các dòng xe VinFast.
@@ -214,16 +269,47 @@ export default function AccessoryDetailScreen() {
               { icon: "star", label: "Chất lượng", val: "Cao cấp" },
               { icon: "truck", label: "Giao hàng", val: "Toàn quốc" },
             ].map((s, i) => (
-              <View key={i} style={[styles.quickItem, { borderTopColor: accent }]}>
+              <View
+                key={i}
+                style={[
+                  styles.quickItem,
+                  {
+                    borderTopColor: accent,
+                    backgroundColor: isDark ? colors.card : "#F8F8F8",
+                    borderWidth: isDark ? 1 : 0,
+                    borderColor: isDark ? "#334155" : "transparent",
+                  },
+                ]}
+              >
                 <FontAwesome name={s.icon as any} size={16} color={accent} />
-                <Text style={[styles.quickValue, { color: accent }]}>{s.val}</Text>
-                <Text style={styles.quickLabel}>{s.label}</Text>
+                <Text style={[styles.quickValue, { color: accent }]}>
+                  {s.val}
+                </Text>
+                <Text
+                  style={[
+                    styles.quickLabel,
+                    { color: isDark ? "#94A3B8" : "#888" },
+                  ]}
+                >
+                  {s.label}
+                </Text>
               </View>
             ))}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>✦ Điểm nổi bật</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.card,
+                borderWidth: isDark ? 1 : 0,
+                borderColor: isDark ? "#334155" : "transparent",
+              },
+            ]}
+          >
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              ✦ Điểm nổi bật
+            </Text>
             {[
               "Nguyên liệu cao cấp, độ bền vượt trội",
               "Thiết kế tương thích hoàn hảo với xe VinFast",
@@ -231,14 +317,35 @@ export default function AccessoryDetailScreen() {
               "Bảo hành chính hãng 12 tháng toàn quốc",
             ].map((text, i) => (
               <View key={i} style={styles.bulletRow}>
-                <View style={[styles.bulletDot, { backgroundColor: accent }]} />
-                <Text style={styles.bulletText}>{text}</Text>
+                <View
+                  style={[styles.bulletDot, { backgroundColor: accent }]}
+                />
+                <Text
+                  style={[
+                    styles.bulletText,
+                    { color: isDark ? "#CBD5E1" : "#555" },
+                  ]}
+                >
+                  {text}
+                </Text>
               </View>
             ))}
           </View>
 
-          <View style={[styles.card, { marginTop: 16 }]}>
-            <Text style={styles.cardTitle}>⚙ Thông tin sản phẩm</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                marginTop: 16,
+                backgroundColor: colors.card,
+                borderWidth: isDark ? 1 : 0,
+                borderColor: isDark ? "#334155" : "transparent",
+              },
+            ]}
+          >
+            <Text style={[styles.cardTitle, { color: colors.text }]}>
+              ⚙ Thông tin sản phẩm
+            </Text>
             {[
               { label: "Thương hiệu", value: "VinFast" },
               { label: "Xuất xứ", value: "Việt Nam" },
@@ -248,23 +355,61 @@ export default function AccessoryDetailScreen() {
             ].map((s, i, arr) => (
               <View
                 key={i}
-                style={[styles.specRow, i < arr.length - 1 && styles.specRowBorder]}
+                style={[
+                  styles.specRow,
+                  i < arr.length - 1 && {
+                    borderBottomWidth: 0.5,
+                    borderBottomColor: isDark ? "#334155" : "#EBEBEB",
+                  },
+                ]}
               >
-                <Text style={styles.specLabel}>{s.label}</Text>
-                <Text style={[styles.specValue, { color: accent }]}>{s.value}</Text>
+                <Text
+                  style={[
+                    styles.specLabel,
+                    { color: isDark ? "#94A3B8" : "#777" },
+                  ]}
+                >
+                  {s.label}
+                </Text>
+                <Text style={[styles.specValue, { color: accent }]}>
+                  {s.value}
+                </Text>
               </View>
             ))}
           </View>
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingBottom: insets.bottom + 12,
+            backgroundColor: colors.background,
+            borderTopColor: isDark ? "#243041" : "#EEE",
+          },
+        ]}
+      >
         <View style={{ flex: 1 }}>
-          <Text style={styles.priceLabel}>Giá bán</Text>
+          <Text
+            style={[
+              styles.priceLabel,
+              { color: isDark ? "#94A3B8" : "#999" },
+            ]}
+          >
+            Giá bán
+          </Text>
           <Text style={[styles.price, { color: accent }]}>
             {Number(item.price).toLocaleString("vi-VN")}đ
           </Text>
-          <Text style={styles.priceSub}>Đã bao gồm VAT</Text>
+          <Text
+            style={[
+              styles.priceSub,
+              { color: isDark ? "#64748B" : "#BBB" },
+            ]}
+          >
+            Đã bao gồm VAT
+          </Text>
         </View>
 
         <TouchableOpacity
@@ -409,7 +554,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 10,
   },
-  specRowBorder: { borderBottomWidth: 0.5, borderBottomColor: "#EBEBEB" },
   specLabel: { color: "#777", fontSize: 14 },
   specValue: { fontWeight: "700", fontSize: 14 },
 

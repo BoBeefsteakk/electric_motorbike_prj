@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import API_URL from "../../../../data/api/apis";
 import BEST_PRICE_DATA from "../../../../data/bestPrice";
+import { useTheme } from "../../../../context/themeContext";
+import { lightTheme, darkTheme } from "../../../../theme/colors";
 import { HomeStackParamList } from "../../../navigation/types";
 import { CartToastRef } from "../../cart";
 
@@ -33,6 +35,10 @@ interface ProductFromDB {
 }
 
 export default function BestPriceDetailScreen() {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+  const isDark = theme === "dark";
+
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProps>();
   const { id } = route.params;
@@ -60,11 +66,11 @@ export default function BestPriceDetailScreen() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, staticData]);
 
   const selectedVariant = useMemo(
     () => staticData?.colors?.find((c: any) => c?.id === selectedColor),
-    [selectedColor, staticData],
+    [selectedColor, staticData]
   );
 
   const handleAddToCart = async () => {
@@ -103,7 +109,19 @@ export default function BestPriceDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View
+        style={[
+          styles.container,
+          {
+            paddingTop: insets.top,
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
+        <StatusBar
+          barStyle={isDark ? "light-content" : "dark-content"}
+          backgroundColor={colors.background}
+        />
         <ActivityIndicator
           size="large"
           color="#C47A4A"
@@ -122,11 +140,26 @@ export default function BestPriceDetailScreen() {
             paddingTop: insets.top,
             justifyContent: "center",
             alignItems: "center",
+            backgroundColor: colors.background,
           },
         ]}
       >
-        <Ionicons name="alert-circle-outline" size={52} color="#DDD" />
-        <Text style={{ marginTop: 12, color: "#AAA", fontSize: 15 }}>
+        <StatusBar
+          barStyle={isDark ? "light-content" : "dark-content"}
+          backgroundColor={colors.background}
+        />
+        <Ionicons
+          name="alert-circle-outline"
+          size={52}
+          color={isDark ? "#475569" : "#DDD"}
+        />
+        <Text
+          style={{
+            marginTop: 12,
+            color: isDark ? "#94A3B8" : "#AAA",
+            fontSize: 15,
+          }}
+        >
           Không tìm thấy sản phẩm
         </Text>
       </View>
@@ -134,31 +167,57 @@ export default function BestPriceDetailScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top,
+          backgroundColor: colors.background,
+        },
+      ]}
+    >
       <StatusBar
-        barStyle="dark-content"
+        barStyle={isDark ? "light-content" : "dark-content"}
         translucent
         backgroundColor="transparent"
       />
 
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: isDark ? "#334155" : "#EEE",
+            backgroundColor: colors.background,
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           style={styles.headerBtn}
           activeOpacity={0.7}
         >
-          <FontAwesome name="chevron-left" size={18} color="#111" />
+          <FontAwesome
+            name="chevron-left"
+            size={18}
+            color={isDark ? "#E5E7EB" : "#111"}
+          />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Chi Tiết</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Chi Tiết
+        </Text>
 
         <TouchableOpacity
           style={styles.headerBtn}
           hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           activeOpacity={0.7}
         >
-          <FontAwesome name="heart-o" size={20} color="#111" />
+          <FontAwesome
+            name="heart-o"
+            size={20}
+            color={isDark ? "#E5E7EB" : "#111"}
+          />
         </TouchableOpacity>
       </View>
 
@@ -166,7 +225,12 @@ export default function BestPriceDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 200 }}
       >
-        <View style={styles.imageBox}>
+        <View
+          style={[
+            styles.imageBox,
+            { backgroundColor: isDark ? "#1F2937" : "#F5F5F5" },
+          ]}
+        >
           <Image
             source={{
               uri: `${API_URL}/images/${encodeImagePath(product.image)}`,
@@ -177,7 +241,9 @@ export default function BestPriceDetailScreen() {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.title}>{product.name}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            {product.name}
+          </Text>
 
           <View style={styles.ratingRow}>
             {[1, 2, 3, 4, 5].map((s) => (
@@ -189,54 +255,131 @@ export default function BestPriceDetailScreen() {
                 style={{ marginRight: 2 }}
               />
             ))}
-            <Text style={styles.rating}>{staticData.rating}</Text>
-            <Text style={styles.ratingCount}>
+            <Text style={[styles.rating, { color: colors.text }]}>
+              {staticData.rating}
+            </Text>
+            <Text
+              style={[
+                styles.ratingCount,
+                { color: isDark ? "#94A3B8" : "#AAA" },
+              ]}
+            >
               ({staticData.ratingCount} đánh giá)
             </Text>
           </View>
 
-          <Text style={styles.desc}>{staticData.desc}</Text>
+          <Text
+            style={[
+              styles.desc,
+              { color: isDark ? "#CBD5E1" : "#666" },
+            ]}
+          >
+            {staticData.desc}
+          </Text>
 
           <View style={styles.quickInfo}>
             {staticData.quickInfo.map((item: any, i: number) => (
-              <View key={i} style={styles.quickItem}>
-                <Text style={styles.quickValue}>{item.value}</Text>
-                <Text style={styles.quickLabel}>{item.label}</Text>
+              <View
+                key={i}
+                style={[
+                  styles.quickItem,
+                  {
+                    backgroundColor: isDark ? "#1F2937" : "#F8F8F8",
+                    borderColor: isDark ? "#334155" : "#F0F0F0",
+                  },
+                ]}
+              >
+                <Text style={[styles.quickValue, { color: colors.text }]}>
+                  {item.value}
+                </Text>
+                <Text
+                  style={[
+                    styles.quickLabel,
+                    { color: isDark ? "#94A3B8" : "#999" },
+                  ]}
+                >
+                  {item.label}
+                </Text>
               </View>
             ))}
           </View>
 
           <View style={styles.sectionBox}>
-            <Text style={styles.sectionTitle}>Ưu điểm nổi bật</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Ưu điểm nổi bật
+            </Text>
             {staticData.highlights.map((text: string, i: number) => (
               <View key={i} style={styles.bulletRow}>
                 <View style={styles.bulletDot} />
-                <Text style={styles.bulletText}>{text}</Text>
+                <Text
+                  style={[
+                    styles.bulletText,
+                    { color: isDark ? "#CBD5E1" : "#555" },
+                  ]}
+                >
+                  {text}
+                </Text>
               </View>
             ))}
           </View>
 
           <View style={styles.sectionBox}>
-            <Text style={styles.sectionTitle}>Thông số chính</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Thông số chính
+            </Text>
             {staticData.specs.map((item: any, i: number) => (
               <View
                 key={i}
                 style={[
                   styles.specRow,
-                  i % 2 === 0 && { backgroundColor: "#F9F9F9" },
+                  {
+                    backgroundColor:
+                      i % 2 === 0
+                        ? isDark
+                          ? "#1F2937"
+                          : "#F9F9F9"
+                        : "transparent",
+                  },
                 ]}
               >
-                <Text style={styles.specLabel}>{item.label}</Text>
-                <Text style={styles.specValue}>{item.value}</Text>
+                <Text
+                  style={[
+                    styles.specLabel,
+                    { color: isDark ? "#94A3B8" : "#888" },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+                <Text style={[styles.specValue, { color: colors.text }]}>
+                  {item.value}
+                </Text>
               </View>
             ))}
           </View>
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingBottom: insets.bottom + 12,
+            borderTopColor: isDark ? "#334155" : "#EEE",
+            backgroundColor: colors.background,
+            shadowOpacity: isDark ? 0 : 0.06,
+            elevation: isDark ? 0 : 12,
+          },
+        ]}
+      >
         <View style={{ flex: 1 }}>
-          <Text style={styles.priceLabel}>Giá bán</Text>
+          <Text
+            style={[
+              styles.priceLabel,
+              { color: isDark ? "#94A3B8" : "#AAA" },
+            ]}
+          >
+            Giá bán
+          </Text>
           <Text style={styles.price}>
             {formatPrice(selectedVariant?.price ?? product.price)}
           </Text>
@@ -249,6 +392,14 @@ export default function BestPriceDetailScreen() {
                   key={item.id}
                   style={[
                     styles.colorItem,
+                    {
+                      borderColor:
+                        selectedColor === item.id
+                          ? "#C47A4A"
+                          : isDark
+                          ? "#475569"
+                          : "#EEE",
+                    },
                     selectedColor === item.id && styles.colorItemActive,
                   ]}
                   onPress={() => setSelectedColor(item.id)}

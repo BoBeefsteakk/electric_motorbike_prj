@@ -15,6 +15,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../context/themeContext";
+import { lightTheme, darkTheme } from "../../theme/colors";
 
 const PRIMARY = "#2563EB";
 const PRIMARY_DARK = "#1D4ED8";
@@ -23,19 +25,29 @@ const PROFILE_KEY = "PROFILE_DATA";
 
 type GenderType = "Nam" | "Nữ" | "Khác";
 
+const DEFAULT_AVATAR =
+  "https://i.pinimg.com/736x/21/6b/03/216b036577589d7010a30b696f839634.jpg";
+const DEFAULT_NAME = "Văn Thanh";
+const DEFAULT_EMAIL = "thanhvan@example.com";
+const DEFAULT_PHONE = "0987654321";
+const DEFAULT_BIRTHDAY = "12/10/2003";
+const DEFAULT_GENDER: GenderType = "Nam";
+const DEFAULT_ADDRESS = "Hà Nội, Việt Nam";
+
 export default function EditProfileScreen() {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
-  const [avatarUri, setAvatarUri] = useState(
-    "https://i.pinimg.com/736x/21/6b/03/216b036577589d7010a30b696f839634.jpg"
-  );
-  const [fullName, setFullName] = useState("Văn Thanh");
-  const [email, setEmail] = useState("thanhvan@example.com");
-  const [phone, setPhone] = useState("0987654321");
-  const [birthday, setBirthday] = useState("12/10/2003");
-  const [gender, setGender] = useState<GenderType>("Nam");
-  const [address, setAddress] = useState("Hà Nội, Việt Nam");
+  const [avatarUri, setAvatarUri] = useState(DEFAULT_AVATAR);
+  const [fullName, setFullName] = useState(DEFAULT_NAME);
+  const [email, setEmail] = useState(DEFAULT_EMAIL);
+  const [phone, setPhone] = useState(DEFAULT_PHONE);
+  const [birthday, setBirthday] = useState(DEFAULT_BIRTHDAY);
+  const [gender, setGender] = useState<GenderType>(DEFAULT_GENDER);
+  const [address, setAddress] = useState(DEFAULT_ADDRESS);
 
   const emailValid = useMemo(
     () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
@@ -52,13 +64,13 @@ export default function EditProfileScreen() {
 
         const data = JSON.parse(raw);
 
-        setAvatarUri(data.avatarUri ?? "https://i.pinimg.com/736x/21/6b/03/216b036577589d7010a30b696f839634.jpg");
-        setFullName(data.fullName ?? "Văn Thanh");
-        setEmail(data.email ?? "thanhvan@example.com");
-        setPhone(data.phone ?? "0987654321");
-        setBirthday(data.birthday ?? "12/10/2003");
-        setGender(data.gender ?? "Nam");
-        setAddress(data.address ?? "Hà Nội, Việt Nam");
+        setAvatarUri(data.avatarUri ?? DEFAULT_AVATAR);
+        setFullName(data.fullName ?? DEFAULT_NAME);
+        setEmail(data.email ?? DEFAULT_EMAIL);
+        setPhone(data.phone ?? DEFAULT_PHONE);
+        setBirthday(data.birthday ?? DEFAULT_BIRTHDAY);
+        setGender(data.gender ?? DEFAULT_GENDER);
+        setAddress(data.address ?? DEFAULT_ADDRESS);
       } catch (error) {
         console.log("Load profile error:", error);
       }
@@ -149,10 +161,33 @@ export default function EditProfileScreen() {
   }) => (
     <Pressable
       onPress={onPress}
-      style={[styles.genderChip, active && styles.genderChipActive]}
+      style={[
+        styles.genderChip,
+        {
+          borderColor: active
+            ? PRIMARY
+            : theme === "dark"
+            ? "#334155"
+            : "#E5E7EB",
+          backgroundColor: active
+            ? PRIMARY_SOFT
+            : theme === "dark"
+            ? colors.card
+            : "#F9FAFB",
+        },
+      ]}
     >
       <Text
-        style={[styles.genderChipText, active && styles.genderChipTextActive]}
+        style={[
+          styles.genderChipText,
+          {
+            color: active
+              ? PRIMARY_DARK
+              : theme === "dark"
+              ? "#CBD5E1"
+              : "#6B7280",
+          },
+        ]}
       >
         {label}
       </Text>
@@ -160,8 +195,11 @@ export default function EditProfileScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={PRIMARY} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={PRIMARY}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -185,35 +223,71 @@ export default function EditProfileScreen() {
                 <Ionicons name="camera" size={16} color="#FFF" />
               </Pressable>
             </View>
-            <Text style={styles.avatarHint}>
+            <Text
+              style={[
+                styles.avatarHint,
+                { color: theme === "dark" ? "#94A3B8" : "#6B7280" },
+              ]}
+            >
               Nhấn vào biểu tượng máy ảnh để đổi ảnh
             </Text>
           </View>
 
-          <View style={styles.formCard}>
+          <View
+            style={[
+              styles.formCard,
+              {
+                backgroundColor: colors.card,
+                shadowOpacity: theme === "dark" ? 0 : 0.06,
+                elevation: theme === "dark" ? 0 : 4,
+                borderWidth: theme === "dark" ? 1 : 0,
+                borderColor: theme === "dark" ? "#334155" : "transparent",
+              },
+            ]}
+          >
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Họ và tên</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Họ và tên
+              </Text>
               <TextInput
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder="Nhập họ và tên"
-                placeholderTextColor="#9CA3AF"
-                style={styles.input}
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Email
+              </Text>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="Nhập email"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 style={[
                   styles.input,
-                  email.length > 0 && !emailValid && styles.inputError,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor:
+                      email.length > 0 && !emailValid
+                        ? "#EF4444"
+                        : theme === "dark"
+                        ? "#334155"
+                        : "#E5E7EB",
+                    color: colors.text,
+                  },
                 ]}
               />
               {email.length > 0 && !emailValid && (
@@ -224,16 +298,27 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Số điện thoại</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Số điện thoại
+              </Text>
               <TextInput
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="Nhập số điện thoại"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
                 keyboardType="number-pad"
                 style={[
                   styles.input,
-                  phone.length > 0 && !phoneValid && styles.inputError,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor:
+                      phone.length > 0 && !phoneValid
+                        ? "#EF4444"
+                        : theme === "dark"
+                        ? "#334155"
+                        : "#E5E7EB",
+                    color: colors.text,
+                  },
                 ]}
               />
               {phone.length > 0 && !phoneValid && (
@@ -244,18 +329,29 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Ngày sinh</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Ngày sinh
+              </Text>
               <TextInput
                 value={birthday}
                 onChangeText={setBirthday}
                 placeholder="DD/MM/YYYY"
-                placeholderTextColor="#9CA3AF"
-                style={styles.input}
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Giới tính</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Giới tính
+              </Text>
               <View style={styles.genderRow}>
                 <GenderChip
                   label="Nam"
@@ -276,14 +372,24 @@ export default function EditProfileScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Địa chỉ</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Địa chỉ
+              </Text>
               <TextInput
                 value={address}
                 onChangeText={setAddress}
                 placeholder="Nhập địa chỉ"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme === "dark" ? "#64748B" : "#9CA3AF"}
                 multiline
-                style={[styles.input, styles.textArea]}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  {
+                    backgroundColor: theme === "dark" ? "#0F172A" : "#F9FAFB",
+                    borderColor: theme === "dark" ? "#334155" : "#E5E7EB",
+                    color: colors.text,
+                  },
+                ]}
               />
             </View>
           </View>
@@ -412,10 +518,6 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
 
-  inputError: {
-    borderColor: "#EF4444",
-  },
-
   errorText: {
     marginTop: 6,
     fontSize: 12,
@@ -438,19 +540,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  genderChipActive: {
-    backgroundColor: PRIMARY_SOFT,
-    borderColor: PRIMARY,
-  },
-
   genderChipText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#6B7280",
-  },
-
-  genderChipTextActive: {
-    color: PRIMARY_DARK,
   },
 
   saveBtn: {

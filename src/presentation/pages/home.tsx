@@ -23,6 +23,8 @@ import {
 import { HomeStackParamList } from "../navigation/types";
 import API_URL from "../../data/api/apis";
 import BEST_PRICE_DATA from "../../data/bestPrice";
+import { useTheme } from "../../context/themeContext";
+import { lightTheme, darkTheme } from "../../theme/colors";
 
 type HomeNavProp = NativeStackNavigationProp<HomeStackParamList, "home_main">;
 
@@ -58,7 +60,7 @@ const CATEGORIES: CategoryItem[] = [
     name: "Special Voucher",
     type: "special",
     route: "category_special",
-    color: "#FF8A5B",
+    color: "#F97316",
   },
   {
     id: 2,
@@ -121,8 +123,15 @@ const NEWS = [
 ];
 
 /* ── Toast notification ── */
-const Toast = ({ message, visible }: { message: string; visible: boolean }) => {
+const Toast = ({
+  message,
+  visible,
+}: {
+  message: string;
+  visible: boolean;
+}) => {
   const opacity = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (visible) {
       Animated.sequence([
@@ -139,7 +148,8 @@ const Toast = ({ message, visible }: { message: string; visible: boolean }) => {
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, opacity]);
+
   return (
     <Animated.View style={[styles.toast, { opacity }]} pointerEvents="none">
       <FontAwesome name="check-circle" size={16} color="#fff" />
@@ -152,11 +162,14 @@ const Toast = ({ message, visible }: { message: string; visible: boolean }) => {
 const SkeletonCard = ({
   width: w,
   height: h,
+  dark,
 }: {
   width: number;
   height: number;
+  dark: boolean;
 }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -170,16 +183,17 @@ const SkeletonCard = ({
           duration: 750,
           useNativeDriver: true,
         }),
-      ]),
+      ])
     ).start();
-  }, []);
+  }, [anim]);
+
   return (
     <Animated.View
       style={{
         width: w,
         height: h,
         borderRadius: 16,
-        backgroundColor: "#EBEBEB",
+        backgroundColor: dark ? "#1F2937" : "#EBEBEB",
         marginRight: 14,
         opacity: anim,
       }}
@@ -189,6 +203,10 @@ const SkeletonCard = ({
 
 /* ======================= SCREEN ======================= */
 const HomeScreen = () => {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+  const isDark = theme === "dark";
+
   const navigation = useNavigation<HomeNavProp>();
 
   const [fullName, setFullName] = useState("");
@@ -234,7 +252,7 @@ const HomeScreen = () => {
       const res = await fetch(`${API_URL}/api/products`);
       const data = await res.json();
       const featured = FEATURED_IDS.map((id) =>
-        data.find((p: ProductItem) => p.id === id),
+        data.find((p: ProductItem) => p.id === id)
       ).filter(Boolean);
       setProducts(featured);
     } catch (e) {
@@ -274,52 +292,85 @@ const HomeScreen = () => {
 
   /* ── render helpers ── */
   const renderCategoryCard = useCallback(
-    (cat: CategoryItem) => (
-      <TouchableOpacity
-        key={cat.id}
-        activeOpacity={0.8}
-        style={[
-          cat.type === "special" ? styles.specialCard : styles.categoryCard,
-          { backgroundColor: cat.color },
-        ]}
-        onPress={() => navigation.navigate(cat.route as never)}
-      >
-        {cat.type === "special" ? (
-          <>
-            <Text style={styles.specialTitle} numberOfLines={1}>
-              {cat.name}
-            </Text>
-            <View style={styles.discountBadges}>
-              {[
-                { c: "#5DADE2", t: "-50%" },
-                { c: "#58D68D", t: "-25%" },
-                { c: "#F8B4D9", t: "-15%" },
-              ].map((b) => (
-                <View
-                  key={b.t}
-                  style={[styles.badge, { backgroundColor: b.c }]}
-                >
-                  <Text style={styles.badgeText}>{b.t}</Text>
-                </View>
-              ))}
-            </View>
-          </>
-        ) : (
-          <>
-            <Image source={cat.image} style={styles.categoryIcon} />
-            <Text style={styles.categoryName}>{cat.name}</Text>
-          </>
-        )}
-      </TouchableOpacity>
-    ),
-    [navigation],
+    (cat: CategoryItem) => {
+      const isSpecial = cat.type === "special";
+
+      return (
+        <TouchableOpacity
+          key={cat.id}
+          activeOpacity={0.8}
+          style={[
+            isSpecial ? styles.specialCard : styles.categoryCard,
+            {
+              backgroundColor: isDark ? "#1F2937" : cat.color,
+              borderColor: isDark
+                ? "#334155"
+                : isSpecial
+                ? "rgba(255,255,255,0.25)"
+                : "#E5E7EB",
+            },
+          ]}
+          onPress={() => navigation.navigate(cat.route as never)}
+        >
+          {isSpecial ? (
+            <>
+              <Text
+                style={[
+                  styles.specialTitle,
+                  { color: isDark ? "#E5E7EB" : "#FFF" },
+                ]}
+                numberOfLines={2}
+              >
+                {cat.name}
+              </Text>
+              <View style={styles.discountBadges}>
+                {[
+                  { c: "#5DADE2", t: "-50%" },
+                  { c: "#58D68D", t: "-25%" },
+                  { c: "#F8B4D9", t: "-15%" },
+                ].map((b) => (
+                  <View
+                    key={b.t}
+                    style={[styles.badge, { backgroundColor: b.c }]}
+                  >
+                    <Text style={styles.badgeText}>{b.t}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <Image source={cat.image} style={styles.categoryIcon} />
+              <Text
+                style={[
+                  styles.categoryName,
+                  { color: isDark ? "#E5E7EB" : "#333" },
+                ]}
+              >
+                {cat.name}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [navigation, isDark]
   );
 
   const renderStoreItem = useCallback(
     ({ item }: { item: PlaceItem }) => (
       <TouchableOpacity
         activeOpacity={0.85}
-        style={styles.placeCard}
+        style={[
+          styles.placeCard,
+          {
+            backgroundColor: colors.card,
+            shadowOpacity: isDark ? 0 : 0.09,
+            elevation: isDark ? 0 : 3,
+            borderWidth: isDark ? 1 : 0,
+            borderColor: isDark ? "#334155" : "transparent",
+          },
+        ]}
         onPress={() => navigation.navigate(item.route as any)}
       >
         <Image
@@ -327,27 +378,59 @@ const HomeScreen = () => {
           style={styles.placeImage}
         />
         <View style={styles.placeBody}>
-          <Text style={styles.placeName} numberOfLines={1}>
+          <Text
+            style={[styles.placeName, { color: colors.text }]}
+            numberOfLines={1}
+          >
             {item.name}
           </Text>
           <View style={styles.placeInfoRow}>
             <FontAwesome name="star" size={11} color="#F5A623" />
-            <Text style={styles.ratingText}>{item.rating}</Text>
-            <Text style={styles.dot}>•</Text>
-            <Text style={styles.placeAddress} numberOfLines={1}>
+            <Text
+              style={[
+                styles.ratingText,
+                { color: isDark ? "#CBD5E1" : "#555" },
+              ]}
+            >
+              {item.rating}
+            </Text>
+            <Text
+              style={[
+                styles.dot,
+                { color: isDark ? "#475569" : "#DDD" },
+              ]}
+            >
+              •
+            </Text>
+            <Text
+              style={[
+                styles.placeAddress,
+                { color: isDark ? "#94A3B8" : "#999" },
+              ]}
+              numberOfLines={1}
+            >
               {item.address}
             </Text>
           </View>
         </View>
       </TouchableOpacity>
     ),
-    [navigation],
+    [navigation, colors, isDark]
   );
 
   const renderProductItem = useCallback(
     ({ item }: { item: ProductItem }) => (
       <TouchableOpacity
-        style={styles.priceCard}
+        style={[
+          styles.priceCard,
+          {
+            backgroundColor: colors.card,
+            shadowOpacity: isDark ? 0 : 0.09,
+            elevation: isDark ? 0 : 4,
+            borderWidth: isDark ? 1 : 0,
+            borderColor: isDark ? "#334155" : "transparent",
+          },
+        ]}
         activeOpacity={0.85}
         onPress={() =>
           navigation.navigate("best_price_detail", { id: item.id })
@@ -360,19 +443,39 @@ const HomeScreen = () => {
           />
         </View>
         <View style={styles.priceContent}>
-          <Text style={styles.priceName} numberOfLines={2}>
+          <Text
+            style={[styles.priceName, { color: colors.text }]}
+            numberOfLines={2}
+          >
             {item.name}
           </Text>
           <View style={styles.priceRatingRow}>
             <FontAwesome name="star" size={11} color="#F5A623" />
-            <Text style={styles.priceRatingText}>
+            <Text
+              style={[
+                styles.priceRatingText,
+                { color: isDark ? "#94A3B8" : "#999" },
+              ]}
+            >
               {(BEST_PRICE_DATA[item.id]?.rating ?? 4.5).toFixed(1)}
             </Text>
           </View>
-          <View style={styles.priceDivider} />
+          <View
+            style={[
+              styles.priceDivider,
+              { backgroundColor: isDark ? "#334155" : "#F0F0F0" },
+            ]}
+          />
           <View style={styles.priceFooter}>
             <View>
-              <Text style={styles.priceFromLabel}>Giá từ</Text>
+              <Text
+                style={[
+                  styles.priceFromLabel,
+                  { color: isDark ? "#94A3B8" : "#BBB" },
+                ]}
+              >
+                Giá từ
+              </Text>
               <Text style={styles.priceText}>
                 {Number(item.price).toLocaleString("vi-VN")}đ
               </Text>
@@ -384,31 +487,50 @@ const HomeScreen = () => {
         </View>
       </TouchableOpacity>
     ),
-    [navigation],
+    [navigation, colors, isDark]
   );
 
   const renderNewsItem = useCallback(
     ({ item }: { item: (typeof NEWS)[0] }) => (
       <TouchableOpacity
         activeOpacity={0.85}
-        style={styles.newsCard}
+        style={[
+          styles.newsCard,
+          {
+            backgroundColor: colors.card,
+            shadowOpacity: isDark ? 0 : 0.09,
+            elevation: isDark ? 0 : 3,
+            borderWidth: isDark ? 1 : 0,
+            borderColor: isDark ? "#334155" : "transparent",
+          },
+        ]}
         onPress={() => navigation.navigate(item.route as any)}
       >
         <Image source={item.image} style={styles.newsImage} />
         <View style={styles.newsBody}>
-          <View style={styles.newsBadge}>
+          <View
+            style={[
+              styles.newsBadge,
+              { backgroundColor: isDark ? "#3B2A14" : "#FFF0E0" },
+            ]}
+          >
             <Text style={styles.newsBadgeText}>Tin tức</Text>
           </View>
-          <Text style={styles.newsTitle} numberOfLines={2}>
+          <Text
+            style={[
+              styles.newsTitle,
+              { color: isDark ? "#E5E7EB" : "#222" },
+            ]}
+            numberOfLines={2}
+          >
             {item.title}
           </Text>
         </View>
       </TouchableOpacity>
     ),
-    [navigation],
+    [navigation, colors, isDark]
   );
 
-  /* ── Section header helper ── */
   const SectionHeader = ({
     title,
     onPress,
@@ -419,7 +541,9 @@ const HomeScreen = () => {
     <View style={styles.sectionHeader}>
       <View style={styles.sectionTitleRow}>
         <View style={styles.sectionAccent} />
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          {title}
+        </Text>
       </View>
       {onPress && (
         <TouchableOpacity
@@ -439,18 +563,19 @@ const HomeScreen = () => {
     </View>
   );
 
-  /* ======================= RENDER ======================= */
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={isDark ? "#000" : colors.background}
+      />
       <Toast message={toastMsg} visible={toastVisible} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
       >
-        {/* HEADER */}
-        <View style={styles.headerDark}>
+        <View style={[styles.headerDark, { backgroundColor: isDark ? "#000" : "#111827" }]}>
           <View style={styles.headerTop}>
             <Image
               source={require("../../../pic/home/vinfast_home_2.png")}
@@ -467,7 +592,6 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        {/* BANNER */}
         <TouchableOpacity
           activeOpacity={0.9}
           style={styles.bannerWrapper}
@@ -479,7 +603,6 @@ const HomeScreen = () => {
           />
         </TouchableOpacity>
 
-        {/* CATEGORIES */}
         <View style={styles.categorySection}>
           <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
             {CATEGORIES.slice(0, 3).map(renderCategoryCard)}
@@ -489,7 +612,6 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        {/* CỬA HÀNG */}
         <View style={styles.section}>
           <SectionHeader
             title="Cửa Hàng"
@@ -498,7 +620,7 @@ const HomeScreen = () => {
           {storesLoading ? (
             <View style={styles.skeletonRow}>
               {[0, 1, 2].map((i) => (
-                <SkeletonCard key={i} width={180} height={155} />
+                <SkeletonCard key={i} width={180} height={155} dark={isDark} />
               ))}
             </View>
           ) : (
@@ -517,7 +639,6 @@ const HomeScreen = () => {
           )}
         </View>
 
-        {/* BÁN CHẠY */}
         <View style={styles.section}>
           <SectionHeader
             title="Bán Chạy"
@@ -526,7 +647,7 @@ const HomeScreen = () => {
           {productsLoading ? (
             <View style={styles.skeletonRow}>
               {[0, 1, 2].map((i) => (
-                <SkeletonCard key={i} width={160} height={230} />
+                <SkeletonCard key={i} width={160} height={230} dark={isDark} />
               ))}
             </View>
           ) : (
@@ -545,7 +666,6 @@ const HomeScreen = () => {
           )}
         </View>
 
-        {/* TIN TỨC */}
         <View style={styles.section}>
           <SectionHeader title="Tin Tức" />
           <FlatList
@@ -560,10 +680,19 @@ const HomeScreen = () => {
           />
         </View>
 
-        {/* ĐĂNG KÝ TƯ VẤN */}
-        <View style={styles.consultSection}>
+        <View
+          style={[
+            styles.consultSection,
+            { backgroundColor: isDark ? "#0B1220" : "#0F1B1D" },
+          ]}
+        >
           <Text style={styles.consultHeading}>ĐĂNG KÝ TƯ VẤN</Text>
-          <View style={styles.consultDivider} />
+          <View
+            style={[
+              styles.consultDivider,
+              { backgroundColor: isDark ? "#243041" : "#2A3A3D" },
+            ]}
+          />
           <Text style={styles.consultSubtitle}>
             Đăng ký ngay hôm nay để nhận thông tin chính thức và tư vấn từ
             VinFast
@@ -589,20 +718,34 @@ const HomeScreen = () => {
               keyboard: "email-address",
             },
           ].map((f) => (
-            <View key={f.placeholder} style={styles.inputBox}>
+            <View
+              key={f.placeholder}
+              style={[
+                styles.inputBox,
+                { backgroundColor: isDark ? "#111827" : "#fff" },
+              ]}
+            >
               <TextInput
                 value={f.value}
                 onChangeText={f.setter}
                 placeholder={f.placeholder}
-                placeholderTextColor="#999"
+                placeholderTextColor={isDark ? "#64748B" : "#999"}
                 keyboardType={f.keyboard as any}
-                style={styles.textInput}
+                style={[styles.textInput, { color: isDark ? "#E5E7EB" : "#111" }]}
               />
             </View>
           ))}
 
           <Text style={styles.consultLabel}>Dòng xe quan tâm</Text>
-          <View style={styles.tabRow}>
+          <View
+            style={[
+              styles.tabRow,
+              {
+                backgroundColor: isDark ? "#111827" : "#121212",
+                borderColor: isDark ? "#334155" : "#2A3A3D",
+              },
+            ]}
+          >
             {["Cao cấp", "Trung cấp", "Phổ thông"].map((item) => (
               <TouchableOpacity
                 key={item}
@@ -615,6 +758,14 @@ const HomeScreen = () => {
                 <Text
                   style={[
                     styles.tabText,
+                    {
+                      color:
+                        selectedTab === item
+                          ? "#FFF"
+                          : isDark
+                          ? "#94A3B8"
+                          : "#888",
+                    },
                     selectedTab === item && styles.tabTextActive,
                   ]}
                 >
@@ -634,8 +785,20 @@ const HomeScreen = () => {
             "Tôi đồng ý cho phép Công ty TNHH Kinh doanh Thương mại Dịch vụ VinFast xử lý dữ liệu cá nhân của tôi...",
           ].map((txt) => (
             <View key={txt} style={styles.checkboxRow}>
-              <View style={styles.checkbox} />
-              <Text style={styles.checkboxText}>{txt}</Text>
+              <View
+                style={[
+                  styles.checkbox,
+                  { borderColor: isDark ? "#475569" : "#646464" },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.checkboxText,
+                  { color: isDark ? "#94A3B8" : "#AAA" },
+                ]}
+              >
+                {txt}
+              </Text>
             </View>
           ))}
 
@@ -659,11 +822,9 @@ const HomeScreen = () => {
 
 export default HomeScreen;
 
-/* ======================= STYLES ======================= */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
 
-  /* Toast */
   toast: {
     position: "absolute",
     top: 60,
@@ -688,7 +849,6 @@ const styles = StyleSheet.create({
   },
   toastText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
-  /* Header */
   headerDark: {
     backgroundColor: "#000",
     paddingHorizontal: 16,
@@ -718,7 +878,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF3B30",
   },
 
-  /* Banner */
   bannerWrapper: {
     marginHorizontal: 16,
     marginTop: -90,
@@ -732,7 +891,6 @@ const styles = StyleSheet.create({
   },
   bannerImage: { width: "100%", height: 160, resizeMode: "cover" },
 
-  /* Categories */
   categorySection: { paddingHorizontal: 20, marginTop: 20 },
   categoryCard: {
     width: CARD_W,
@@ -747,16 +905,18 @@ const styles = StyleSheet.create({
     width: CARD_W,
     aspectRatio: 1,
     borderRadius: 16,
-    padding: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     justifyContent: "space-between",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.25)",
   },
   specialTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
-    color: "#FFF",
-    marginBottom: 5,
+    lineHeight: 14,
+    textAlign: "center",
+    minHeight: 28,
   },
   discountBadges: {
     flexDirection: "row",
@@ -765,12 +925,12 @@ const styles = StyleSheet.create({
   },
   badge: {
     width: "48%",
-    paddingVertical: 6,
-    marginBottom: 6,
+    paddingVertical: 5,
+    marginBottom: 5,
     borderRadius: 14,
     alignItems: "center",
   },
-  badgeText: { color: "#FFF", fontSize: 10, fontWeight: "700" },
+  badgeText: { color: "#FFF", fontSize: 9, fontWeight: "700" },
   categoryIcon: {
     width: 80,
     height: 60,
@@ -784,7 +944,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  /* Section */
   section: { paddingLeft: 20, marginTop: 28, paddingHorizontal: 20 },
   sectionHeader: {
     flexDirection: "row",
@@ -803,10 +962,8 @@ const styles = StyleSheet.create({
   seeAllRow: { flexDirection: "row", alignItems: "center" },
   seeAllText: { fontSize: 13, color: "#FF8C00", fontWeight: "600" },
 
-  /* Skeleton */
   skeletonRow: { flexDirection: "row", paddingVertical: 10 },
 
-  /* Store card */
   placeCard: {
     width: 180,
     marginRight: 14,
@@ -832,7 +989,6 @@ const styles = StyleSheet.create({
   dot: { marginHorizontal: 5, color: "#DDD", fontSize: 12 },
   placeAddress: { fontSize: 12, color: "#999", flex: 1 },
 
-  /* Product card */
   priceCard: {
     width: 160,
     marginRight: 14,
@@ -884,7 +1040,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  /* News card */
   newsCard: {
     width: 200,
     marginRight: 14,
@@ -910,7 +1065,6 @@ const styles = StyleSheet.create({
   newsBadgeText: { fontSize: 10, fontWeight: "700", color: "#FF8C00" },
   newsTitle: { fontSize: 13, fontWeight: "500", lineHeight: 18, color: "#222" },
 
-  /* Consult */
   consultSection: {
     backgroundColor: "#0F1B1D",
     paddingHorizontal: 20,
