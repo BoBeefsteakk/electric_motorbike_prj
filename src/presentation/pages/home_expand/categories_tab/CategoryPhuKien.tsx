@@ -81,7 +81,7 @@ export default function CategoryPhuKien() {
   ];
 
   const renderItem = ({ item, index }: { item: Accessory; index: number }) => (
-    <TouchableOpacity style={styles.card} activeOpacity={0.88}>
+    <TouchableOpacity style={styles.card} activeOpacity={0.88} onPress={() => navigation.navigate("accessory_detail" as never, { id: item.id } as never)}>
       {/* Ảnh */}
       <View style={styles.imageBox}>
         <Image
@@ -111,7 +111,7 @@ export default function CategoryPhuKien() {
               {Number(item.price).toLocaleString("vi-VN")}đ
             </Text>
           </View>
-          <TouchableOpacity style={styles.buyBtn} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.buyBtn} activeOpacity={0.8} onPress={() => navigation.navigate("accessory_detail" as never, { id: item.id } as never)}>
             <FontAwesome name="shopping-cart" size={13} color="#fff" />
             <Text style={styles.buyText}>Mua ngay</Text>
           </TouchableOpacity>

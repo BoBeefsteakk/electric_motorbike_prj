@@ -1,20 +1,20 @@
-import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
-    Alert,
-    Animated,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    ToastAndroid,
-    View,
+  Animated,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  ToastAndroid,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import API_URL from "../../data/api/apis";
 
 interface CartItem {
@@ -25,7 +25,6 @@ interface CartItem {
   quantity: number;
   selected: boolean;
 }
-
 interface Voucher {
   id: string;
   code: string;
@@ -34,7 +33,7 @@ interface Voucher {
   description: string;
 }
 
-const USER_ID = "user_test_123"; // TODO: thay bằng userId từ AsyncStorage sau khi có auth
+const USER_ID = "user_test_123";
 
 const VOUCHERS_MOCK: Voucher[] = [
   {
@@ -53,10 +52,79 @@ const VOUCHERS_MOCK: Voucher[] = [
   },
 ];
 
-const formatCurrency = (v: number) =>
+const fmt = (v: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     v,
   );
+
+/* ── Toast popup (dùng cho "Thêm vào giỏ") ── */
+export function showAddToCartToast(name: string) {
+  if (Platform.OS === "android") {
+    ToastAndroid.show(`✓ Đã thêm "${name}" vào giỏ hàng`, ToastAndroid.SHORT);
+  }
+  // iOS sẽ dùng InCartToast component bên dưới — gọi ref từ ngoài
+}
+
+/* ── In-app Toast (dùng được cả iOS) ── */
+export const CartToastRef = React.createRef<{ show: (msg: string) => void }>();
+
+export const CartToast = React.forwardRef<{ show: (msg: string) => void }, {}>(
+  (_, ref) => {
+    const [visible, setVisible] = useState(false);
+    const [msg, setMsg] = useState("");
+    const opacity = useRef(new Animated.Value(0)).current;
+
+    React.useImperativeHandle(ref, () => ({
+      show(message: string) {
+        setMsg(message);
+        setVisible(true);
+        Animated.sequence([
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: 250,
+            useNativeDriver: true,
+          }),
+          Animated.delay(1800),
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start(() => setVisible(false));
+      },
+    }));
+
+    if (!visible) return null;
+    return (
+      <Animated.View style={[toastStyles.wrap, { opacity }]}>
+        <Ionicons name="checkmark-circle" size={20} color="#fff" />
+        <Text style={toastStyles.text}>{msg}</Text>
+      </Animated.View>
+    );
+  },
+);
+
+const toastStyles = StyleSheet.create({
+  wrap: {
+    position: "absolute",
+    bottom: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: "#1C1C1E",
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 9999,
+  },
+  text: { color: "#fff", fontSize: 14, fontWeight: "600", flex: 1 },
+});
 
 /* ── Skeleton ── */
 const SkeletonCard = () => {
@@ -119,14 +187,13 @@ const SkeletonCard = () => {
 
 export default function CartScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isVoucherModal, setVoucherModal] = useState(false);
   const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
 
-  /* ── Fetch giỏ hàng từ MySQL ── */
   const fetchCart = useCallback(async () => {
     try {
       setLoading(true);
@@ -140,7 +207,6 @@ export default function CartScreen() {
         setCartItems([]);
       }
     } catch (e) {
-      console.log("Lỗi fetch cart:", e);
       setCartItems([]);
     } finally {
       setLoading(false);
@@ -153,43 +219,20 @@ export default function CartScreen() {
     }, [fetchCart]),
   );
 
-  /* ── Actions ── */
-  const removeItemDirect = async (productId: string) => {
-    setCartItems((prev) => prev.filter((i) => i.productId !== productId));
-    try {
-      await fetch(`${API_URL}/api/cart/remove-item`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: USER_ID, productId }),
-      });
-    } catch (e) {
-      console.log("Lỗi xoá item:", e);
-    }
-  };
-
   const removeItem = (productId: string) => {
-    Alert.alert("Xóa sản phẩm", "Bạn có chắc muốn bỏ sản phẩm này?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Xóa",
-        style: "destructive",
-        onPress: () => removeItemDirect(productId),
-      },
-    ]);
+    setCartItems((prev) => prev.filter((i) => i.productId !== productId));
+    fetch(`${API_URL}/api/cart/remove-item`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: USER_ID, productId }),
+    }).catch(() => {});
   };
 
   const updateQuantity = async (productId: string, delta: number) => {
     const item = cartItems.find((i) => i.productId === productId);
     if (!item) return;
     if (item.quantity === 1 && delta === -1) {
-      Alert.alert("Xác nhận xoá", "Bạn có muốn xoá sản phẩm này không?", [
-        { text: "Không", style: "cancel" },
-        {
-          text: "Có",
-          style: "destructive",
-          onPress: () => removeItemDirect(productId),
-        },
-      ]);
+      removeItem(productId);
       return;
     }
     const newQty = Math.max(1, item.quantity + delta);
@@ -198,21 +241,17 @@ export default function CartScreen() {
         i.productId === productId ? { ...i, quantity: newQty } : i,
       ),
     );
-    try {
-      await fetch(`${API_URL}/api/cart/update-quantity`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: USER_ID, productId, quantity: newQty }),
-      });
-    } catch (e) {
-      console.log("Lỗi update qty:", e);
-    }
+    fetch(`${API_URL}/api/cart/update-quantity`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: USER_ID, productId, quantity: newQty }),
+    }).catch(() => {});
   };
 
-  const toggleSelect = (productId: string) =>
+  const toggleSelect = (id: string) =>
     setCartItems((prev) =>
       prev.map((i) =>
-        i.productId === productId ? { ...i, selected: !i.selected } : i,
+        i.productId === id ? { ...i, selected: !i.selected } : i,
       ),
     );
   const isAllSelected =
@@ -221,6 +260,7 @@ export default function CartScreen() {
     setCartItems((prev) =>
       prev.map((i) => ({ ...i, selected: !isAllSelected })),
     );
+  const selectedCount = cartItems.filter((i) => i.selected).length;
 
   const subTotal = useMemo(
     () =>
@@ -229,41 +269,24 @@ export default function CartScreen() {
         .reduce((s, i) => s + i.price * i.quantity, 0),
     [cartItems],
   );
-  const finalPrice = Math.max(0, subTotal - (appliedVoucher?.discount || 0));
-  const selectedCount = cartItems.filter((i) => i.selected).length;
+  const finalPrice = Math.max(0, subTotal - (appliedVoucher?.discount ?? 0));
 
-  const showToast = (msg: string) => {
-    if (Platform.OS === "android") ToastAndroid.show(msg, ToastAndroid.SHORT);
-    else Alert.alert("Thông báo", msg);
-  };
-
-  const handleCheckout = async () => {
-    const selectedItems = cartItems.filter((i) => i.selected);
-    if (!selectedItems.length) return;
+  const handleCheckout = () => {
+    const selected = cartItems.filter((i) => i.selected);
+    if (!selected.length) return;
     navigation.navigate("checkout", {
-      cartItems: selectedItems,
+      cartItems: selected,
       appliedVoucher,
       userId: USER_ID,
     });
   };
 
-  const handleDeleteSelected = async () => {
-    const ids = cartItems.filter((i) => i.selected).map((i) => i.productId);
-    setCartItems((prev) => prev.filter((i) => !ids.includes(i.productId)));
-    for (const id of ids) {
-      try {
-        await fetch(`${API_URL}/api/cart/remove-item`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: USER_ID, productId: id }),
-        });
-      } catch (e) {}
-    }
-  };
+  const encodeImagePath = (p: string) =>
+    p?.split("/").map(encodeURIComponent).join("/") ?? "";
 
-  /* ── Render item ── */
   const renderItem = ({ item }: { item: CartItem }) => (
     <View style={styles.card}>
+      {/* Checkbox */}
       <Pressable
         style={styles.checkboxWrapper}
         onPress={() => toggleSelect(item.productId)}
@@ -272,41 +295,45 @@ export default function CartScreen() {
         <Ionicons
           name={item.selected ? "checkbox" : "square-outline"}
           size={24}
-          color={item.selected ? "#000" : "#CCC"}
+          color={item.selected ? "#39B78D" : "#CCC"}
         />
       </Pressable>
+
+      {/* Image */}
       <View style={styles.imageBox}>
         <Image
-          source={{ uri: item.image }}
+          source={{ uri: `${API_URL}/images/${encodeImagePath(item.image)}` }}
           style={styles.image}
           resizeMode="contain"
         />
       </View>
+
+      {/* Info */}
       <View style={styles.infoBox}>
         <View style={styles.cardTop}>
-          <Text style={styles.itemName} numberOfLines={1}>
+          <Text style={styles.itemName} numberOfLines={2}>
             {item.name}
           </Text>
-          <Pressable onPress={() => removeItem(item.productId)} hitSlop={8}>
-            <Ionicons name="trash-outline" size={20} color="#FF4D4D" />
+          <Pressable onPress={() => removeItem(item.productId)} hitSlop={10}>
+            <Ionicons name="trash-outline" size={18} color="#FF4D4D" />
           </Pressable>
         </View>
         <Text style={styles.itemSub}>Xe điện VinFast</Text>
         <View style={styles.cardBottom}>
-          <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
+          <Text style={styles.itemPrice}>{fmt(item.price)}</Text>
           <View style={styles.qtyControl}>
             <Pressable
               style={styles.qtyBtn}
               onPress={() => updateQuantity(item.productId, -1)}
             >
-              <FontAwesome name="minus" size={12} color="#333" />
+              <Ionicons name="remove" size={16} color="#333" />
             </Pressable>
             <Text style={styles.qtyText}>{item.quantity}</Text>
             <Pressable
               style={styles.qtyBtn}
-              onPress={() => updateQuantity(item.productId, 1)}
+              onPress={() => updateQuantity(item.productId, +1)}
             >
-              <FontAwesome name="plus" size={12} color="#333" />
+              <Ionicons name="add" size={16} color="#333" />
             </Pressable>
           </View>
         </View>
@@ -315,23 +342,34 @@ export default function CartScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Giỏ Hàng</Text>
         {cartItems.length > 0 && (
-          <Pressable onPress={() => setIsEditMode((p) => !p)}>
-            <Text style={styles.editBtn}>{isEditMode ? "Xong" : "Sửa"}</Text>
-          </Pressable>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{cartItems.length}</Text>
+          </View>
         )}
       </View>
 
       {/* List */}
       {loading ? (
-        <View style={{ padding: 20, gap: 14 }}>
+        <View style={{ padding: 16, gap: 14 }}>
           {[0, 1, 2].map((i) => (
             <SkeletonCard key={i} />
           ))}
+        </View>
+      ) : cartItems.length === 0 ? (
+        <View style={styles.emptyBox}>
+          <Ionicons name="cart-outline" size={72} color="#DDD" />
+          <Text style={styles.emptyText}>Giỏ hàng trống</Text>
+          <TouchableOpacity
+            style={styles.shopBtn}
+            onPress={() => navigation.navigate("home")}
+          >
+            <Text style={styles.shopBtnText}>Khám phá xe ngay</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -340,72 +378,65 @@ export default function CartScreen() {
           renderItem={renderItem}
           contentContainerStyle={[
             styles.listContent,
-            cartItems.length === 0 && { flex: 1 },
+            { paddingBottom: insets.bottom + 180 },
           ]}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyBox}>
-              <Ionicons name="cart-outline" size={80} color="#EEE" />
-              <Text style={styles.emptyText}>Giỏ hàng đang trống</Text>
-            </View>
-          }
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
       )}
 
       {/* Footer */}
-      {cartItems.length > 0 && (
-        <View style={styles.footer}>
+      {!loading && cartItems.length > 0 && (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
           {/* Voucher row */}
           <Pressable
             style={styles.voucherRow}
             onPress={() => setVoucherModal(true)}
           >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-            >
-              <Ionicons name="ticket-outline" size={20} color="#FF8C00" />
+            <View style={styles.voucherLeft}>
+              <Ionicons name="pricetag-outline" size={16} color="#39B78D" />
               <Text style={styles.voucherLabel}>Voucher</Text>
             </View>
-            <Text
-              style={[
-                styles.voucherValue,
-                appliedVoucher && { color: "#00B14F" },
-              ]}
-            >
-              {appliedVoucher
-                ? `${appliedVoucher.code} (-${formatCurrency(appliedVoucher.discount)})`
-                : "Chọn mã giảm giá"}
-            </Text>
+            <View style={styles.voucherRight}>
+              <Text
+                style={[
+                  styles.voucherValue,
+                  appliedVoucher && { color: "#39B78D", fontWeight: "700" },
+                ]}
+              >
+                {appliedVoucher
+                  ? `${appliedVoucher.code} (-${fmt(appliedVoucher.discount)})`
+                  : "Chọn mã giảm giá"}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#CCC" />
+            </View>
           </Pressable>
 
-          {/* Action row */}
+          {/* Summary + checkout */}
           <View style={styles.actionRow}>
             <Pressable style={styles.selectAllBtn} onPress={toggleSelectAll}>
               <Ionicons
                 name={isAllSelected ? "checkbox" : "square-outline"}
                 size={22}
-                color={isAllSelected ? "#000" : "#CCC"}
+                color={isAllSelected ? "#39B78D" : "#CCC"}
               />
               <Text style={styles.selectAllText}>Tất cả</Text>
             </Pressable>
             <View style={styles.checkoutGroup}>
               <View>
                 <Text style={styles.totalLabel}>Tổng cộng</Text>
-                <Text style={styles.totalAmount}>
-                  {formatCurrency(finalPrice)}
-                </Text>
+                <Text style={styles.totalAmount}>{fmt(finalPrice)}</Text>
               </View>
               <Pressable
                 style={[
                   styles.checkoutBtn,
-                  selectedCount === 0 && { opacity: 0.4 },
-                  isEditMode && { backgroundColor: "#FF4D4D" },
+                  selectedCount === 0 && styles.checkoutBtnDisabled,
                 ]}
                 disabled={selectedCount === 0}
-                onPress={isEditMode ? handleDeleteSelected : handleCheckout}
+                onPress={handleCheckout}
               >
                 <Text style={styles.checkoutText}>
-                  {isEditMode ? `Xoá (${selectedCount})` : "Thanh toán"}
+                  Thanh toán{selectedCount > 0 ? ` (${selectedCount})` : ""}
                 </Text>
               </Pressable>
             </View>
@@ -417,6 +448,7 @@ export default function CartScreen() {
       <Modal visible={isVoucherModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Chọn Voucher</Text>
               <Pressable onPress={() => setVoucherModal(false)} hitSlop={12}>
@@ -435,13 +467,14 @@ export default function CartScreen() {
                   setVoucherModal(false);
                 }}
               >
+                <View style={styles.voucherTagStrip} />
                 <View style={styles.voucherItemLeft}>
                   <Text style={styles.voucherCode}>{v.code}</Text>
                   <Text style={styles.voucherDesc}>{v.description}</Text>
                 </View>
-                <Text style={styles.voucherDiscount}>
-                  -{formatCurrency(v.discount)}
-                </Text>
+                <View style={styles.voucherDiscountBox}>
+                  <Text style={styles.voucherDiscount}>-{fmt(v.discount)}</Text>
+                </View>
               </Pressable>
             ))}
             {appliedVoucher && (
@@ -458,7 +491,7 @@ export default function CartScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -467,8 +500,8 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 10,
     paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: "#fff",
@@ -476,16 +509,21 @@ const styles = StyleSheet.create({
     borderBottomColor: "#EBEBEB",
   },
   headerTitle: { fontSize: 22, fontWeight: "800", color: "#111" },
-  editBtn: { fontSize: 15, fontWeight: "700", color: "#007AFF" },
+  countBadge: {
+    backgroundColor: "#39B78D",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  countBadgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 
-  listContent: { padding: 16, paddingBottom: 200 },
+  listContent: { padding: 16 },
 
   card: {
     flexDirection: "row",
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 12,
-    marginBottom: 14,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
@@ -493,7 +531,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  checkboxWrapper: { marginRight: 10, padding: 4 },
+  checkboxWrapper: { marginRight: 8, padding: 4 },
   imageBox: {
     width: 85,
     height: 85,
@@ -506,7 +544,7 @@ const styles = StyleSheet.create({
   image: { width: "85%", height: "85%" },
   infoBox: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: 12,
     height: 85,
     justifyContent: "space-between",
   },
@@ -517,18 +555,19 @@ const styles = StyleSheet.create({
   },
   itemName: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     color: "#111",
     paddingRight: 8,
+    lineHeight: 20,
   },
-  itemSub: { fontSize: 12, color: "#AAA" },
+  itemSub: { fontSize: 11, color: "#BBB" },
   cardBottom: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  itemPrice: { fontSize: 15, fontWeight: "800", color: "#111" },
+  itemPrice: { fontSize: 14, fontWeight: "800", color: "#111" },
   qtyControl: {
     flexDirection: "row",
     alignItems: "center",
@@ -541,15 +580,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  qtyText: { paddingHorizontal: 10, fontWeight: "700", fontSize: 14 },
+  qtyText: {
+    paddingHorizontal: 10,
+    fontWeight: "700",
+    fontSize: 14,
+    color: "#111",
+  },
 
   emptyBox: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
+    gap: 14,
   },
-  emptyText: { color: "#CCC", fontSize: 16, fontWeight: "600" },
+  emptyText: { color: "#CCC", fontSize: 17, fontWeight: "600" },
+  shopBtn: {
+    backgroundColor: "#39B78D",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 16,
+    marginTop: 4,
+  },
+  shopBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 
   footer: {
     position: "absolute",
@@ -559,14 +611,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingTop: 14,
-    paddingBottom: 32,
+    paddingTop: 16,
     paddingHorizontal: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 16,
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 18,
   },
 
   voucherRow: {
@@ -574,10 +625,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 14,
-    paddingBottom: 12,
+    paddingBottom: 14,
     borderBottomWidth: 0.5,
     borderBottomColor: "#F0F0F0",
   },
+  voucherLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  voucherRight: { flexDirection: "row", alignItems: "center", gap: 4 },
   voucherLabel: { fontSize: 14, fontWeight: "600", color: "#111" },
   voucherValue: { fontSize: 13, color: "#AAA", fontWeight: "500" },
 
@@ -592,11 +645,12 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 11, color: "#AAA", marginBottom: 2 },
   totalAmount: { fontSize: 16, fontWeight: "800", color: "#111" },
   checkoutBtn: {
-    backgroundColor: "#111",
-    paddingHorizontal: 22,
+    backgroundColor: "#39B78D",
+    paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 16,
   },
+  checkoutBtnDisabled: { backgroundColor: "#CCC" },
   checkoutText: { color: "#fff", fontSize: 14, fontWeight: "700" },
 
   modalOverlay: {
@@ -606,9 +660,18 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: 20,
+    paddingTop: 12,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E0E0E0",
+    alignSelf: "center",
+    marginBottom: 16,
   },
   modalHeader: {
     flexDirection: "row",
@@ -617,21 +680,26 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: { fontSize: 18, fontWeight: "800", color: "#111" },
+
   voucherItem: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: "#F8F8F8",
     marginBottom: 10,
+    overflow: "hidden",
   },
   voucherItemActive: {
-    backgroundColor: "#E8F8F5",
+    backgroundColor: "#F0FBF7",
     borderWidth: 1.5,
-    borderColor: "#00B14F",
+    borderColor: "#39B78D",
   },
-  voucherItemLeft: { flex: 1 },
+  voucherTagStrip: {
+    width: 6,
+    alignSelf: "stretch",
+    backgroundColor: "#39B78D",
+  },
+  voucherItemLeft: { flex: 1, padding: 14 },
   voucherCode: {
     fontSize: 15,
     fontWeight: "800",
@@ -639,6 +707,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   voucherDesc: { fontSize: 12, color: "#888" },
+  voucherDiscountBox: { paddingHorizontal: 14 },
   voucherDiscount: { fontSize: 15, fontWeight: "800", color: "#FF4D4D" },
   removeVoucherBtn: { alignItems: "center", marginTop: 6, paddingVertical: 12 },
   removeVoucherText: { color: "#FF4D4D", fontWeight: "700", fontSize: 14 },

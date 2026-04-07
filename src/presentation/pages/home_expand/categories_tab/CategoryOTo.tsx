@@ -15,7 +15,8 @@ import {
   ScrollView,
   Platform,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+// FIX: Thêm NavigationProp vào import để xử lý lỗi TypeScript
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import API_URL from "../../../../data/api/apis";
 
 const { width } = Dimensions.get("window");
@@ -52,20 +53,14 @@ const formatPrice = (price: number) => {
   return `${(price / 1_000_000).toFixed(0)} triệu`;
 };
 
-/**
- * Chỉ encode dấu cách → %20
- * KHÔNG dùng encodeURIComponent (nó encode cả / và dấu chấm)
- */
 const buildUri = (imagePath: string | null): string | null => {
   if (!imagePath || imagePath.trim() === "") return null;
-  // Chuẩn hoá: xoá prefix "images/" nếu DB lưu thừa
   let path = imagePath.trim();
   if (path.startsWith("images/")) {
     path = path.slice("images/".length);
   }
   const encoded = path.replace(/ /g, "%20");
   const uri = `${API_URL}/images/${encoded}`;
-  console.log("[CarImage] uri:", uri);
   return uri;
 };
 
@@ -218,7 +213,8 @@ function DetailModal({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function CategoryOTo() {
-  const navigation = useNavigation();
+  // FIX: Định nghĩa kiểu chung (any) cho useNavigation để truyền tham số không bị báo lỗi "never"
+  const navigation = useNavigation<NavigationProp<any>>();
 
   const [cars, setCars]           = useState<Car[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -234,7 +230,7 @@ export default function CategoryOTo() {
     try {
       setLoading(true);
       setHasError(false);
-      const res = await fetch(`${API_URL}/cars`);
+      const res = await fetch(`${API_URL}/api/cars`);
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
       setCars(Array.isArray(data) ? data : []);
@@ -266,10 +262,10 @@ export default function CategoryOTo() {
     }
   }, [cars, activeTab, search, sort]);
 
+  // FIX: Viết lại hàm openDetail mượt mà, không cần "as never" nữa
   const openDetail = useCallback((car: Car) => {
-    setSelCar(car);
-    setModalVis(true);
-  }, []);
+    navigation.navigate('car_detail', { id: car.id });
+  }, [navigation]);
 
   const renderItem = useCallback(
     ({ item }: { item: Car }) => <CarCard item={item} onPress={openDetail} />,

@@ -33,6 +33,9 @@ export type HomeStackParamList = {
   news1: undefined;
   news2: undefined;
   news3: undefined;
+
+  car_detail: { id: number };
+  accessory_detail: { id: number };
 };
 
 /* ================= TAB ================= */
@@ -55,4 +58,3 @@ export type RootStackParamList = {
   Order: undefined;
   Warranty: undefined;
 };
-
