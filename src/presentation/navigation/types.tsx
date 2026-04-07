@@ -44,7 +44,7 @@ export type TabParamList = {
   home: undefined;
   search: undefined;
   cart: undefined;
-  profile: undefined;
+  setting: undefined;
 };
 
 /* ================= ROOT ================= */
@@ -54,6 +54,9 @@ export type RootStackParamList = {
   inapp: undefined;
   checkout: undefined;
   PaymentSuccess: undefined;
+  PaymentMethod: undefined;
+  EditProfile: undefined;
+  Address: undefined;
   DetailScreen: any;
   Order: undefined;
   Warranty: undefined;

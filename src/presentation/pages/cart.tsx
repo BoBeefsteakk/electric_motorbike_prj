@@ -24,6 +24,9 @@ interface CartItem {
   image: string;
   quantity: number;
   selected: boolean;
+  colorId?: number | null;
+  colorName?: string | null;
+  colorValue?: string | null;
 }
 interface Voucher {
   id: string;
@@ -53,16 +56,16 @@ const VOUCHERS_MOCK: Voucher[] = [
 ];
 
 const fmt = (v: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-    v,
-  );
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(v);
 
 /* ── Toast popup (dùng cho "Thêm vào giỏ") ── */
 export function showAddToCartToast(name: string) {
   if (Platform.OS === "android") {
     ToastAndroid.show(`✓ Đã thêm "${name}" vào giỏ hàng`, ToastAndroid.SHORT);
   }
-  // iOS sẽ dùng InCartToast component bên dưới — gọi ref từ ngoài
 }
 
 /* ── In-app Toast (dùng được cả iOS) ── */
@@ -95,6 +98,7 @@ export const CartToast = React.forwardRef<{ show: (msg: string) => void }, {}>(
     }));
 
     if (!visible) return null;
+
     return (
       <Animated.View style={[toastStyles.wrap, { opacity }]}>
         <Ionicons name="checkmark-circle" size={20} color="#fff" />
@@ -129,6 +133,7 @@ const toastStyles = StyleSheet.create({
 /* ── Skeleton ── */
 const SkeletonCard = () => {
   const anim = useRef(new Animated.Value(0.4)).current;
+
   React.useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -144,7 +149,8 @@ const SkeletonCard = () => {
         }),
       ]),
     ).start();
-  }, []);
+  }, [anim]);
+
   return (
     <Animated.View style={[styles.card, { opacity: anim }]}>
       <View
@@ -185,6 +191,35 @@ const SkeletonCard = () => {
   );
 };
 
+const getCartItemKey = (item: {
+  productId: string;
+  colorId?: number | null;
+  colorName?: string | null;
+}) =>
+  `${item.productId}__${item.colorId ?? "no-color"}__${item.colorName ?? "default"}`;
+
+const buildImageUri = (image?: string) => {
+  if (!image) return "";
+
+  const trimmed = image.trim();
+
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("data:")
+  ) {
+    return trimmed;
+  }
+
+  const encoded = trimmed.split("/").map(encodeURIComponent).join("/");
+
+  if (encoded.startsWith("images/")) {
+    return `${API_URL}/${encoded}`;
+  }
+
+  return `${API_URL}/images/${encoded}`;
+};
+
 export default function CartScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -199,9 +234,16 @@ export default function CartScreen() {
       setLoading(true);
       const res = await fetch(`${API_URL}/api/cart/${USER_ID}`);
       const data = await res.json();
+
       if (data.success && Array.isArray(data.data?.items)) {
         setCartItems(
-          data.data.items.map((i: any) => ({ ...i, selected: false })),
+          data.data.items.map((i: any) => ({
+            ...i,
+            selected: false,
+            colorId: i.colorId ?? null,
+            colorName: i.colorName ?? null,
+            colorValue: i.colorValue ?? null,
+          })),
         );
       } else {
         setCartItems([]);
@@ -219,47 +261,79 @@ export default function CartScreen() {
     }, [fetchCart]),
   );
 
-  const removeItem = (productId: string) => {
-    setCartItems((prev) => prev.filter((i) => i.productId !== productId));
+  const removeItem = (
+    productId: string,
+    colorId?: number | null,
+    colorName?: string | null,
+  ) => {
+    const keyToRemove = `${productId}__${colorId ?? "no-color"}__${colorName ?? "default"}`;
+
+    setCartItems((prev) =>
+      prev.filter((i) => getCartItemKey(i) !== keyToRemove),
+    );
+
     fetch(`${API_URL}/api/cart/remove-item`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: USER_ID, productId }),
+      body: JSON.stringify({
+        userId: USER_ID,
+        productId,
+        colorId: colorId ?? null,
+      }),
     }).catch(() => {});
   };
 
-  const updateQuantity = async (productId: string, delta: number) => {
-    const item = cartItems.find((i) => i.productId === productId);
+  const updateQuantity = async (
+    productId: string,
+    delta: number,
+    colorId?: number | null,
+    colorName?: string | null,
+  ) => {
+    const key = `${productId}__${colorId ?? "no-color"}__${colorName ?? "default"}`;
+    const item = cartItems.find((i) => getCartItemKey(i) === key);
+
     if (!item) return;
+
     if (item.quantity === 1 && delta === -1) {
-      removeItem(productId);
+      removeItem(productId, colorId, colorName);
       return;
     }
+
     const newQty = Math.max(1, item.quantity + delta);
+
     setCartItems((prev) =>
       prev.map((i) =>
-        i.productId === productId ? { ...i, quantity: newQty } : i,
+        getCartItemKey(i) === key ? { ...i, quantity: newQty } : i,
       ),
     );
+
     fetch(`${API_URL}/api/cart/update-quantity`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: USER_ID, productId, quantity: newQty }),
+      body: JSON.stringify({
+        userId: USER_ID,
+        productId,
+        quantity: newQty,
+        colorId: colorId ?? null,
+      }),
     }).catch(() => {});
   };
 
-  const toggleSelect = (id: string) =>
+  const toggleSelect = (key: string) =>
     setCartItems((prev) =>
       prev.map((i) =>
-        i.productId === id ? { ...i, selected: !i.selected } : i,
+        getCartItemKey(i) === key ? { ...i, selected: !i.selected } : i,
       ),
     );
+
   const isAllSelected =
     cartItems.length > 0 && cartItems.every((i) => i.selected);
+
   const toggleSelectAll = () =>
     setCartItems((prev) =>
       prev.map((i) => ({ ...i, selected: !isAllSelected })),
     );
+
   const selectedCount = cartItems.filter((i) => i.selected).length;
 
   const subTotal = useMemo(
@@ -269,11 +343,13 @@ export default function CartScreen() {
         .reduce((s, i) => s + i.price * i.quantity, 0),
     [cartItems],
   );
+
   const finalPrice = Math.max(0, subTotal - (appliedVoucher?.discount ?? 0));
 
   const handleCheckout = () => {
     const selected = cartItems.filter((i) => i.selected);
     if (!selected.length) return;
+
     navigation.navigate("checkout", {
       cartItems: selected,
       appliedVoucher,
@@ -281,65 +357,98 @@ export default function CartScreen() {
     });
   };
 
-  const encodeImagePath = (p: string) =>
-    p?.split("/").map(encodeURIComponent).join("/") ?? "";
+  const renderItem = ({ item }: { item: CartItem }) => {
+    const itemKey = getCartItemKey(item);
 
-  const renderItem = ({ item }: { item: CartItem }) => (
-    <View style={styles.card}>
-      {/* Checkbox */}
-      <Pressable
-        style={styles.checkboxWrapper}
-        onPress={() => toggleSelect(item.productId)}
-        hitSlop={8}
-      >
-        <Ionicons
-          name={item.selected ? "checkbox" : "square-outline"}
-          size={24}
-          color={item.selected ? "#39B78D" : "#CCC"}
-        />
-      </Pressable>
+    return (
+      <View style={styles.card}>
+        {/* Checkbox */}
+        <Pressable
+          style={styles.checkboxWrapper}
+          onPress={() => toggleSelect(itemKey)}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={item.selected ? "checkbox" : "square-outline"}
+            size={24}
+            color={item.selected ? "#39B78D" : "#CCC"}
+          />
+        </Pressable>
 
-      {/* Image */}
-      <View style={styles.imageBox}>
-        <Image
-          source={{ uri: `${API_URL}/images/${encodeImagePath(item.image)}` }}
-          style={styles.image}
-          resizeMode="contain"
-        />
-      </View>
-
-      {/* Info */}
-      <View style={styles.infoBox}>
-        <View style={styles.cardTop}>
-          <Text style={styles.itemName} numberOfLines={2}>
-            {item.name}
-          </Text>
-          <Pressable onPress={() => removeItem(item.productId)} hitSlop={10}>
-            <Ionicons name="trash-outline" size={18} color="#FF4D4D" />
-          </Pressable>
+        {/* Image */}
+        <View style={styles.imageBox}>
+          <Image
+            source={{ uri: buildImageUri(item.image) }}
+            style={styles.image}
+            resizeMode="contain"
+          />
         </View>
-        <Text style={styles.itemSub}>Xe điện VinFast</Text>
-        <View style={styles.cardBottom}>
-          <Text style={styles.itemPrice}>{fmt(item.price)}</Text>
-          <View style={styles.qtyControl}>
+
+        {/* Info */}
+        <View style={styles.infoBox}>
+          <View style={styles.cardTop}>
+            <Text style={styles.itemName} numberOfLines={2}>
+              {item.name}
+            </Text>
             <Pressable
-              style={styles.qtyBtn}
-              onPress={() => updateQuantity(item.productId, -1)}
+              onPress={() =>
+                removeItem(item.productId, item.colorId, item.colorName)
+              }
+              hitSlop={10}
             >
-              <Ionicons name="remove" size={16} color="#333" />
+              <Ionicons name="trash-outline" size={18} color="#FF4D4D" />
             </Pressable>
-            <Text style={styles.qtyText}>{item.quantity}</Text>
-            <Pressable
-              style={styles.qtyBtn}
-              onPress={() => updateQuantity(item.productId, +1)}
-            >
-              <Ionicons name="add" size={16} color="#333" />
-            </Pressable>
+          </View>
+
+          <Text style={styles.itemSub}>Xe điện VinFast</Text>
+
+          <View style={styles.colorRow}>
+            <Text style={styles.metaLabel}>Màu đã chọn:</Text>
+            <View
+              style={[
+                styles.colorDot,
+                { backgroundColor: item.colorValue || "#DDD" },
+              ]}
+            />
+            <Text style={styles.metaValue}>{item.colorName || "Mặc định"}</Text>
+          </View>
+
+          <View style={styles.cardBottom}>
+            <Text style={styles.itemPrice}>{fmt(item.price)}</Text>
+            <View style={styles.qtyControl}>
+              <Pressable
+                style={styles.qtyBtn}
+                onPress={() =>
+                  updateQuantity(
+                    item.productId,
+                    -1,
+                    item.colorId,
+                    item.colorName,
+                  )
+                }
+              >
+                <Ionicons name="remove" size={16} color="#333" />
+              </Pressable>
+              <Text style={styles.qtyText}>{item.quantity}</Text>
+              <Pressable
+                style={styles.qtyBtn}
+                onPress={() =>
+                  updateQuantity(
+                    item.productId,
+                    +1,
+                    item.colorId,
+                    item.colorName,
+                  )
+                }
+              >
+                <Ionicons name="add" size={16} color="#333" />
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
@@ -374,7 +483,7 @@ export default function CartScreen() {
       ) : (
         <FlatList
           data={cartItems}
-          keyExtractor={(i) => i.productId}
+          keyExtractor={(i) => getCartItemKey(i)}
           renderItem={renderItem}
           contentContainerStyle={[
             styles.listContent,
@@ -455,6 +564,7 @@ export default function CartScreen() {
                 <Ionicons name="close" size={24} color="#333" />
               </Pressable>
             </View>
+
             {VOUCHERS_MOCK.map((v) => (
               <Pressable
                 key={v.id}
@@ -477,6 +587,7 @@ export default function CartScreen() {
                 </View>
               </Pressable>
             ))}
+
             {appliedVoucher && (
               <Pressable
                 style={styles.removeVoucherBtn}
@@ -532,6 +643,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   checkboxWrapper: { marginRight: 8, padding: 4 },
+
   imageBox: {
     width: 85,
     height: 85,
@@ -542,17 +654,20 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   image: { width: "85%", height: "85%" },
+
   infoBox: {
     flex: 1,
     marginLeft: 12,
-    height: 85,
+    minHeight: 85,
     justifyContent: "space-between",
   },
+
   cardTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
+
   itemName: {
     flex: 1,
     fontSize: 14,
@@ -561,25 +676,67 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     lineHeight: 20,
   },
-  itemSub: { fontSize: 11, color: "#BBB" },
+
+  itemSub: {
+    fontSize: 11,
+    color: "#BBB",
+    marginTop: 2,
+  },
+
+  colorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    gap: 6,
+    flexWrap: "wrap",
+  },
+
+  colorDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "#DDD",
+  },
+
+  metaLabel: {
+    fontSize: 13,
+    color: "#666",
+  },
+
+  metaValue: {
+    fontSize: 13,
+    color: "#222",
+    fontWeight: "600",
+  },
+
   cardBottom: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 8,
   },
-  itemPrice: { fontSize: 14, fontWeight: "800", color: "#111" },
+
+  itemPrice: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#111",
+  },
+
   qtyControl: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F0F0F0",
     borderRadius: 12,
   },
+
   qtyBtn: {
     width: 30,
     height: 30,
     justifyContent: "center",
     alignItems: "center",
   },
+
   qtyText: {
     paddingHorizontal: 10,
     fontWeight: "700",
@@ -709,6 +866,10 @@ const styles = StyleSheet.create({
   voucherDesc: { fontSize: 12, color: "#888" },
   voucherDiscountBox: { paddingHorizontal: 14 },
   voucherDiscount: { fontSize: 15, fontWeight: "800", color: "#FF4D4D" },
-  removeVoucherBtn: { alignItems: "center", marginTop: 6, paddingVertical: 12 },
+  removeVoucherBtn: {
+    alignItems: "center",
+    marginTop: 6,
+    paddingVertical: 12,
+  },
   removeVoucherText: { color: "#FF4D4D", fontWeight: "700", fontSize: 14 },
 });

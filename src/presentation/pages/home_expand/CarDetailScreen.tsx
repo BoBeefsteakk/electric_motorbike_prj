@@ -1,5 +1,5 @@
 import { FontAwesome } from "@expo/vector-icons";
-import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -7,7 +7,6 @@ import {
   Animated,
   Image,
   Platform,
-  Pressable,
   ScrollView,
   Share,
   StatusBar,
@@ -29,13 +28,14 @@ interface Car {
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
-  dong_co_dien:    "Xe Điện",
-  dong_co_xang:    "Xe Xăng",
+  dong_co_dien: "Xe Điện",
+  dong_co_xang: "Xe Xăng",
   dong_xe_dich_vu: "Dịch Vụ",
 };
+
 const CATEGORY_COLOR: Record<string, string> = {
-  dong_co_dien:    "#2563EB",
-  dong_co_xang:    "#DC2626",
+  dong_co_dien: "#2563EB",
+  dong_co_xang: "#DC2626",
   dong_xe_dich_vu: "#7C3AED",
 };
 
@@ -52,22 +52,24 @@ const buildUri = (image: string | null) => {
 };
 
 const SPECS = [
-  { icon: "shield", label: "An toàn",  val: "5 sao"   },
-  { icon: "cog",    label: "Hộp số",   val: "Tự động" },
-  { icon: "users",  label: "Chỗ ngồi", val: "5 chỗ"   },
-  { icon: "wrench", label: "Bảo hành", val: "3 năm"   },
+  { icon: "shield", label: "An toàn", val: "5 sao" },
+  { icon: "cog", label: "Hộp số", val: "Tự động" },
+  { icon: "users", label: "Chỗ ngồi", val: "5 chỗ" },
+  { icon: "wrench", label: "Bảo hành", val: "3 năm" },
 ];
 
 export default function CarDetailScreen() {
   const navigation = useNavigation<any>();
-  const route      = useRoute<any>();
-  const { id }     = route.params;
-  const insets     = useSafeAreaInsets();
+  const route = useRoute<any>();
+  const { id } = route.params;
+  const insets = useSafeAreaInsets();
 
-  const [car, setCar]               = useState<Car | null>(null);
-  const [loading, setLoading]       = useState(true);
+  const [car, setCar] = useState<Car | null>(null);
+  const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
   const heartScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -78,11 +80,27 @@ export default function CarDetailScreen() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const handleGoBack = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    requestAnimationFrame(() => {
+      navigation.goBack();
+    });
+  };
+
   const handleWishlist = () => {
     setWishlisted((v) => !v);
     Animated.sequence([
-      Animated.timing(heartScale, { toValue: 1.4, duration: 120, useNativeDriver: true }),
-      Animated.timing(heartScale, { toValue: 1,   duration: 120, useNativeDriver: true }),
+      Animated.timing(heartScale, {
+        toValue: 1.4,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(heartScale, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
 
@@ -94,18 +112,23 @@ export default function CarDetailScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId:    "user_test_123",
+          userId: "user_test_123",
           productId: `car_${car.id}`,
-          name:      car.name,
-          price:     car.price,
-          image:     buildUri(car.image) ?? "",
-          quantity:  1,
+          name: car.name,
+          price: car.price,
+          image: buildUri(car.image) ?? "",
+          quantity: 1,
         }),
       });
+
       const data = await res.json();
+
       if (data.success) {
-        if (Platform.OS === "android") ToastAndroid.show("Đã thêm vào giỏ hàng!", ToastAndroid.SHORT);
-        else Alert.alert("Thành công", "Đã thêm vào giỏ hàng!");
+        if (Platform.OS === "android") {
+          ToastAndroid.show("Đã thêm vào giỏ hàng!", ToastAndroid.SHORT);
+        } else {
+          Alert.alert("Thành công", "Đã thêm vào giỏ hàng!");
+        }
       } else {
         Alert.alert("Lỗi", data.message || "Không thể thêm vào giỏ hàng");
       }
@@ -116,74 +139,109 @@ export default function CarDetailScreen() {
     }
   };
 
-  if (loading) return (
-    <View style={[styles.center, { paddingTop: insets.top }]}>
-      <ActivityIndicator size="large" color="#C8902A" />
-    </View>
-  );
+  if (loading) {
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color="#C8902A" />
+      </View>
+    );
+  }
 
-  if (!car) return (
-    <View style={[styles.center, { paddingTop: insets.top }]}>
-      <FontAwesome name="exclamation-circle" size={40} color="#DDD" />
-      <Text style={styles.notFound}>Không tìm thấy xe</Text>
-    </View>
-  );
+  if (!car) {
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <FontAwesome name="exclamation-circle" size={40} color="#DDD" />
+        <Text style={styles.notFound}>Không tìm thấy xe</Text>
+      </View>
+    );
+  }
 
-  const accent   = CATEGORY_COLOR[car.category] ?? "#C8902A";
+  const accent = CATEGORY_COLOR[car.category] ?? "#C8902A";
   const catLabel = CATEGORY_LABEL[car.category] ?? "Ô Tô";
-  const uri      = buildUri(car.image);
+  const uri = buildUri(car.image);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <StatusBar
+        barStyle="dark-content"
+        translucent
+        backgroundColor="transparent"
+      />
 
-      {/* Header */}
       <View style={styles.header}>
-        <Pressable
-          style={styles.iconBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-        >
-          <FontAwesome name="chevron-left" size={15} color="#111" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Chi Tiết</Text>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => Share.share({ message: `Xem xe ${car.name} trên VinFast App!` })}>
-            <FontAwesome name="share-alt" size={15} color="#111" />
+        <View style={styles.headerSideLeft}>
+          <TouchableOpacity
+            onPress={handleGoBack}
+            disabled={isClosing}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            style={[styles.headerBtn, isClosing && styles.headerBtnPressed]}
+            activeOpacity={0.7}
+          >
+            <FontAwesome name="chevron-left" size={18} color="#111" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={handleWishlist}>
+        </View>
+
+        <Text style={styles.headerTitle}>Chi Tiết</Text>
+
+        <View style={styles.headerSideRight}>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() =>
+              Share.share({
+                message: `Xem xe ${car.name} trên VinFast App!`,
+              })
+            }
+            activeOpacity={0.7}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          >
+            <FontAwesome name="share-alt" size={18} color="#111" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={handleWishlist}
+            activeOpacity={0.7}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          >
             <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-              <FontAwesome name={wishlisted ? "heart" : "heart-o"} size={15} color={wishlisted ? "#E74C3C" : "#111"} />
+              <FontAwesome
+                name={wishlisted ? "heart" : "heart-o"}
+                size={18}
+                color={wishlisted ? "#E74C3C" : "#111"}
+              />
             </Animated.View>
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 220 }} bounces={false}>
-        {/* Ảnh */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 220 }}
+        bounces={false}
+      >
         <View style={styles.imageBox}>
-          {uri
-            ? <Image source={{ uri }} style={styles.image} resizeMode="cover" />
-            : <View style={[styles.image, styles.imageFallback]}>
-                <Text style={{ fontSize: 60 }}>🚗</Text>
-              </View>
-          }
-          {/* Category badge */}
+          {uri ? (
+            <Image source={{ uri }} style={styles.image} resizeMode="cover" />
+          ) : (
+            <View style={[styles.image, styles.imageFallback]}>
+              <Text style={{ fontSize: 60 }}>🚗</Text>
+            </View>
+          )}
+
           <View style={[styles.catBadge, { backgroundColor: accent }]}>
             <Text style={styles.catBadgeText}>{catLabel}</Text>
           </View>
         </View>
 
         <View style={styles.content}>
-          {/* Tên */}
           <Text style={styles.title}>{car.name}</Text>
 
-          {/* Mô tả */}
           <Text style={styles.desc}>
-            {car.name} là mẫu xe thuộc dòng {catLabel.toLowerCase()} của VinFast, thiết kế hiện đại, trang bị công nghệ tiên tiến và cam kết an toàn tiêu chuẩn quốc tế.
+            {car.name} là mẫu xe thuộc dòng {catLabel.toLowerCase()} của
+            VinFast, thiết kế hiện đại, trang bị công nghệ tiên tiến và cam kết
+            an toàn tiêu chuẩn quốc tế.
           </Text>
 
-          {/* Quick specs */}
           <View style={styles.quickInfo}>
             {SPECS.map((s, i) => (
               <View key={i} style={[styles.quickItem, { borderTopColor: accent }]}>
@@ -194,7 +252,6 @@ export default function CarDetailScreen() {
             ))}
           </View>
 
-          {/* Highlights */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>✦ Điểm nổi bật</Text>
             {[
@@ -210,46 +267,59 @@ export default function CarDetailScreen() {
             ))}
           </View>
 
-          {/* Specs table */}
           <View style={[styles.card, { marginTop: 16 }]}>
             <Text style={styles.cardTitle}>⚙ Thông số chính</Text>
             {[
-              { label: "Loại động cơ",    value: car.category === "dong_co_dien" ? "Điện" : "Xăng" },
-              { label: "Hộp số",          value: "Tự động"  },
-              { label: "Số chỗ ngồi",     value: "5 chỗ"    },
-              { label: "Bảo hành",        value: "3 năm / 100.000 km" },
-              { label: "Tiêu chuẩn khí",  value: "Euro 5"   },
-              { label: "Xuất xứ",         value: "Việt Nam" },
+              {
+                label: "Loại động cơ",
+                value: car.category === "dong_co_dien" ? "Điện" : "Xăng",
+              },
+              { label: "Hộp số", value: "Tự động" },
+              { label: "Số chỗ ngồi", value: "5 chỗ" },
+              { label: "Bảo hành", value: "3 năm / 100.000 km" },
+              { label: "Tiêu chuẩn khí", value: "Euro 5" },
+              { label: "Xuất xứ", value: "Việt Nam" },
             ].map((item, i, arr) => (
-              <View key={i} style={[styles.specRow, i < arr.length - 1 && styles.specRowBorder]}>
+              <View
+                key={i}
+                style={[styles.specRow, i < arr.length - 1 && styles.specRowBorder]}
+              >
                 <Text style={styles.specLabel}>{item.label}</Text>
-                <Text style={[styles.specValue, { color: accent }]}>{item.value}</Text>
+                <Text style={[styles.specValue, { color: accent }]}>
+                  {item.value}
+                </Text>
               </View>
             ))}
           </View>
         </View>
       </ScrollView>
 
-      {/* Footer */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.priceLabel}>Giá bán</Text>
-          <Text style={[styles.price, { color: accent }]}>{formatPrice(car.price)}</Text>
+          <Text style={[styles.price, { color: accent }]}>
+            {formatPrice(car.price)}
+          </Text>
           <Text style={styles.priceSub}>Giá tham khảo · Liên hệ để biết thêm</Text>
         </View>
+
         <TouchableOpacity
-          style={[styles.buyBtn, { backgroundColor: accent, opacity: addingToCart ? 0.6 : 1 }]}
+          style={[
+            styles.buyBtn,
+            { backgroundColor: accent, opacity: addingToCart ? 0.6 : 1 },
+          ]}
           activeOpacity={0.85}
           onPress={handleAddToCart}
           disabled={addingToCart}
         >
-          {addingToCart
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <>
-                <FontAwesome name="shopping-cart" size={14} color="#fff" />
-                <Text style={styles.buyText}>ĐẶT MUA</Text>
-              </>
-          }
+          {addingToCart ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <FontAwesome name="shopping-cart" size={14} color="#fff" />
+              <Text style={styles.buyText}>ĐẶT MUA</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -262,54 +332,148 @@ const styles = StyleSheet.create({
   notFound: { color: "#999", marginTop: 12, fontSize: 15 },
 
   header: {
-    height: 56, paddingHorizontal: 16,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    borderBottomWidth: 0.5, borderBottomColor: "#EEE", backgroundColor: "#FFF",
+    height: 56,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#EEE",
+    backgroundColor: "#FFF",
+    position: "relative",
   },
-  headerTitle: { position: "absolute", left: 0, right: 0, textAlign: "center", fontSize: 16, fontWeight: "700", color: "#111" },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#F5F5F5", justifyContent: "center", alignItems: "center" },
+  headerTitle: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111",
+  },
+  headerSideLeft: {
+    width: 44,
+    alignItems: "flex-start",
+    zIndex: 2,
+  },
+  headerSideRight: {
+    width: 96,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 8,
+    zIndex: 2,
+  },
+  headerBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerBtnPressed: {
+    opacity: 0.55,
+    transform: [{ scale: 0.96 }],
+  },
 
   imageBox: { height: 280, overflow: "hidden", position: "relative" },
-  image:    { width: "100%", height: "100%" },
-  imageFallback: { backgroundColor: "#F0ECE8", justifyContent: "center", alignItems: "center" },
-  catBadge: { position: "absolute", bottom: 14, left: 16, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  image: { width: "100%", height: "100%" },
+  imageFallback: {
+    backgroundColor: "#F0ECE8",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  catBadge: {
+    position: "absolute",
+    bottom: 14,
+    left: 16,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
   catBadgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 
   content: { paddingHorizontal: 16 },
-  title: { fontSize: 24, fontWeight: "800", marginBottom: 8, marginTop: 20, color: "#111" },
-  desc:  { fontSize: 14, color: "#666", lineHeight: 22, marginBottom: 20 },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    marginBottom: 8,
+    marginTop: 20,
+    color: "#111",
+  },
+  desc: { fontSize: 14, color: "#666", lineHeight: 22, marginBottom: 20 },
 
-  quickInfo: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  quickInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
   quickItem: {
-    width: "23%", paddingVertical: 12, borderRadius: 14,
-    backgroundColor: "#F8F8F8", alignItems: "center", borderTopWidth: 3, gap: 4,
+    width: "23%",
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#F8F8F8",
+    alignItems: "center",
+    borderTopWidth: 3,
+    gap: 4,
   },
   quickValue: { fontWeight: "800", fontSize: 13, marginTop: 2 },
   quickLabel: { fontSize: 10, color: "#888" },
 
-  card:      { backgroundColor: "#F8F8F8", borderRadius: 16, padding: 16 },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: "#111", marginBottom: 12 },
-  bulletRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 8 },
-  bulletDot: { width: 7, height: 7, borderRadius: 4, marginTop: 6, marginRight: 10 },
-  bulletText:{ fontSize: 14, color: "#555", lineHeight: 22, flex: 1 },
+  card: { backgroundColor: "#F8F8F8", borderRadius: 16, padding: 16 },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 12,
+  },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  bulletDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginTop: 6,
+    marginRight: 10,
+  },
+  bulletText: { fontSize: 14, color: "#555", lineHeight: 22, flex: 1 },
 
-  specRow:       { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10 },
+  specRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+  },
   specRowBorder: { borderBottomWidth: 0.5, borderBottomColor: "#EBEBEB" },
-  specLabel:     { color: "#777", fontSize: 14 },
-  specValue:     { fontWeight: "700", fontSize: 14 },
+  specLabel: { color: "#777", fontSize: 14 },
+  specValue: { fontWeight: "700", fontSize: 14 },
 
   footer: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 16, paddingTop: 14,
-    flexDirection: "row", alignItems: "center",
-    borderTopWidth: 0.5, borderTopColor: "#EEE", backgroundColor: "#FFF",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopWidth: 0.5,
+    borderTopColor: "#EEE",
+    backgroundColor: "#FFF",
   },
   priceLabel: { fontSize: 11, color: "#999", marginBottom: 2 },
-  price:      { fontSize: 22, fontWeight: "800" },
-  priceSub:   { fontSize: 11, color: "#BBB", marginTop: 2 },
+  price: { fontSize: 22, fontWeight: "800" },
+  priceSub: { fontSize: 11, color: "#BBB", marginTop: 2 },
   buyBtn: {
-    marginLeft: 16, flexDirection: "row", alignItems: "center", gap: 8,
-    paddingHorizontal: 22, paddingVertical: 14, borderRadius: 18,
+    marginLeft: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    borderRadius: 18,
   },
   buyText: { color: "#FFF", fontWeight: "800", fontSize: 13 },
 });

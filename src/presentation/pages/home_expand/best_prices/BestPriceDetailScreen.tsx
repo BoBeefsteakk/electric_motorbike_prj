@@ -33,23 +33,22 @@ interface ProductFromDB {
 }
 
 export default function BestPriceDetailScreen() {
-  const navigation   = useNavigation<any>();
-  const route        = useRoute<RouteProps>();
-  const { id }       = route.params;
-  const insets       = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
+  const route = useRoute<RouteProps>();
+  const { id } = route.params;
+  const insets = useSafeAreaInsets();
 
-  const [product, setProduct]         = useState<ProductFromDB | null>(null);
-  const [loading, setLoading]         = useState(true);
+  const [product, setProduct] = useState<ProductFromDB | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState<number>(0);
-  const [addingToCart, setAddingToCart]   = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
 
   const staticData = BEST_PRICE_DATA[id as number];
 
-  /* ── Fetch từ DB ── */
   useEffect(() => {
     (async () => {
       try {
-        const res  = await fetch(`${API_URL}/api/products/${id}`);
+        const res = await fetch(`${API_URL}/api/products/${id}`);
         const data = await res.json();
         setProduct(data);
         if (staticData?.colors?.length > 0) {
@@ -68,7 +67,6 @@ export default function BestPriceDetailScreen() {
     [selectedColor, staticData],
   );
 
-  /* ── Thêm vào giỏ ── */
   const handleAddToCart = async () => {
     if (!product || addingToCart) return;
     setAddingToCart(true);
@@ -77,17 +75,19 @@ export default function BestPriceDetailScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId:    "user_test_123",
+          userId: "user_test_123",
           productId: String(product.id),
-          name:      product.name,
-          price:     selectedVariant?.price ?? product.price,
-          image:     encodeImagePath(product.image),
-          quantity:  1,
+          name: product.name,
+          price: selectedVariant?.price ?? product.price,
+          image: encodeImagePath(product.image),
+          quantity: 1,
+          colorId: selectedVariant?.id ?? null,
+          colorName: selectedVariant?.name ?? "Chưa chọn",
+          colorValue: selectedVariant?.color ?? null,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        // Toast động theo tên xe thực tế
         CartToastRef.current?.show(`Đã thêm "${product.name}" vào giỏ hàng`);
       } else {
         Alert.alert("Lỗi", data.message || "Không thể thêm vào giỏ hàng");
@@ -101,64 +101,86 @@ export default function BestPriceDetailScreen() {
 
   const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
-  /* ── Loading ── */
   if (loading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color="#C47A4A" style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          size="large"
+          color="#C47A4A"
+          style={{ marginTop: 40 }}
+        />
       </View>
     );
   }
 
-  /* ── Không tìm thấy ── */
   if (!product || !staticData) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top, justifyContent: "center", alignItems: "center" }]}>
+      <View
+        style={[
+          styles.container,
+          {
+            paddingTop: insets.top,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
         <Ionicons name="alert-circle-outline" size={52} color="#DDD" />
-        <Text style={{ marginTop: 12, color: "#AAA", fontSize: 15 }}>Không tìm thấy sản phẩm</Text>
+        <Text style={{ marginTop: 12, color: "#AAA", fontSize: 15 }}>
+          Không tìm thấy sản phẩm
+        </Text>
       </View>
     );
   }
 
-  /* ── UI ── */
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <StatusBar
+        barStyle="dark-content"
+        translucent
+        backgroundColor="transparent"
+      />
 
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           style={styles.headerBtn}
+          activeOpacity={0.7}
         >
           <FontAwesome name="chevron-left" size={18} color="#111" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Chi Tiết</Text>
-        <TouchableOpacity style={styles.headerBtn} hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}>
+
+        <TouchableOpacity
+          style={styles.headerBtn}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          activeOpacity={0.7}
+        >
           <FontAwesome name="heart-o" size={20} color="#111" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 200 }}>
-
-        {/* ẢNH */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 200 }}
+      >
         <View style={styles.imageBox}>
           <Image
-            source={{ uri: `${API_URL}/images/${encodeImagePath(product.image)}` }}
+            source={{
+              uri: `${API_URL}/images/${encodeImagePath(product.image)}`,
+            }}
             style={styles.image}
             resizeMode="cover"
           />
         </View>
 
         <View style={styles.content}>
-
-          {/* TÊN XE */}
           <Text style={styles.title}>{product.name}</Text>
 
-          {/* RATING */}
           <View style={styles.ratingRow}>
-            {[1,2,3,4,5].map(s => (
+            {[1, 2, 3, 4, 5].map((s) => (
               <FontAwesome
                 key={s}
                 name={s <= Math.round(staticData.rating) ? "star" : "star-o"}
@@ -168,13 +190,13 @@ export default function BestPriceDetailScreen() {
               />
             ))}
             <Text style={styles.rating}>{staticData.rating}</Text>
-            <Text style={styles.ratingCount}>({staticData.ratingCount} đánh giá)</Text>
+            <Text style={styles.ratingCount}>
+              ({staticData.ratingCount} đánh giá)
+            </Text>
           </View>
 
-          {/* MÔ TẢ */}
           <Text style={styles.desc}>{staticData.desc}</Text>
 
-          {/* QUICK INFO */}
           <View style={styles.quickInfo}>
             {staticData.quickInfo.map((item: any, i: number) => (
               <View key={i} style={styles.quickItem}>
@@ -184,7 +206,6 @@ export default function BestPriceDetailScreen() {
             ))}
           </View>
 
-          {/* ƯU ĐIỂM */}
           <View style={styles.sectionBox}>
             <Text style={styles.sectionTitle}>Ưu điểm nổi bật</Text>
             {staticData.highlights.map((text: string, i: number) => (
@@ -195,21 +216,24 @@ export default function BestPriceDetailScreen() {
             ))}
           </View>
 
-          {/* THÔNG SỐ */}
           <View style={styles.sectionBox}>
             <Text style={styles.sectionTitle}>Thông số chính</Text>
             {staticData.specs.map((item: any, i: number) => (
-              <View key={i} style={[styles.specRow, i % 2 === 0 && { backgroundColor: "#F9F9F9" }]}>
+              <View
+                key={i}
+                style={[
+                  styles.specRow,
+                  i % 2 === 0 && { backgroundColor: "#F9F9F9" },
+                ]}
+              >
                 <Text style={styles.specLabel}>{item.label}</Text>
                 <Text style={styles.specValue}>{item.value}</Text>
               </View>
             ))}
           </View>
-
         </View>
       </ScrollView>
 
-      {/* FOOTER */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.priceLabel}>Giá bán</Text>
@@ -217,18 +241,24 @@ export default function BestPriceDetailScreen() {
             {formatPrice(selectedVariant?.price ?? product.price)}
           </Text>
 
-          {/* COLOR PICKER */}
           <View style={styles.colorRow}>
-            {(staticData.colors ?? []).filter((c: any) => c != null).map((item: any) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.colorItem, selectedColor === item.id && styles.colorItemActive]}
-                onPress={() => setSelectedColor(item.id)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.colorFill, { backgroundColor: item.color }]} />
-              </TouchableOpacity>
-            ))}
+            {(staticData.colors ?? [])
+              .filter((c: any) => c != null)
+              .map((item: any) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.colorItem,
+                    selectedColor === item.id && styles.colorItemActive,
+                  ]}
+                  onPress={() => setSelectedColor(item.id)}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[styles.colorFill, { backgroundColor: item.color }]}
+                  />
+                </TouchableOpacity>
+              ))}
           </View>
         </View>
 
@@ -242,8 +272,8 @@ export default function BestPriceDetailScreen() {
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <Ionicons name="cart-outline" size={18} color="#fff" style={{ marginBottom: 2 }} />
-              <Text style={styles.buyText}>THÊM VÀO GIỎ</Text>
+              <Ionicons name="cart-outline" size={18} color="#fff" />
+              <Text style={styles.buyText}>ĐẶT MUA</Text>
             </>
           )}
         </TouchableOpacity>
@@ -256,74 +286,145 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFF" },
 
   header: {
-    height: 56, paddingHorizontal: 16,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    borderBottomWidth: 0.5, borderBottomColor: "#EEE", backgroundColor: "#FFF",
+    height: 56,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#EEE",
+    backgroundColor: "#FFF",
   },
-  headerBtn:   { width: 36, height: 36, justifyContent: "center", alignItems: "center" },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
+  headerBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111",
+  },
 
   imageBox: { height: 280, backgroundColor: "#F5F5F5" },
-  image:    { width: "100%", height: "100%" },
+  image: { width: "100%", height: "100%" },
 
   content: { paddingHorizontal: 16, paddingTop: 20 },
 
   title: { fontSize: 24, fontWeight: "800", color: "#111", marginBottom: 10 },
 
-  ratingRow:   { flexDirection: "row", alignItems: "center", marginBottom: 14 },
-  rating:      { marginLeft: 8, fontWeight: "700", color: "#111" },
+  ratingRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
+  rating: { marginLeft: 8, fontWeight: "700", color: "#111" },
   ratingCount: { marginLeft: 4, fontSize: 12, color: "#AAA" },
 
   desc: { fontSize: 14, color: "#666", lineHeight: 22, marginBottom: 20 },
 
-  quickInfo: { flexDirection: "row", justifyContent: "space-between", marginBottom: 24 },
+  quickInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 24,
+  },
   quickItem: {
-    width: "30%", paddingVertical: 14, borderRadius: 16,
-    backgroundColor: "#F8F8F8", alignItems: "center",
-    borderWidth: 1, borderColor: "#F0F0F0",
+    width: "30%",
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: "#F8F8F8",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
   },
   quickValue: { fontWeight: "800", fontSize: 15, color: "#111" },
   quickLabel: { marginTop: 4, fontSize: 11, color: "#999" },
 
-  sectionBox:   { marginBottom: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#111", marginBottom: 12 },
+  sectionBox: { marginBottom: 24 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111",
+    marginBottom: 12,
+  },
 
-  bulletRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 8 },
-  bulletDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#C47A4A", marginTop: 7, marginRight: 10 },
-  bulletText:{ fontSize: 14, color: "#555", lineHeight: 22, flex: 1 },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  bulletDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#C47A4A",
+    marginTop: 7,
+    marginRight: 10,
+  },
+  bulletText: { fontSize: 14, color: "#555", lineHeight: 22, flex: 1 },
 
   specRow: {
-    flexDirection: "row", justifyContent: "space-between",
-    paddingVertical: 10, paddingHorizontal: 10, borderRadius: 8, marginBottom: 2,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginBottom: 2,
   },
   specLabel: { color: "#888", fontSize: 13 },
   specValue: { fontWeight: "700", color: "#111", fontSize: 13 },
 
   footer: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 16, paddingTop: 14,
-    flexDirection: "row", alignItems: "center",
-    borderTopWidth: 0.5, borderTopColor: "#EEE",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    borderTopWidth: 0.5,
+    borderTopColor: "#EEE",
     backgroundColor: "#FFF",
-    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06, shadowRadius: 10, elevation: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 12,
   },
   priceLabel: { fontSize: 11, color: "#AAA" },
-  price:      { fontSize: 20, fontWeight: "800", color: "#C0392B", marginBottom: 6 },
+  price: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#C0392B",
+    marginBottom: 6,
+  },
 
   colorRow: { flexDirection: "row", gap: 8 },
   colorItem: {
-    width: 32, height: 32, borderRadius: 10,
-    borderWidth: 1.5, borderColor: "#EEE",
-    justifyContent: "center", alignItems: "center",
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "#EEE",
+    justifyContent: "center",
+    alignItems: "center",
   },
   colorItemActive: { borderColor: "#C47A4A", borderWidth: 2.5 },
-  colorFill:       { width: 20, height: 20, borderRadius: 6 },
+  colorFill: { width: 20, height: 20, borderRadius: 6 },
 
   buyBtn: {
-    marginLeft: 16, backgroundColor: "#C47A4A",
-    paddingHorizontal: 20, paddingVertical: 14,
-    borderRadius: 18, alignItems: "center", gap: 4,
+    marginLeft: 16,
+    backgroundColor: "#C47A4A",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 18,
   },
-  buyText: { color: "#FFF", fontWeight: "700", fontSize: 12, letterSpacing: 0.5 },
+  buyText: {
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 0.5,
+  },
 });

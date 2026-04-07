@@ -219,8 +219,9 @@ export default function SearchScreen() {
           style={styles.card}
           activeOpacity={0.85}
           onPress={() => {
-            if (isMotorbike)
-              navigation.navigate("best_price_detail", { id: item.id });
+            if (isMotorbike) navigation.navigate("best_price_detail", { id: item.id });
+            else if (isCar) navigation.navigate("car_detail", { id: item.id });
+            else navigation.navigate("accessory_detail", { id: item.id });
           }}
         >
           <View style={styles.cardImageBox}>

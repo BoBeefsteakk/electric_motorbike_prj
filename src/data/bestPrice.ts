@@ -11,6 +11,7 @@ export interface QuickInfo {
 
 export interface ColorVariant {
   id: number;
+  name: string;
   color: string;
   price: number;
 }
@@ -32,7 +33,6 @@ export interface BestPriceStaticData {
 
 // Key = id trong bảng motorbike
 const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
-
   // ─── PHỔ THÔNG ───────────────────────────────────────────────
 
   // 1. VinFast Evo 200 Lite
@@ -59,9 +59,9 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "150 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 22000000 },
-      { id: 2, color: "#1A1A2E", price: 22000000 },
-      { id: 3, color: "#E63946", price: 22500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 22000000 },
+      { id: 2, name: "Đen", color: "#1A1A2E", price: 22000000 },
+      { id: 3, name: "Đỏ", color: "#E63946", price: 22500000 },
     ],
   },
 
@@ -89,9 +89,9 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "150 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 22000000 },
-      { id: 2, color: "#2D6A4F", price: 22000000 },
-      { id: 3, color: "#F4A261", price: 22500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 22000000 },
+      { id: 2, name: "Xanh lá", color: "#2D6A4F", price: 22000000 },
+      { id: 3, name: "Cam", color: "#F4A261", price: 22500000 },
     ],
   },
 
@@ -119,9 +119,9 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "150 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 22000000 },
-      { id: 2, color: "#000000", price: 22000000 },
-      { id: 3, color: "#457B9D", price: 22500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 22000000 },
+      { id: 2, name: "Đen", color: "#000000", price: 22000000 },
+      { id: 3, name: "Xanh dương", color: "#457B9D", price: 22500000 },
     ],
   },
 
@@ -149,9 +149,9 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "150 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 22000000 },
-      { id: 2, color: "#C9ADA7", price: 22000000 },
-      { id: 3, color: "#1A1A2E", price: 22500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 22000000 },
+      { id: 2, name: "Hồng be", color: "#C9ADA7", price: 22000000 },
+      { id: 3, name: "Đen", color: "#1A1A2E", price: 22500000 },
     ],
   },
 
@@ -179,9 +179,9 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "150 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 22000000 },
-      { id: 2, color: "#A8DADC", price: 22000000 },
-      { id: 3, color: "#E9C46A", price: 22500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 22000000 },
+      { id: 2, name: "Xanh nhạt", color: "#A8DADC", price: 22000000 },
+      { id: 3, name: "Vàng", color: "#E9C46A", price: 22500000 },
     ],
   },
 
@@ -209,9 +209,9 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "150 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 22000000 },
-      { id: 2, color: "#264653", price: 22000000 },
-      { id: 3, color: "#E76F51", price: 22500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 22000000 },
+      { id: 2, name: "Xanh đậm", color: "#264653", price: 22000000 },
+      { id: 3, name: "Cam đỏ", color: "#E76F51", price: 22500000 },
     ],
   },
 
@@ -239,16 +239,15 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "160 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 22000000 },
-      { id: 2, color: "#1A1A2E", price: 22000000 },
-      { id: 3, color: "#C1121F", price: 22500000 },
-      { id: 4, color: "#606C38", price: 22500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 22000000 },
+      { id: 2, name: "Đen", color: "#1A1A2E", price: 22000000 },
+      { id: 3, name: "Đỏ", color: "#C1121F", price: 22500000 },
+      { id: 4, name: "Xanh rêu", color: "#606C38", price: 22500000 },
     ],
   },
 
   // ─── TRUNG CẤP ───────────────────────────────────────────────
 
-  // 8. VinFast Feliz 2025
   8: {
     rating: 4.8,
     ratingCount: 267,
@@ -272,14 +271,13 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "160 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 30000000 },
-      { id: 2, color: "#1A1A2E", price: 30000000 },
-      { id: 3, color: "#E63946", price: 30500000 },
-      { id: 4, color: "#A8DADC", price: 30500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 30000000 },
+      { id: 2, name: "Đen", color: "#1A1A2E", price: 30000000 },
+      { id: 3, name: "Đỏ", color: "#E63946", price: 30500000 },
+      { id: 4, name: "Xanh nhạt", color: "#A8DADC", price: 30500000 },
     ],
   },
 
-  // 9. VinFast Feliz II
   9: {
     rating: 4.7,
     ratingCount: 445,
@@ -303,13 +301,12 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "160 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 30000000 },
-      { id: 2, color: "#6D6875", price: 30000000 },
-      { id: 3, color: "#1A1A2E", price: 30500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 30000000 },
+      { id: 2, name: "Tím xám", color: "#6D6875", price: 30000000 },
+      { id: 3, name: "Đen", color: "#1A1A2E", price: 30500000 },
     ],
   },
 
-  // 10. VinFast Feliz Lite
   10: {
     rating: 4.6,
     ratingCount: 334,
@@ -333,13 +330,12 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "155 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 30000000 },
-      { id: 2, color: "#FFB4A2", price: 30000000 },
-      { id: 3, color: "#B7B7A4", price: 30500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 30000000 },
+      { id: 2, name: "Hồng cam", color: "#FFB4A2", price: 30000000 },
+      { id: 3, name: "Xám be", color: "#B7B7A4", price: 30500000 },
     ],
   },
 
-  // 11. VinFast Feliz Neo
   11: {
     rating: 4.7,
     ratingCount: 289,
@@ -363,14 +359,13 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "160 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 30000000 },
-      { id: 2, color: "#457B9D", price: 30000000 },
-      { id: 3, color: "#1A1A2E", price: 30500000 },
-      { id: 4, color: "#2D6A4F", price: 30500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 30000000 },
+      { id: 2, name: "Xanh dương", color: "#457B9D", price: 30000000 },
+      { id: 3, name: "Đen", color: "#1A1A2E", price: 30500000 },
+      { id: 4, name: "Xanh lá", color: "#2D6A4F", price: 30500000 },
     ],
   },
 
-  // 12. VinFast Feliz S
   12: {
     rating: 4.8,
     ratingCount: 230,
@@ -394,13 +389,12 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "160 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 30000000 },
-      { id: 2, color: "#C47A4A", price: 30000000 },
-      { id: 3, color: "#1A1A2E", price: 30500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 30000000 },
+      { id: 2, name: "Nâu đồng", color: "#C47A4A", price: 30000000 },
+      { id: 3, name: "Đen", color: "#1A1A2E", price: 30500000 },
     ],
   },
 
-  // 13. VinFast Flazz
   13: {
     rating: 4.6,
     ratingCount: 178,
@@ -424,13 +418,12 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "155 kg" },
     ],
     colors: [
-      { id: 1, color: "#F5CBA7", price: 25000000 },
-      { id: 2, color: "#1A1A2E", price: 25000000 },
-      { id: 3, color: "#A9CCE3", price: 25500000 },
+      { id: 1, name: "Kem", color: "#F5CBA7", price: 25000000 },
+      { id: 2, name: "Đen", color: "#1A1A2E", price: 25000000 },
+      { id: 3, name: "Xanh nhạt", color: "#A9CCE3", price: 25500000 },
     ],
   },
 
-  // 14. VinFast Klara Neo
   14: {
     rating: 4.7,
     ratingCount: 356,
@@ -454,14 +447,13 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "165 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 39000000 },
-      { id: 2, color: "#2C3E50", price: 39000000 },
-      { id: 3, color: "#E74C3C", price: 39500000 },
-      { id: 4, color: "#27AE60", price: 39500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 39000000 },
+      { id: 2, name: "Xanh than", color: "#2C3E50", price: 39000000 },
+      { id: 3, name: "Đỏ", color: "#E74C3C", price: 39500000 },
+      { id: 4, name: "Xanh lá", color: "#27AE60", price: 39500000 },
     ],
   },
 
-  // 15. VinFast Motio
   15: {
     rating: 4.5,
     ratingCount: 223,
@@ -485,15 +477,14 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "170 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 25000000 },
-      { id: 2, color: "#7F8C8D", price: 25000000 },
-      { id: 3, color: "#1A1A2E", price: 25500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 25000000 },
+      { id: 2, name: "Xám", color: "#7F8C8D", price: 25000000 },
+      { id: 3, name: "Đen", color: "#1A1A2E", price: 25500000 },
     ],
   },
 
   // ─── CAO CẤP ─────────────────────────────────────────────────
 
-  // 16. VinFast Theon S
   16: {
     rating: 4.9,
     ratingCount: 189,
@@ -517,14 +508,13 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "180 kg" },
     ],
     colors: [
-      { id: 1, color: "#2C3E50", price: 69000000 },
-      { id: 2, color: "#FFFFFF", price: 69000000 },
-      { id: 3, color: "#8B0000", price: 70000000 },
-      { id: 4, color: "#B8860B", price: 70000000 },
+      { id: 1, name: "Xanh than", color: "#2C3E50", price: 69000000 },
+      { id: 2, name: "Trắng", color: "#FFFFFF", price: 69000000 },
+      { id: 3, name: "Đỏ đô", color: "#8B0000", price: 70000000 },
+      { id: 4, name: "Vàng đồng", color: "#B8860B", price: 70000000 },
     ],
   },
 
-  // 17. VinFast Vento Neo
   17: {
     rating: 4.8,
     ratingCount: 142,
@@ -548,13 +538,12 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "180 kg" },
     ],
     colors: [
-      { id: 1, color: "#1A1A2E", price: 27000000 },
-      { id: 2, color: "#FFFFFF", price: 27000000 },
-      { id: 3, color: "#7D6608", price: 27500000 },
+      { id: 1, name: "Đen", color: "#1A1A2E", price: 27000000 },
+      { id: 2, name: "Trắng", color: "#FFFFFF", price: 27000000 },
+      { id: 3, name: "Vàng nâu", color: "#7D6608", price: 27500000 },
     ],
   },
 
-  // 18. VinFast Vento S
   18: {
     rating: 4.8,
     ratingCount: 167,
@@ -578,13 +567,12 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "175 kg" },
     ],
     colors: [
-      { id: 1, color: "#C0392B", price: 27000000 },
-      { id: 2, color: "#1A1A2E", price: 27000000 },
-      { id: 3, color: "#FFFFFF", price: 27500000 },
+      { id: 1, name: "Đỏ", color: "#C0392B", price: 27000000 },
+      { id: 2, name: "Đen", color: "#1A1A2E", price: 27000000 },
+      { id: 3, name: "Trắng", color: "#FFFFFF", price: 27500000 },
     ],
   },
 
-  // 19. VinFast Vero X
   19: {
     rating: 4.7,
     ratingCount: 203,
@@ -608,13 +596,12 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "175 kg" },
     ],
     colors: [
-      { id: 1, color: "#2D6A4F", price: 25000000 },
-      { id: 2, color: "#E9C46A", price: 25000000 },
-      { id: 3, color: "#1A1A2E", price: 25500000 },
+      { id: 1, name: "Xanh lá", color: "#2D6A4F", price: 25000000 },
+      { id: 2, name: "Vàng cát", color: "#E9C46A", price: 25000000 },
+      { id: 3, name: "Đen", color: "#1A1A2E", price: 25500000 },
     ],
   },
 
-  // 20. VinFast Viper
   20: {
     rating: 4.9,
     ratingCount: 98,
@@ -638,13 +625,12 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "170 kg" },
     ],
     colors: [
-      { id: 1, color: "#C0392B", price: 42000000 },
-      { id: 2, color: "#1A1A2E", price: 42000000 },
-      { id: 3, color: "#F39C12", price: 43000000 },
+      { id: 1, name: "Đỏ", color: "#C0392B", price: 42000000 },
+      { id: 2, name: "Đen", color: "#1A1A2E", price: 42000000 },
+      { id: 3, name: "Cam", color: "#F39C12", price: 43000000 },
     ],
   },
 
-  // 21. VinFast Zgoo
   21: {
     rating: 4.6,
     ratingCount: 134,
@@ -668,9 +654,9 @@ const BEST_PRICE_DATA: Record<number, BestPriceStaticData> = {
       { label: "Tải trọng tối đa", value: "170 kg" },
     ],
     colors: [
-      { id: 1, color: "#FFFFFF", price: 25000000 },
-      { id: 2, color: "#2C3E50", price: 25000000 },
-      { id: 3, color: "#8E44AD", price: 25500000 },
+      { id: 1, name: "Trắng", color: "#FFFFFF", price: 25000000 },
+      { id: 2, name: "Xanh than", color: "#2C3E50", price: 25000000 },
+      { id: 3, name: "Tím", color: "#8E44AD", price: 25500000 },
     ],
   },
 };
