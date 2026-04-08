@@ -15,14 +15,14 @@ import {
   ScrollView,
   Platform,
 } from "react-native";
-// FIX: Thêm NavigationProp vào import để xử lý lỗi TypeScript
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import API_URL from "../../../../data/api/apis";
+import { useTheme } from "../../../../context/themeContext";
+import { darkTheme, lightTheme } from "../../../../theme/colors";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 type Car = {
   id: number;
   name: string;
@@ -31,25 +31,24 @@ type Car = {
   category: string;
 };
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const TABS = [
-  { key: "all",             label: "Tất Cả",  icon: "🚗", color: "#1A1A1A" },
-  { key: "dong_co_dien",    label: "Điện",    icon: "⚡",  color: "#2563EB" },
-  { key: "dong_co_xang",    label: "Xăng",    icon: "⛽",  color: "#DC2626" },
-  { key: "dong_xe_dich_vu", label: "Dịch Vụ",icon: "🏢", color: "#7C3AED" },
+  { key: "all", label: "Tất Cả", icon: "🚗", color: "#1A1A1A" },
+  { key: "dong_co_dien", label: "Điện", icon: "⚡", color: "#2563EB" },
+  { key: "dong_co_xang", label: "Xăng", icon: "⛽", color: "#DC2626" },
+  { key: "dong_xe_dich_vu", label: "Dịch Vụ", icon: "🏢", color: "#7C3AED" },
 ];
 
 const SORT_OPTIONS = [
-  { key: "default",    label: "Mặc định" },
-  { key: "price_asc",  label: "Giá tăng dần" },
+  { key: "default", label: "Mặc định" },
+  { key: "price_asc", label: "Giá tăng dần" },
   { key: "price_desc", label: "Giá giảm dần" },
-  { key: "name_asc",   label: "Tên A → Z" },
+  { key: "name_asc", label: "Tên A → Z" },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatPrice = (price: number) => {
-  if (price >= 1_000_000_000)
+  if (price >= 1_000_000_000) {
     return `${(price / 1_000_000_000).toFixed(2)} tỷ`;
+  }
   return `${(price / 1_000_000).toFixed(0)} triệu`;
 };
 
@@ -60,17 +59,19 @@ const buildUri = (imagePath: string | null): string | null => {
     path = path.slice("images/".length);
   }
   const encoded = path.replace(/ /g, "%20");
-  const uri = `${API_URL}/images/${encoded}`;
-  return uri;
+  return `${API_URL}/images/${encoded}`;
 };
 
-// ─── CarCard ──────────────────────────────────────────────────────────────────
 const CarCard = React.memo(function CarCard({
   item,
   onPress,
+  theme,
+  colors,
 }: {
   item: Car;
   onPress: (car: Car) => void;
+  theme: "light" | "dark";
+  colors: typeof lightTheme;
 }) {
   const uri = buildUri(item.image);
   const [status, setStatus] = useState<"loading" | "ok" | "error">(
@@ -81,11 +82,24 @@ const CarCard = React.memo(function CarCard({
   return (
     <TouchableOpacity
       activeOpacity={0.85}
-      style={crd.wrap}
+      style={[
+        crd.wrap,
+        {
+          backgroundColor: theme === "dark" ? colors.card : "#FFF",
+          shadowOpacity: theme === "dark" ? 0 : 0.08,
+          elevation: theme === "dark" ? 0 : 4,
+          borderWidth: theme === "dark" ? 1 : 0,
+          borderColor: theme === "dark" ? "#334155" : "transparent",
+        },
+      ]}
       onPress={() => onPress(item)}
     >
-      {/* Image */}
-      <View style={crd.imgBox}>
+      <View
+        style={[
+          crd.imgBox,
+          { backgroundColor: theme === "dark" ? "#0F172A" : "#F0ECE8" },
+        ]}
+      >
         {uri && status !== "error" ? (
           <Image
             source={{ uri, cache: "reload" }}
@@ -96,37 +110,72 @@ const CarCard = React.memo(function CarCard({
           />
         ) : null}
 
-        {/* Spinner while loading */}
         {status === "loading" && (
-          <View style={crd.placeholder}>
+          <View
+            style={[
+              crd.placeholder,
+              { backgroundColor: theme === "dark" ? "#0F172A" : "#F0ECE8" },
+            ]}
+          >
             <ActivityIndicator color="#C8902A" size="small" />
           </View>
         )}
 
-        {/* Fallback */}
         {status === "error" && (
-          <View style={crd.placeholder}>
+          <View
+            style={[
+              crd.placeholder,
+              { backgroundColor: theme === "dark" ? "#0F172A" : "#F0ECE8" },
+            ]}
+          >
             <Text style={{ fontSize: 30, marginBottom: 4 }}>🚗</Text>
-            <Text style={crd.fallbackTxt}>Chưa có ảnh</Text>
+            <Text
+              style={[
+                crd.fallbackTxt,
+                { color: theme === "dark" ? "#94A3B8" : "#BBB" },
+              ]}
+            >
+              Chưa có ảnh
+            </Text>
           </View>
         )}
 
-        {/* Badge */}
         <View style={[crd.badge, { backgroundColor: tab?.color ?? "#555" }]}>
           <Text style={{ fontSize: 11 }}>{tab?.icon ?? "🚗"}</Text>
         </View>
       </View>
 
-      {/* Info */}
       <View style={crd.body}>
-        <Text style={crd.name} numberOfLines={2}>{item.name}</Text>
-        <View style={crd.divider} />
+        <Text style={[crd.name, { color: colors.text }]} numberOfLines={2}>
+          {item.name}
+        </Text>
+
+        <View
+          style={[
+            crd.divider,
+            { backgroundColor: theme === "dark" ? "#334155" : "#F0ECE8" },
+          ]}
+        />
+
         <View style={crd.footer}>
           <View>
-            <Text style={crd.priceLabel}>Giá từ</Text>
+            <Text
+              style={[
+                crd.priceLabel,
+                { color: theme === "dark" ? "#94A3B8" : "#BBB" },
+              ]}
+            >
+              Giá từ
+            </Text>
             <Text style={crd.price}>{formatPrice(item.price)}</Text>
           </View>
-          <View style={crd.pill}>
+
+          <View
+            style={[
+              crd.pill,
+              { backgroundColor: theme === "dark" ? "#2563EB" : "#1A1A1A" },
+            ]}
+          >
             <Text style={crd.pillTxt}>Chi tiết →</Text>
           </View>
         </View>
@@ -135,15 +184,18 @@ const CarCard = React.memo(function CarCard({
   );
 });
 
-// ─── Detail Modal ─────────────────────────────────────────────────────────────
 function DetailModal({
   car,
   visible,
   onClose,
+  theme,
+  colors,
 }: {
   car: Car | null;
   visible: boolean;
   onClose: () => void;
+  theme: "light" | "dark";
+  colors: typeof lightTheme;
 }) {
   if (!car) return null;
   const tab = TABS.find((t) => t.key === car.category);
@@ -157,42 +209,110 @@ function DetailModal({
       onRequestClose={onClose}
     >
       <View style={dtl.overlay}>
-        <View style={dtl.sheet}>
-          <View style={dtl.handle} />
+        <View
+          style={[
+            dtl.sheet,
+            { backgroundColor: theme === "dark" ? colors.card : "#FFF" },
+          ]}
+        >
+          <View
+            style={[
+              dtl.handle,
+              { backgroundColor: theme === "dark" ? "#475569" : "#DDD" },
+            ]}
+          />
           <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
             <View style={dtl.heroBox}>
               {uri ? (
                 <Image source={{ uri }} style={dtl.heroImg} resizeMode="cover" />
               ) : (
-                <View style={[dtl.heroImg, dtl.heroFallback]}>
+                <View
+                  style={[
+                    dtl.heroImg,
+                    dtl.heroFallback,
+                    {
+                      backgroundColor: theme === "dark" ? "#0F172A" : "#F0ECE8",
+                    },
+                  ]}
+                >
                   <Text style={{ fontSize: 48 }}>🚗</Text>
                 </View>
               )}
-              <View style={[dtl.heroBadge, { backgroundColor: tab?.color ?? "#555" }]}>
-                <Text style={dtl.heroBadgeTxt}>{tab?.icon} {tab?.label}</Text>
+              <View
+                style={[
+                  dtl.heroBadge,
+                  { backgroundColor: tab?.color ?? "#555" },
+                ]}
+              >
+                <Text style={dtl.heroBadgeTxt}>
+                  {tab?.icon} {tab?.label}
+                </Text>
               </View>
             </View>
 
             <View style={dtl.body}>
-              <Text style={dtl.carName}>{car.name}</Text>
+              <Text style={[dtl.carName, { color: colors.text }]}>
+                {car.name}
+              </Text>
 
-              <View style={dtl.priceBox}>
-                <Text style={dtl.priceLbl}>Giá bán lẻ đề xuất</Text>
+              <View
+                style={[
+                  dtl.priceBox,
+                  {
+                    backgroundColor:
+                      theme === "dark" ? "#0F1E35" : "#FFF8EE",
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    dtl.priceLbl,
+                    { color: theme === "dark" ? "#94A3B8" : "#888" },
+                  ]}
+                >
+                  Giá bán lẻ đề xuất
+                </Text>
                 <Text style={dtl.priceVal}>{formatPrice(car.price)}</Text>
               </View>
 
-              <Text style={dtl.specTitle}>Thông số nổi bật</Text>
+              <Text style={[dtl.specTitle, { color: colors.text }]}>
+                Thông số nổi bật
+              </Text>
+
               <View style={dtl.specRow}>
                 {[
-                  { icon: "🛡️", label: "An toàn",  val: "5 sao"   },
-                  { icon: "⚙️", label: "Hộp số",   val: "Tự động" },
-                  { icon: "🪑", label: "Chỗ ngồi", val: "5 chỗ"   },
-                  { icon: "🗓️", label: "Bảo hành", val: "3 năm"   },
+                  { icon: "🛡️", label: "An toàn", val: "5 sao" },
+                  { icon: "⚙️", label: "Hộp số", val: "Tự động" },
+                  { icon: "🪑", label: "Chỗ ngồi", val: "5 chỗ" },
+                  { icon: "🗓️", label: "Bảo hành", val: "3 năm" },
                 ].map((spec) => (
-                  <View key={spec.label} style={dtl.specItem}>
+                  <View
+                    key={spec.label}
+                    style={[
+                      dtl.specItem,
+                      {
+                        backgroundColor:
+                          theme === "dark" ? "#0F172A" : "#F5F3F0",
+                      },
+                    ]}
+                  >
                     <Text style={{ fontSize: 20 }}>{spec.icon}</Text>
-                    <Text style={dtl.specVal}>{spec.val}</Text>
-                    <Text style={dtl.specLbl}>{spec.label}</Text>
+                    <Text
+                      style={[
+                        dtl.specVal,
+                        { color: theme === "dark" ? "#FFF" : "#1A1A1A" },
+                      ]}
+                    >
+                      {spec.val}
+                    </Text>
+                    <Text
+                      style={[
+                        dtl.specLbl,
+                        { color: theme === "dark" ? "#94A3B8" : "#888" },
+                      ]}
+                    >
+                      {spec.label}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -200,8 +320,25 @@ function DetailModal({
               <TouchableOpacity style={dtl.ctaBtn} onPress={onClose}>
                 <Text style={dtl.ctaTxt}>Đăng ký tư vấn ngay</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={dtl.closeBtn} onPress={onClose}>
-                <Text style={dtl.closeTxt}>Đóng</Text>
+
+              <TouchableOpacity
+                style={[
+                  dtl.closeBtn,
+                  {
+                    backgroundColor:
+                      theme === "dark" ? "#0F172A" : "#F0ECE8",
+                  },
+                ]}
+                onPress={onClose}
+              >
+                <Text
+                  style={[
+                    dtl.closeTxt,
+                    { color: theme === "dark" ? "#FFF" : "#333" },
+                  ]}
+                >
+                  Đóng
+                </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -211,20 +348,21 @@ function DetailModal({
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function CategoryOTo() {
-  // FIX: Định nghĩa kiểu chung (any) cho useNavigation để truyền tham số không bị báo lỗi "never"
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+
   const navigation = useNavigation<NavigationProp<any>>();
 
-  const [cars, setCars]           = useState<Car[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [hasError, setHasError]   = useState(false);
-  const [search, setSearch]       = useState("");
+  const [cars, setCars] = useState<Car[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  const [sort, setSort]           = useState("default");
-  const [showSort, setShowSort]   = useState(false);
-  const [selCar, setSelCar]       = useState<Car | null>(null);
-  const [modalVis, setModalVis]   = useState(false);
+  const [sort, setSort] = useState("default");
+  const [showSort, setShowSort] = useState(false);
+  const [selCar, setSelCar] = useState<Car | null>(null);
+  const [modalVis, setModalVis] = useState(false);
 
   const fetchCars = useCallback(async () => {
     try {
@@ -242,12 +380,15 @@ export default function CategoryOTo() {
     }
   }, []);
 
-  useEffect(() => { fetchCars(); }, [fetchCars]);
+  useEffect(() => {
+    fetchCars();
+  }, [fetchCars]);
 
   const filtered = useMemo(() => {
-    let list = activeTab === "all"
-      ? cars
-      : cars.filter((c) => c.category === activeTab);
+    let list =
+      activeTab === "all"
+        ? cars
+        : cars.filter((c) => c.category === activeTab);
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -255,64 +396,131 @@ export default function CategoryOTo() {
     }
 
     switch (sort) {
-      case "price_asc":  return [...list].sort((a, b) => a.price - b.price);
-      case "price_desc": return [...list].sort((a, b) => b.price - a.price);
-      case "name_asc":   return [...list].sort((a, b) => a.name.localeCompare(b.name));
-      default:           return list;
+      case "price_asc":
+        return [...list].sort((a, b) => a.price - b.price);
+      case "price_desc":
+        return [...list].sort((a, b) => b.price - a.price);
+      case "name_asc":
+        return [...list].sort((a, b) => a.name.localeCompare(b.name));
+      default:
+        return list;
     }
   }, [cars, activeTab, search, sort]);
 
-  // FIX: Viết lại hàm openDetail mượt mà, không cần "as never" nữa
-  const openDetail = useCallback((car: Car) => {
-    navigation.navigate('car_detail', { id: car.id });
-  }, [navigation]);
+  const openDetail = useCallback(
+    (car: Car) => {
+      navigation.navigate("car_detail", { id: car.id });
+    },
+    [navigation]
+  );
 
   const renderItem = useCallback(
-    ({ item }: { item: Car }) => <CarCard item={item} onPress={openDetail} />,
-    [openDetail]
+    ({ item }: { item: Car }) => (
+      <CarCard
+        item={item}
+        onPress={openDetail}
+        theme={theme}
+        colors={colors}
+      />
+    ),
+    [openDetail, theme, colors]
   );
 
   return (
-    <SafeAreaView style={sc.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F7F5F2" />
+    <SafeAreaView style={[sc.safe, { backgroundColor: colors.background }]}>
+      <StatusBar
+        barStyle={theme === "dark" ? "light-content" : "dark-content"}
+        translucent
+        backgroundColor="transparent"
+      />
 
-      {/* Header */}
       <View style={sc.header}>
-        <TouchableOpacity style={sc.iconBtn} onPress={() => navigation.goBack()}>
-          <Text style={sc.iconBtnTxt}>←</Text>
+        <TouchableOpacity
+          style={[
+            sc.iconBtn,
+            {
+              backgroundColor: theme === "dark" ? "#1F2937" : "#EDE9E4",
+            },
+          ]}
+          onPress={() => navigation.goBack()}
+        >
+          <Text
+            style={[
+              sc.iconBtnTxt,
+              { color: theme === "dark" ? "#FFF" : "#1A1A1A" },
+            ]}
+          >
+            ←
+          </Text>
         </TouchableOpacity>
+
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={sc.headerTitle}>Ô Tô VinFast</Text>
-          <Text style={sc.headerSub}>
+          <Text style={[sc.headerTitle, { color: colors.text }]}>
+            Ô Tô VinFast
+          </Text>
+          <Text
+            style={[
+              sc.headerSub,
+              { color: theme === "dark" ? "#94A3B8" : "#999" },
+            ]}
+          >
             {loading ? "Đang tải..." : `${filtered.length} mẫu xe`}
           </Text>
         </View>
-        <TouchableOpacity style={sc.iconBtn} onPress={() => setShowSort(true)}>
-          <Text style={sc.iconBtnTxt}>⇅</Text>
+
+        <TouchableOpacity
+          style={[
+            sc.iconBtn,
+            {
+              backgroundColor: theme === "dark" ? "#1F2937" : "#EDE9E4",
+            },
+          ]}
+          onPress={() => setShowSort(true)}
+        >
+          <Text
+            style={[
+              sc.iconBtnTxt,
+              { color: theme === "dark" ? "#FFF" : "#1A1A1A" },
+            ]}
+          >
+            ⇅
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
       <View style={sc.searchWrap}>
-        <View style={sc.searchBox}>
+        <View
+          style={[
+            sc.searchBox,
+            {
+              backgroundColor: theme === "dark" ? "#1F2937" : "#EDE9E4",
+            },
+          ]}
+        >
           <Text style={sc.searchIco}>🔍</Text>
           <TextInput
-            style={sc.searchInput}
+            style={[sc.searchInput, { color: colors.text }]}
             placeholder="Tìm kiếm mẫu xe..."
-            placeholderTextColor="#ABABAB"
+            placeholderTextColor={theme === "dark" ? "#64748B" : "#ABABAB"}
             value={search}
             onChangeText={setSearch}
             returnKeyType="search"
           />
           {search.length > 0 && (
             <TouchableOpacity onPress={() => setSearch("")}>
-              <Text style={sc.clearIco}>✕</Text>
+              <Text
+                style={[
+                  sc.clearIco,
+                  { color: theme === "dark" ? "#94A3B8" : "#999" },
+                ]}
+              >
+                ✕
+              </Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Tabs */}
       <View style={{ height: 44, marginBottom: 12 }}>
         <ScrollView
           horizontal
@@ -327,11 +535,21 @@ export default function CategoryOTo() {
               tab.key === "all"
                 ? cars.length
                 : cars.filter((c) => c.category === tab.key).length;
+
             return (
               <TouchableOpacity
                 key={tab.key}
                 activeOpacity={0.8}
-                style={[sc.tab, isActive && { backgroundColor: tab.color }]}
+                style={[
+                  sc.tab,
+                  {
+                    backgroundColor: isActive
+                      ? tab.color
+                      : theme === "dark"
+                      ? "#1F2937"
+                      : "#EDE9E4",
+                  },
+                ]}
                 onPress={() => setActiveTab(tab.key)}
               >
                 <Text style={sc.tabIco}>{tab.icon}</Text>
@@ -341,10 +559,27 @@ export default function CategoryOTo() {
                 <View
                   style={[
                     sc.tabBadge,
-                    isActive && { backgroundColor: "rgba(255,255,255,0.28)" },
+                    {
+                      backgroundColor: isActive
+                        ? "rgba(255,255,255,0.28)"
+                        : theme === "dark"
+                        ? "#334155"
+                        : "#D8D4CC",
+                    },
                   ]}
                 >
-                  <Text style={[sc.tabBadgeTxt, isActive && { color: "#FFF" }]}>
+                  <Text
+                    style={[
+                      sc.tabBadgeTxt,
+                      {
+                        color: isActive
+                          ? "#FFF"
+                          : theme === "dark"
+                          ? "#CBD5E1"
+                          : "#666",
+                      },
+                    ]}
+                  >
                     {count}
                   </Text>
                 </View>
@@ -354,27 +589,59 @@ export default function CategoryOTo() {
         </ScrollView>
       </View>
 
-      {/* Content */}
       {loading ? (
         <View style={sc.center}>
           <ActivityIndicator size="large" color="#C8902A" />
-          <Text style={sc.centerTxt}>Đang tải...</Text>
+          <Text
+            style={[
+              sc.centerTxt,
+              { color: theme === "dark" ? "#94A3B8" : "#888" },
+            ]}
+          >
+            Đang tải...
+          </Text>
         </View>
       ) : hasError ? (
         <View style={sc.center}>
           <Text style={{ fontSize: 40 }}>😕</Text>
-          <Text style={sc.centerTxt}>Không thể tải dữ liệu</Text>
-          <TouchableOpacity style={sc.retryBtn} onPress={fetchCars}>
+          <Text
+            style={[
+              sc.centerTxt,
+              { color: theme === "dark" ? "#94A3B8" : "#888" },
+            ]}
+          >
+            Không thể tải dữ liệu
+          </Text>
+          <TouchableOpacity
+            style={[
+              sc.retryBtn,
+              { backgroundColor: theme === "dark" ? "#2563EB" : "#1A1A1A" },
+            ]}
+            onPress={fetchCars}
+          >
             <Text style={sc.retryTxt}>Thử lại</Text>
           </TouchableOpacity>
         </View>
       ) : filtered.length === 0 ? (
         <View style={sc.center}>
           <Text style={{ fontSize: 40 }}>🔎</Text>
-          <Text style={sc.centerTxt}>Không tìm thấy xe nào</Text>
+          <Text
+            style={[
+              sc.centerTxt,
+              { color: theme === "dark" ? "#94A3B8" : "#888" },
+            ]}
+          >
+            Không tìm thấy xe nào
+          </Text>
           <TouchableOpacity
-            style={sc.retryBtn}
-            onPress={() => { setSearch(""); setActiveTab("all"); }}
+            style={[
+              sc.retryBtn,
+              { backgroundColor: theme === "dark" ? "#2563EB" : "#1A1A1A" },
+            ]}
+            onPress={() => {
+              setSearch("");
+              setActiveTab("all");
+            }}
           >
             <Text style={sc.retryTxt}>Xem tất cả</Text>
           </TouchableOpacity>
@@ -395,7 +662,6 @@ export default function CategoryOTo() {
         />
       )}
 
-      {/* Sort Modal */}
       <Modal
         visible={showSort}
         transparent
@@ -407,18 +673,56 @@ export default function CategoryOTo() {
           activeOpacity={1}
           onPress={() => setShowSort(false)}
         >
-          <View style={srt.sheet}>
-            <View style={srt.handle} />
-            <Text style={srt.title}>Sắp xếp theo</Text>
+          <View
+            style={[
+              srt.sheet,
+              { backgroundColor: theme === "dark" ? colors.card : "#FFF" },
+            ]}
+          >
+            <View
+              style={[
+                srt.handle,
+                { backgroundColor: theme === "dark" ? "#475569" : "#DDD" },
+              ]}
+            />
+            <Text style={[srt.title, { color: colors.text }]}>
+              Sắp xếp theo
+            </Text>
+
             {SORT_OPTIONS.map((opt) => {
               const active = sort === opt.key;
               return (
                 <TouchableOpacity
                   key={opt.key}
-                  style={[srt.option, active && srt.optionActive]}
-                  onPress={() => { setSort(opt.key); setShowSort(false); }}
+                  style={[
+                    srt.option,
+                    {
+                      backgroundColor: active
+                        ? theme === "dark"
+                          ? "#2563EB"
+                          : "#1A1A1A"
+                        : theme === "dark"
+                        ? "#0F172A"
+                        : "#F5F3F0",
+                    },
+                  ]}
+                  onPress={() => {
+                    setSort(opt.key);
+                    setShowSort(false);
+                  }}
                 >
-                  <Text style={[srt.optTxt, active && srt.optTxtActive]}>
+                  <Text
+                    style={[
+                      srt.optTxt,
+                      {
+                        color: active
+                          ? "#FFF"
+                          : theme === "dark"
+                          ? "#CBD5E1"
+                          : "#333",
+                      },
+                    ]}
+                  >
                     {opt.label}
                   </Text>
                   {active && <Text style={srt.check}>✓</Text>}
@@ -429,47 +733,58 @@ export default function CategoryOTo() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Detail Modal */}
       <DetailModal
         car={selCar}
         visible={modalVis}
         onClose={() => setModalVis(false)}
+        theme={theme}
+        colors={colors}
       />
     </SafeAreaView>
   );
 }
 
-// ─── StyleSheets ──────────────────────────────────────────────────────────────
-
 const sc = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F7F5F2" },
 
   header: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight ?? 16 : 10,
   },
   iconBtn: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: "#EDE9E4",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
   iconBtnTxt: { fontSize: 18, color: "#1A1A1A", fontWeight: "700" },
   headerTitle: { fontSize: 18, fontWeight: "800", color: "#1A1A1A" },
-  headerSub:   { fontSize: 12, color: "#999", marginTop: 1 },
+  headerSub: { fontSize: 12, color: "#999", marginTop: 1 },
 
   searchWrap: { paddingHorizontal: 16, marginBottom: 10 },
   searchBox: {
-    flexDirection: "row", alignItems: "center",
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#EDE9E4",
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  searchIco:   { fontSize: 15, marginRight: 8 },
+  searchIco: { fontSize: 15, marginRight: 8 },
   searchInput: { flex: 1, fontSize: 14, color: "#1A1A1A", padding: 0 },
-  clearIco:    { fontSize: 13, color: "#999", paddingLeft: 8 },
+  clearIco: { fontSize: 13, color: "#999", paddingLeft: 8 },
 
-  tabScroll: { flexGrow: 0, flexShrink: 0, marginBottom: 12, height: 44 },
-  tabRow: { paddingHorizontal: 16, paddingRight: 20, flexDirection: "row", alignItems: "center" },
+  tabRow: {
+    paddingHorizontal: 16,
+    paddingRight: 20,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   tab: {
     flexDirection: "row",
     alignItems: "center",
@@ -481,8 +796,11 @@ const sc = StyleSheet.create({
   },
   tabIco: { fontSize: 13 },
   tabLbl: {
-    fontSize: 12, fontWeight: "600", color: "#555",
-    marginLeft: 4, marginRight: 5,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#555",
+    marginLeft: 4,
+    marginRight: 5,
   },
   tabLblActive: { color: "#FFF" },
   tabBadge: {
@@ -494,16 +812,29 @@ const sc = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  tabBadgeTxt: { fontSize: 10, fontWeight: "700", color: "#666", lineHeight: 13 },
+  tabBadgeTxt: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#666",
+    lineHeight: 13,
+  },
 
   listContent: { paddingHorizontal: 16, paddingBottom: 32 },
-  colWrap:     { justifyContent: "space-between", marginBottom: 14 },
+  colWrap: { justifyContent: "space-between", marginBottom: 14 },
 
-  center:    { flex: 1, justifyContent: "center", alignItems: "center", paddingBottom: 60 },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 60,
+  },
   centerTxt: { color: "#888", fontSize: 14, marginTop: 10 },
   retryBtn: {
-    marginTop: 14, backgroundColor: "#1A1A1A",
-    paddingHorizontal: 24, paddingVertical: 10, borderRadius: 100,
+    marginTop: 14,
+    backgroundColor: "#1A1A1A",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 100,
   },
   retryTxt: { color: "#FFF", fontWeight: "600", fontSize: 14 },
 });
@@ -511,109 +842,202 @@ const sc = StyleSheet.create({
 const crd = StyleSheet.create({
   wrap: {
     width: CARD_WIDTH,
-    backgroundColor: "#FFF", borderRadius: 20, overflow: "hidden",
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 4,
   },
   imgBox: {
-    height: 148, backgroundColor: "#F0ECE8",
-    position: "relative", overflow: "hidden",
+    height: 148,
+    backgroundColor: "#F0ECE8",
+    position: "relative",
+    overflow: "hidden",
   },
   img: { width: "100%", height: "100%" },
   placeholder: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#F0ECE8",
   },
   fallbackTxt: { fontSize: 11, color: "#BBB", marginTop: 2 },
   badge: {
-    position: "absolute", top: 8, right: 8,
-    width: 26, height: 26, borderRadius: 7,
-    justifyContent: "center", alignItems: "center",
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    justifyContent: "center",
+    alignItems: "center",
     elevation: 3,
   },
-  body:      { padding: 11, paddingTop: 9 },
+  body: { padding: 11, paddingTop: 9 },
   name: {
-    fontSize: 13, fontWeight: "700", color: "#1A1A1A",
-    lineHeight: 18, minHeight: 36, marginBottom: 6,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    lineHeight: 18,
+    minHeight: 36,
+    marginBottom: 6,
   },
-  divider:   { height: 1, backgroundColor: "#F0ECE8", marginBottom: 7 },
-  footer:    { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  priceLabel:{ fontSize: 10, color: "#BBB", marginBottom: 1 },
-  price:     { fontSize: 14, fontWeight: "800", color: "#C8902A" },
+  divider: { height: 1, backgroundColor: "#F0ECE8", marginBottom: 7 },
+  footer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  priceLabel: { fontSize: 10, color: "#BBB", marginBottom: 1 },
+  price: { fontSize: 14, fontWeight: "800", color: "#C8902A" },
   pill: {
-    backgroundColor: "#1A1A1A", borderRadius: 100,
-    paddingHorizontal: 9, paddingVertical: 5,
+    backgroundColor: "#1A1A1A",
+    borderRadius: 100,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
-  pillTxt:   { fontSize: 10, color: "#FFF", fontWeight: "600" },
+  pillTxt: { fontSize: 10, color: "#FFF", fontWeight: "600" },
 });
 
 const srt = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
   sheet: {
     backgroundColor: "#FFF",
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, paddingBottom: 36,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
   },
   handle: {
-    width: 40, height: 4, backgroundColor: "#DDD",
-    borderRadius: 2, alignSelf: "center", marginBottom: 16,
+    width: 40,
+    height: 4,
+    backgroundColor: "#DDD",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 16,
   },
-  title:         { fontSize: 17, fontWeight: "700", color: "#1A1A1A", marginBottom: 12 },
+  title: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginBottom: 12,
+  },
   option: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 13, paddingHorizontal: 16,
-    borderRadius: 12, backgroundColor: "#F5F3F0", marginBottom: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#F5F3F0",
+    marginBottom: 6,
   },
-  optionActive:  { backgroundColor: "#1A1A1A" },
-  optTxt:        { fontSize: 14, color: "#333", fontWeight: "500" },
-  optTxtActive:  { color: "#FFF", fontWeight: "600" },
-  check:         { color: "#C8902A", fontSize: 16, fontWeight: "800" },
+  optTxt: { fontSize: 14, color: "#333", fontWeight: "500" },
+  check: { color: "#C8902A", fontSize: 16, fontWeight: "800" },
 });
 
 const dtl = StyleSheet.create({
-  overlay:  { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
   sheet: {
     backgroundColor: "#FFF",
-    borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: "92%",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: "92%",
   },
   handle: {
-    width: 40, height: 4, backgroundColor: "#DDD",
-    borderRadius: 2, alignSelf: "center", marginTop: 12, marginBottom: 4,
+    width: 40,
+    height: 4,
+    backgroundColor: "#DDD",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 4,
   },
-  heroBox:     { position: "relative" },
-  heroImg:     { width: "100%", height: 220 },
-  heroFallback:{ backgroundColor: "#F0ECE8", justifyContent: "center", alignItems: "center" },
+  heroBox: { position: "relative" },
+  heroImg: { width: "100%", height: 220 },
+  heroFallback: {
+    backgroundColor: "#F0ECE8",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   heroBadge: {
-    position: "absolute", bottom: 12, left: 16,
-    borderRadius: 100, paddingHorizontal: 12, paddingVertical: 5,
+    position: "absolute",
+    bottom: 12,
+    left: 16,
+    borderRadius: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
-  heroBadgeTxt:{ color: "#FFF", fontSize: 12, fontWeight: "600" },
-  body:        { padding: 20 },
-  carName:     { fontSize: 22, fontWeight: "800", color: "#1A1A1A", marginBottom: 14, lineHeight: 28 },
+  heroBadgeTxt: { color: "#FFF", fontSize: 12, fontWeight: "600" },
+  body: { padding: 20 },
+  carName: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1A1A1A",
+    marginBottom: 14,
+    lineHeight: 28,
+  },
   priceBox: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    backgroundColor: "#FFF8EE", borderRadius: 14, padding: 16, marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFF8EE",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
   },
-  priceLbl:    { fontSize: 13, color: "#888" },
-  priceVal:    { fontSize: 22, fontWeight: "900", color: "#C8902A" },
-  specTitle:   { fontSize: 14, fontWeight: "700", color: "#1A1A1A", marginBottom: 10 },
-  specRow:     { flexDirection: "row", justifyContent: "space-between", marginBottom: 24 },
+  priceLbl: { fontSize: 13, color: "#888" },
+  priceVal: { fontSize: 22, fontWeight: "900", color: "#C8902A" },
+  specTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginBottom: 10,
+  },
+  specRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 24,
+  },
   specItem: {
-    flex: 1, backgroundColor: "#F5F3F0", borderRadius: 12,
-    padding: 10, alignItems: "center", marginHorizontal: 3,
+    flex: 1,
+    backgroundColor: "#F5F3F0",
+    borderRadius: 12,
+    padding: 10,
+    alignItems: "center",
+    marginHorizontal: 3,
   },
-  specVal:     { fontSize: 11, fontWeight: "700", color: "#1A1A1A", marginTop: 4 },
-  specLbl:     { fontSize: 10, color: "#888", marginTop: 2 },
+  specVal: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginTop: 4,
+  },
+  specLbl: { fontSize: 10, color: "#888", marginTop: 2 },
   ctaBtn: {
-    backgroundColor: "#C8902A", borderRadius: 14,
-    paddingVertical: 15, alignItems: "center", marginBottom: 8,
+    backgroundColor: "#C8902A",
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: "center",
+    marginBottom: 8,
   },
-  ctaTxt:      { color: "#FFF", fontWeight: "700", fontSize: 15 },
+  ctaTxt: { color: "#FFF", fontWeight: "700", fontSize: 15 },
   closeBtn: {
-    backgroundColor: "#F0ECE8", borderRadius: 14,
-    paddingVertical: 13, alignItems: "center",
+    backgroundColor: "#F0ECE8",
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: "center",
   },
-  closeTxt:    { color: "#333", fontWeight: "600", fontSize: 14 },
+  closeTxt: { color: "#333", fontWeight: "600", fontSize: 14 },
 });

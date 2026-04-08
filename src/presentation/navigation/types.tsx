@@ -14,17 +14,11 @@ export type HomeStackParamList = {
 
   home_store_list: undefined;
 
-  store_1_detail: undefined;
-  store_2_detail: undefined;
-  store_3_detail: undefined;
-  store_4_detail: undefined;
-  store_5_detail: undefined;
-  store_6_detail: undefined;
-  store_7_detail: undefined;
-  store_8_detail: undefined;
-  store_9_detail: undefined;
-  store_10_detail: undefined;
-
+  store_detail: {
+    storeId: number;
+    description?: string;
+  };
+  
   best_price_all: undefined;
   best_price_detail: {
     id: number;

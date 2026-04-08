@@ -13,7 +13,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useTheme } from "../../../../context/themeContext";
 import API_URL from "../../../../data/api/apis";
+import { darkTheme, lightTheme } from "../../../../theme/colors";
 
 /* ── Types ── */
 interface Accessory {
@@ -28,24 +30,82 @@ const encodeImagePath = (p: string) =>
   p.split("/").map(encodeURIComponent).join("/");
 
 /* ── Skeleton ── */
-const SkeletonRow = () => {
+const SkeletonRow = ({ theme }: { theme: "light" | "dark" }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(anim, { toValue: 1, duration: 750, useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0.4, duration: 750, useNativeDriver: true }),
-      ])
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim, {
+          toValue: 0.4,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+      ]),
     ).start();
-  }, []);
+  }, [anim]);
+
   return (
-    <Animated.View style={[styles.card, { opacity: anim }]}>
-      <View style={[styles.imageBox, { backgroundColor: "#EBEBEB" }]} />
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: anim,
+          backgroundColor: theme === "dark" ? "#1F2937" : "#fff",
+          shadowOpacity: theme === "dark" ? 0 : 0.07,
+          elevation: theme === "dark" ? 0 : 3,
+          borderWidth: theme === "dark" ? 1 : 0,
+          borderColor: theme === "dark" ? "#334155" : "transparent",
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.imageBox,
+          { backgroundColor: theme === "dark" ? "#334155" : "#EBEBEB" },
+        ]}
+      />
       <View style={styles.cardInfo}>
-        <View style={{ height: 14, width: "80%", backgroundColor: "#EBEBEB", borderRadius: 6, marginBottom: 8 }} />
-        <View style={{ height: 13, width: "55%", backgroundColor: "#F2F2F2", borderRadius: 6, marginBottom: 6 }} />
-        <View style={{ height: 13, width: "40%", backgroundColor: "#F2F2F2", borderRadius: 6, marginBottom: 16 }} />
-        <View style={{ height: 34, width: 110, backgroundColor: "#EBEBEB", borderRadius: 10 }} />
+        <View
+          style={{
+            height: 14,
+            width: "80%",
+            backgroundColor: theme === "dark" ? "#334155" : "#EBEBEB",
+            borderRadius: 6,
+            marginBottom: 8,
+          }}
+        />
+        <View
+          style={{
+            height: 13,
+            width: "55%",
+            backgroundColor: theme === "dark" ? "#293548" : "#F2F2F2",
+            borderRadius: 6,
+            marginBottom: 6,
+          }}
+        />
+        <View
+          style={{
+            height: 13,
+            width: "40%",
+            backgroundColor: theme === "dark" ? "#293548" : "#F2F2F2",
+            borderRadius: 6,
+            marginBottom: 16,
+          }}
+        />
+        <View
+          style={{
+            height: 34,
+            width: 110,
+            backgroundColor: theme === "dark" ? "#334155" : "#EBEBEB",
+            borderRadius: 10,
+          }}
+        />
       </View>
     </Animated.View>
   );
@@ -53,12 +113,15 @@ const SkeletonRow = () => {
 
 /* ── Main Screen ── */
 export default function CategoryPhuKien() {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+
   const navigation = useNavigation<any>();
-  const insets     = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
 
   const [accessories, setAccessories] = useState<Accessory[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [sort, setSort]               = useState<"default" | "asc" | "desc">("default");
+  const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<"default" | "asc" | "desc">("default");
 
   useEffect(() => {
     fetch(`${API_URL}/api/accessories`)
@@ -69,49 +132,94 @@ export default function CategoryPhuKien() {
   }, []);
 
   const sorted = [...accessories].sort((a, b) => {
-    if (sort === "asc")  return a.price - b.price;
+    if (sort === "asc") return a.price - b.price;
     if (sort === "desc") return b.price - a.price;
     return 0;
   });
 
   const SORT_OPTIONS: { key: typeof sort; label: string }[] = [
     { key: "default", label: "Mặc định" },
-    { key: "asc",     label: "Giá tăng dần" },
-    { key: "desc",    label: "Giá giảm dần" },
+    { key: "asc", label: "Giá tăng dần" },
+    { key: "desc", label: "Giá giảm dần" },
   ];
 
   const renderItem = ({ item, index }: { item: Accessory; index: number }) => (
-    <TouchableOpacity style={styles.card} activeOpacity={0.88} onPress={() => navigation.navigate("accessory_detail" as never, { id: item.id } as never)}>
-      {/* Ảnh */}
+    <TouchableOpacity
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme === "dark" ? colors.card : "#fff",
+          shadowOpacity: theme === "dark" ? 0 : 0.07,
+          elevation: theme === "dark" ? 0 : 3,
+          borderWidth: theme === "dark" ? 1 : 0,
+          borderColor: theme === "dark" ? "#334155" : "transparent",
+        },
+      ]}
+      activeOpacity={0.88}
+      onPress={() =>
+        navigation.navigate(
+          "accessory_detail" as never,
+          { id: item.id } as never,
+        )
+      }
+    >
       <View style={styles.imageBox}>
         <Image
-          source={{ uri: `${API_URL}/${encodeImagePath(item.image)}` }}
+          source={{ uri: `${API_URL}/images/${encodeImagePath(item.image)}` }}
           style={styles.image}
           resizeMode="cover"
           fadeDuration={200}
         />
-        {/* Index badge */}
         <View style={styles.indexBadge}>
-          <Text style={styles.indexText}>{String(index + 1).padStart(2, "0")}</Text>
+          <Text style={styles.indexText}>
+            {String(index + 1).padStart(2, "0")}
+          </Text>
         </View>
       </View>
 
-      {/* Info */}
       <View style={styles.cardInfo}>
-        <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
+        <Text
+          style={[styles.itemName, { color: colors.text }]}
+          numberOfLines={2}
+        >
+          {item.name}
+        </Text>
 
-        {/* Divider */}
-        <View style={styles.divider} />
+        <View
+          style={[
+            styles.divider,
+            { backgroundColor: theme === "dark" ? "#334155" : "#F0F0F0" },
+          ]}
+        />
 
-        {/* Giá + Nút */}
         <View style={styles.cardFooter}>
           <View>
-            <Text style={styles.fromLabel}>Giá bán</Text>
+            <Text
+              style={[
+                styles.fromLabel,
+                { color: theme === "dark" ? "#94A3B8" : "#BBB" },
+              ]}
+            >
+              Giá bán
+            </Text>
             <Text style={styles.price}>
               {Number(item.price).toLocaleString("vi-VN")}đ
             </Text>
           </View>
-          <TouchableOpacity style={styles.buyBtn} activeOpacity={0.8} onPress={() => navigation.navigate("accessory_detail" as never, { id: item.id } as never)}>
+
+          <TouchableOpacity
+            style={[
+              styles.buyBtn,
+              { backgroundColor: theme === "dark" ? "#2563EB" : "#111" },
+            ]}
+            activeOpacity={0.8}
+            onPress={() =>
+              navigation.navigate(
+                "accessory_detail" as never,
+                { id: item.id } as never,
+              )
+            }
+          >
             <FontAwesome name="shopping-cart" size={13} color="#fff" />
             <Text style={styles.buyText}>Mua ngay</Text>
           </TouchableOpacity>
@@ -122,28 +230,72 @@ export default function CategoryPhuKien() {
 
   const ListHeader = () => (
     <View style={styles.listHeader}>
-      {/* Hero strip */}
-      <View style={styles.heroBanner}>
+      <View
+        style={[
+          styles.heroBanner,
+          {
+            backgroundColor: theme === "dark" ? "#0F1E35" : "#FFF5E9",
+            borderWidth: theme === "dark" ? 1 : 0,
+            borderColor: theme === "dark" ? "#1E3A5F" : "transparent",
+          },
+        ]}
+      >
         <View style={styles.heroLeft}>
-          <Text style={styles.heroTitle}>Phụ Kiện</Text>
-          <Text style={styles.heroSub}>Chính hãng VinFast • Bảo hành 12 tháng</Text>
+          <Text style={[styles.heroTitle, { color: colors.text }]}>
+            Phụ Kiện
+          </Text>
+          <Text
+            style={[
+              styles.heroSub,
+              { color: theme === "dark" ? "#94A3B8" : "#999" },
+            ]}
+          >
+            Chính hãng VinFast • Bảo hành 12 tháng
+          </Text>
         </View>
         <FontAwesome name="wrench" size={28} color="#FF8C00" />
       </View>
 
-      {/* Sort bar */}
       <View style={styles.sortBar}>
-        <FontAwesome name="sort-amount-asc" size={13} color="#999" style={{ marginRight: 8 }} />
+        <FontAwesome
+          name="sort-amount-asc"
+          size={13}
+          color={theme === "dark" ? "#94A3B8" : "#999"}
+          style={{ marginRight: 8 }}
+        />
+
         {SORT_OPTIONS.map((o) => {
           const active = o.key === sort;
           return (
             <TouchableOpacity
               key={o.key}
-              style={[styles.sortBtn, active && styles.sortActive]}
+              style={[
+                styles.sortBtn,
+                {
+                  backgroundColor: active
+                    ? theme === "dark"
+                      ? "#2563EB"
+                      : "#111"
+                    : theme === "dark"
+                      ? "#1F2937"
+                      : "#EFEFEF",
+                },
+              ]}
               onPress={() => setSort(o.key)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.sortText, active && styles.sortTextActive]}>
+              <Text
+                style={[
+                  styles.sortText,
+                  {
+                    color: active
+                      ? "#fff"
+                      : theme === "dark"
+                        ? "#CBD5E1"
+                        : "#777",
+                  },
+                ]}
+              >
                 {o.label}
               </Text>
             </TouchableOpacity>
@@ -152,28 +304,69 @@ export default function CategoryPhuKien() {
       </View>
 
       {!loading && (
-        <Text style={styles.countText}>{accessories.length} sản phẩm</Text>
+        <Text
+          style={[
+            styles.countText,
+            { color: theme === "dark" ? "#94A3B8" : "#AAA" },
+          ]}
+        >
+          {accessories.length} sản phẩm
+        </Text>
       )}
     </View>
   );
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+    <View
+      style={[
+        styles.safe,
+        { paddingTop: insets.top, backgroundColor: colors.background },
+      ]}
+    >
+      <StatusBar
+        barStyle={theme === "dark" ? "light-content" : "dark-content"}
+        translucent
+        backgroundColor="transparent"
+      />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <FontAwesome name="chevron-left" size={15} color="#111" />
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: theme === "dark" ? "#243041" : "#EBEBEB",
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={[
+            styles.backBtn,
+            {
+              backgroundColor: theme === "dark" ? "#1F2937" : "#F5F5F5",
+            },
+          ]}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <FontAwesome
+            name="chevron-left"
+            size={15}
+            color={theme === "dark" ? "#FFF" : "#111"}
+          />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Phụ Kiện Chính Hãng</Text>
+
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Phụ Kiện Chính Hãng
+        </Text>
+
         <View style={{ width: 36 }} />
       </View>
 
-      {/* List */}
       {loading ? (
         <View style={styles.skeletonList}>
-          {[0,1,2,3].map((i) => <SkeletonRow key={i} />)}
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonRow key={i} theme={theme} />
+          ))}
         </View>
       ) : (
         <FlatList
@@ -181,7 +374,10 @@ export default function CategoryPhuKien() {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           ListHeaderComponent={ListHeader}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 32 }]}
+          contentContainerStyle={[
+            styles.list,
+            { paddingBottom: insets.bottom + 32 },
+          ]}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
           removeClippedSubviews
@@ -197,48 +393,67 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F7F8FA" },
 
   header: {
-    height: 56, paddingHorizontal: 16,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    backgroundColor: "#fff", borderBottomWidth: 0.5, borderBottomColor: "#EBEBEB",
+    height: 56,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#EBEBEB",
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "#F5F5F5", justifyContent: "center", alignItems: "center",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F5F5F5",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
 
-  /* List header */
   listHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
 
   heroBanner: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    backgroundColor: "#FFF5E9", borderRadius: 16,
-    paddingHorizontal: 18, paddingVertical: 16, marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFF5E9",
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 14,
   },
-  heroLeft:  {},
+  heroLeft: {},
   heroTitle: { fontSize: 20, fontWeight: "800", color: "#111" },
-  heroSub:   { fontSize: 13, color: "#999", marginTop: 3 },
+  heroSub: { fontSize: 13, color: "#999", marginTop: 3 },
 
-  /* Sort bar */
   sortBar: {
-    flexDirection: "row", alignItems: "center",
-    marginBottom: 10, flexWrap: "wrap", gap: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    flexWrap: "wrap",
+    gap: 6,
   },
   sortBtn: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: 20, backgroundColor: "#EFEFEF",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "#EFEFEF",
   },
-  sortActive:     { backgroundColor: "#111" },
-  sortText:       { fontSize: 12, fontWeight: "600", color: "#777" },
-  sortTextActive: { color: "#fff" },
+  sortText: { fontSize: 12, fontWeight: "600", color: "#777" },
 
-  countText: { fontSize: 13, color: "#AAA", fontWeight: "500", marginBottom: 6, paddingLeft: 2 },
+  countText: {
+    fontSize: 13,
+    color: "#AAA",
+    fontWeight: "500",
+    marginBottom: 6,
+    paddingLeft: 2,
+  },
 
-  /* List */
-  list:         { paddingHorizontal: 16 },
+  list: { paddingHorizontal: 16 },
   skeletonList: { padding: 16, gap: 14 },
 
-  /* Card */
   card: {
     flexDirection: "row",
     backgroundColor: "#fff",
@@ -252,30 +467,50 @@ const styles = StyleSheet.create({
     height: 140,
   },
   imageBox: { width: 140, height: 140, position: "relative" },
-  image:    { width: "100%", height: "100%", resizeMode: "cover" },
+  image: { width: "100%", height: "100%", resizeMode: "cover" },
   indexBadge: {
-    position: "absolute", top: 10, left: 10,
+    position: "absolute",
+    top: 10,
+    left: 10,
     backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 7, paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
   },
   indexText: { fontSize: 11, fontWeight: "800", color: "#fff" },
 
-  cardInfo:  { flex: 1, padding: 14, justifyContent: "space-between" },
+  cardInfo: { flex: 1, padding: 14, justifyContent: "space-between" },
   itemName: {
-    fontSize: 15, fontWeight: "700", color: "#111",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111",
     lineHeight: 21,
   },
   divider: { height: 0.5, backgroundColor: "#F0F0F0", marginVertical: 8 },
 
-  cardFooter: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  fromLabel:  { fontSize: 10, color: "#BBB", marginBottom: 1 },
-  price:      { fontSize: 13, fontWeight: "800", color: "#FF8C00", flexShrink: 1, marginRight: 8 },
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  fromLabel: { fontSize: 10, color: "#BBB", marginBottom: 1 },
+  price: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#FF8C00",
+    flexShrink: 1,
+    marginRight: 8,
+  },
 
   buyBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: "#111",
-    paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: 10, flexShrink: 0,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    flexShrink: 0,
   },
   buyText: { fontSize: 11, color: "#fff", fontWeight: "700" },
 });

@@ -1,4 +1,4 @@
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, {
   useCallback,
@@ -24,10 +24,11 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import API_URL from "../../../../../src/data/api/apis";
 import { HomeStackParamList } from "../../../navigation/types";
+import { useTheme } from "../../../../context/themeContext";
+import { darkTheme, lightTheme } from "../../../../theme/colors";
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 48) / 2;
-
 const TOP_OFFSET =
   Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 8 : 48;
 
@@ -39,8 +40,10 @@ interface StoreInfo {
   rating: number;
   address: string;
   image: string;
-  route: string;
+  route?: string;
+  description?: string;
 }
+
 interface Product {
   id: number;
   name: string;
@@ -48,12 +51,9 @@ interface Product {
   image: string;
   category: string;
 }
-interface Props {
-  storeId: number;
-  description?: string;
-}
 
 const TABS: ProductType[] = ["Phổ thông", "Trung cấp", "Cao cấp"];
+
 const CATEGORY_MAP: Record<string, ProductType> = {
   pho_thong: "Phổ thông",
   trung_cap: "Trung cấp",
@@ -63,11 +63,13 @@ const CATEGORY_MAP: Record<string, ProductType> = {
 
 const encodeImagePath = (p: string) =>
   p.split("/").map(encodeURIComponent).join("/");
+
 const keyById = (item: { id: number }) => String(item.id);
 
 /* ── Skeleton ── */
-const SkeletonCard = () => {
+const SkeletonCard = ({ dark }: { dark: boolean }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -81,20 +83,37 @@ const SkeletonCard = () => {
           duration: 750,
           useNativeDriver: true,
         }),
-      ]),
+      ])
     ).start();
-  }, []);
+  }, [anim]);
+
   return (
     <Animated.View
-      style={[styles.productCard, { opacity: anim, width: CARD_W }]}
+      style={[
+        styles.productCard,
+        {
+          width: CARD_W,
+          opacity: anim,
+          backgroundColor: dark ? "#1F2937" : "#fff",
+          shadowOpacity: dark ? 0 : 0.07,
+          elevation: dark ? 0 : 3,
+          borderWidth: dark ? 1 : 0,
+          borderColor: dark ? "#334155" : "transparent",
+        },
+      ]}
     >
-      <View style={[styles.productImageBox, { backgroundColor: "#EBEBEB" }]} />
+      <View
+        style={[
+          styles.productImageBox,
+          { backgroundColor: dark ? "#334155" : "#EBEBEB" },
+        ]}
+      />
       <View style={{ padding: 12 }}>
         <View
           style={{
             height: 13,
             width: "80%",
-            backgroundColor: "#EBEBEB",
+            backgroundColor: dark ? "#334155" : "#EBEBEB",
             borderRadius: 5,
             marginBottom: 8,
           }}
@@ -103,7 +122,7 @@ const SkeletonCard = () => {
           style={{
             height: 13,
             width: "55%",
-            backgroundColor: "#F2F2F2",
+            backgroundColor: dark ? "#293548" : "#F2F2F2",
             borderRadius: 5,
           }}
         />
@@ -112,9 +131,15 @@ const SkeletonCard = () => {
   );
 };
 
-export default function StoreBaseScreen({ storeId, description }: Props) {
+export default function StoreBaseScreen() {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+  const isDark = theme === "dark";
+
   const navigation =
     useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const route = useRoute<any>();
+  const { storeId, description } = route.params || {};
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<ProductType>("Phổ thông");
@@ -130,12 +155,18 @@ export default function StoreBaseScreen({ storeId, description }: Props) {
   });
 
   useEffect(() => {
+    if (!storeId) {
+      setLoading(false);
+      return;
+    }
+
     (async () => {
       try {
         const [storeRes, productRes] = await Promise.all([
           fetch(`${API_URL}/api/stores/${storeId}`),
           fetch(`${API_URL}/api/products`),
         ]);
+
         setStore(await storeRes.json());
         setProducts(await productRes.json());
       } catch (e) {
@@ -148,17 +179,24 @@ export default function StoreBaseScreen({ storeId, description }: Props) {
 
   const filteredProducts = useMemo(
     () => products.filter((p) => CATEGORY_MAP[p.category] === activeTab),
-    [activeTab, products],
+    [activeTab, products]
   );
 
   const renderProduct = useCallback(
     ({ item }: { item: Product }) => (
       <TouchableOpacity
-        style={styles.productCard}
+        style={[
+          styles.productCard,
+          {
+            backgroundColor: colors.card,
+            shadowOpacity: isDark ? 0 : 0.07,
+            elevation: isDark ? 0 : 3,
+            borderWidth: isDark ? 1 : 0,
+            borderColor: isDark ? "#334155" : "transparent",
+          },
+        ]}
         activeOpacity={0.88}
-        onPress={() =>
-          navigation.navigate("best_price_detail", { id: item.id })
-        }
+        onPress={() => navigation.navigate("best_price_detail", { id: item.id })}
       >
         <View style={styles.productImageBox}>
           <Image
@@ -166,31 +204,45 @@ export default function StoreBaseScreen({ storeId, description }: Props) {
             style={styles.productImage}
           />
         </View>
+
         <View style={styles.productBody}>
-          <Text style={styles.productName} numberOfLines={2}>
+          <Text
+            style={[styles.productName, { color: colors.text }]}
+            numberOfLines={2}
+          >
             {item.name}
           </Text>
+
           <View style={styles.productFooter}>
             <Text style={styles.productPrice}>
               {Number(item.price).toLocaleString("vi-VN")}đ
             </Text>
-            <View style={styles.detailBtn}>
+            <View
+              style={[
+                styles.detailBtn,
+                { backgroundColor: isDark ? "#2563EB" : "#FF8C00" },
+              ]}
+            >
               <Ionicons name="arrow-forward" size={13} color="#fff" />
             </View>
           </View>
         </View>
       </TouchableOpacity>
     ),
-    [navigation],
+    [navigation, colors, isDark]
   );
 
   if (loading) {
     return (
-      <View style={styles.loadingBox}>
+      <View style={[styles.loadingBox, { backgroundColor: colors.background }]}>
         <View
           style={[
             styles.skeletonHeader,
-            { height: 260, backgroundColor: "#EBEBEB", width: "100%" },
+            {
+              height: 260,
+              backgroundColor: isDark ? "#1F2937" : "#EBEBEB",
+              width: "100%",
+            },
           ]}
         />
         <View
@@ -202,7 +254,7 @@ export default function StoreBaseScreen({ storeId, description }: Props) {
           }}
         >
           {[0, 1, 2, 3].map((i) => (
-            <SkeletonCard key={i} />
+            <SkeletonCard key={i} dark={isDark} />
           ))}
         </View>
       </View>
@@ -211,8 +263,8 @@ export default function StoreBaseScreen({ storeId, description }: Props) {
 
   if (!store) {
     return (
-      <View style={styles.loadingBox}>
-        <Text style={{ color: "#999", fontSize: 15 }}>
+      <View style={[styles.loadingBox, { backgroundColor: colors.background }]}>
+        <Text style={{ color: isDark ? "#94A3B8" : "#999", fontSize: 15 }}>
           Không tìm thấy cửa hàng
         </Text>
       </View>
@@ -220,15 +272,25 @@ export default function StoreBaseScreen({ storeId, description }: Props) {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Transparent → opaque header on scroll */}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        translucent
+        backgroundColor="transparent"
+      />
+
       <Animated.View
         style={[
           styles.floatingHeader,
-          { opacity: headerOpacity, paddingTop: insets.top },
+          {
+            opacity: headerOpacity,
+            paddingTop: insets.top,
+            backgroundColor: colors.background,
+            borderBottomColor: isDark ? "#243041" : "#EBEBEB",
+          },
         ]}
       >
-        <Text style={styles.floatingTitle} numberOfLines={1}>
+        <Text style={[styles.floatingTitle, { color: colors.text }]} numberOfLines={1}>
           {store.name}
         </Text>
       </Animated.View>
@@ -237,18 +299,22 @@ export default function StoreBaseScreen({ storeId, description }: Props) {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true },
+          { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
       >
-        {/* COVER */}
         <View style={styles.coverWrapper}>
           <Image
             source={{ uri: `${API_URL}${store.image}` }}
             style={styles.coverImage}
           />
-          {/* Gradient overlay */}
-          <View style={styles.coverOverlay} />
+          <View
+            style={[
+              styles.coverOverlay,
+              { backgroundColor: isDark ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.25)" },
+            ]}
+          />
+
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={[styles.backBtn, { top: TOP_OFFSET }]}
@@ -256,53 +322,116 @@ export default function StoreBaseScreen({ storeId, description }: Props) {
           >
             <Ionicons name="chevron-back" size={22} color="#111" />
           </TouchableOpacity>
-          {/* Store name overlay */}
+
           <View style={styles.coverNameBox}>
             <Text style={styles.coverName}>{store.name}</Text>
           </View>
         </View>
 
-        {/* INFO CARD */}
-        <View style={styles.infoCard}>
-          {/* Chips row — scroll ngang để xem đủ địa chỉ */}
+        <View
+          style={[
+            styles.infoCard,
+            {
+              backgroundColor: colors.card,
+              shadowOpacity: isDark ? 0 : 0.06,
+              elevation: isDark ? 0 : 3,
+              borderWidth: isDark ? 1 : 0,
+              borderColor: isDark ? "#334155" : "transparent",
+            },
+          ]}
+        >
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={{ marginBottom: 14 }}
             contentContainerStyle={styles.chipsRow}
           >
-            <View style={styles.chip}>
+            <View
+              style={[
+                styles.chip,
+                { backgroundColor: isDark ? "#0F172A" : "#F7F8FA" },
+              ]}
+            >
               <Ionicons name="star" size={13} color="#F5A623" />
-              <Text style={styles.chipText}>{store.rating}</Text>
+              <Text style={[styles.chipText, { color: colors.text }]}>
+                {store.rating}
+              </Text>
             </View>
-            <View style={styles.chip}>
-              <Ionicons name="time-outline" size={13} color="#555" />
-              <Text style={styles.chipText}>8:00 – 20:00</Text>
+
+            <View
+              style={[
+                styles.chip,
+                { backgroundColor: isDark ? "#0F172A" : "#F7F8FA" },
+              ]}
+            >
+              <Ionicons
+                name="time-outline"
+                size={13}
+                color={isDark ? "#CBD5E1" : "#555"}
+              />
+              <Text style={[styles.chipText, { color: colors.text }]}>
+                8:00 – 20:00
+              </Text>
             </View>
-            <View style={styles.chip}>
-              <Ionicons name="location-outline" size={13} color="#555" />
-              <Text style={styles.chipText}>{store.address}</Text>
+
+            <View
+              style={[
+                styles.chip,
+                { backgroundColor: isDark ? "#0F172A" : "#F7F8FA" },
+              ]}
+            >
+              <Ionicons
+                name="location-outline"
+                size={13}
+                color={isDark ? "#CBD5E1" : "#555"}
+              />
+              <Text style={[styles.chipText, { color: colors.text }]}>
+                {store.address}
+              </Text>
             </View>
           </ScrollView>
 
-          <Text style={styles.description}>
-            {description ??
+          <Text
+            style={[
+              styles.description,
+              { color: isDark ? "#94A3B8" : "#666" },
+            ]}
+          >
+            {description ||
+              store.description ||
               "Cửa hàng cung cấp đầy đủ các dòng xe điện VinFast từ phổ thông đến cao cấp, bảo hành chính hãng, hỗ trợ trả góp linh hoạt, đội ngũ tư vấn chuyên nghiệp và dịch vụ hậu mãi uy tín."}
           </Text>
         </View>
 
-        {/* TABS */}
         <View style={styles.tabsRow}>
           {TABS.map((tab) => {
             const active = tab === activeTab;
             return (
               <TouchableOpacity
                 key={tab}
-                style={[styles.tabBtn, active && styles.tabActive]}
+                style={[
+                  styles.tabBtn,
+                  {
+                    backgroundColor: active
+                      ? "#FF8C00"
+                      : isDark
+                      ? "#1F2937"
+                      : "#EFEFEF",
+                    borderWidth: isDark && !active ? 1 : 0,
+                    borderColor: isDark && !active ? "#334155" : "transparent",
+                  },
+                ]}
                 onPress={() => setActiveTab(tab)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: active ? "#fff" : isDark ? "#CBD5E1" : "#777",
+                    },
+                  ]}
+                >
                   {tab}
                 </Text>
               </TouchableOpacity>
@@ -310,16 +439,30 @@ export default function StoreBaseScreen({ storeId, description }: Props) {
           })}
         </View>
 
-        {/* Count */}
-        <Text style={styles.productCount}>
+        <Text
+          style={[
+            styles.productCount,
+            { color: isDark ? "#94A3B8" : "#AAA" },
+          ]}
+        >
           {filteredProducts.length} mẫu xe
         </Text>
 
-        {/* PRODUCT GRID */}
         {filteredProducts.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="cube-outline" size={48} color="#DDD" />
-            <Text style={styles.emptyText}>Không có sản phẩm</Text>
+            <Ionicons
+              name="cube-outline"
+              size={48}
+              color={isDark ? "#475569" : "#DDD"}
+            />
+            <Text
+              style={[
+                styles.emptyText,
+                { color: isDark ? "#94A3B8" : "#CCC" },
+              ]}
+            >
+              Không có sản phẩm
+            </Text>
           </View>
         ) : (
           <FlatList
@@ -343,7 +486,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F7F8FA" },
   loadingBox: { flex: 1, backgroundColor: "#F7F8FA" },
 
-  /* Floating header */
   floatingHeader: {
     position: "absolute",
     top: 0,
@@ -359,7 +501,6 @@ const styles = StyleSheet.create({
   },
   floatingTitle: { fontSize: 16, fontWeight: "700", color: "#111" },
 
-  /* Cover */
   coverWrapper: { position: "relative", marginBottom: -24 },
   coverImage: { width: "100%", height: 260, resizeMode: "cover" },
   coverOverlay: {
@@ -368,6 +509,7 @@ const styles = StyleSheet.create({
   },
   coverNameBox: { position: "absolute", bottom: 16, left: 16, right: 16 },
   coverName: { fontSize: 30, fontWeight: "800", color: "#fff" },
+
   backBtn: {
     position: "absolute",
     left: 16,
@@ -379,9 +521,9 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
+
   skeletonHeader: { borderRadius: 0 },
 
-  /* Info card */
   infoCard: {
     marginHorizontal: 16,
     marginTop: 36,
@@ -394,6 +536,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
+
   chipsRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -410,9 +553,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   chipText: { fontSize: 12, color: "#444", fontWeight: "600" },
+
   description: { fontSize: 14, color: "#666", lineHeight: 22 },
 
-  /* Tabs */
   tabsRow: {
     flexDirection: "row",
     paddingHorizontal: 16,
@@ -440,8 +583,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 
-  /* Products */
   productList: { paddingHorizontal: 16 },
+
   productCard: {
     width: CARD_W,
     backgroundColor: "#fff",
@@ -456,6 +599,7 @@ const styles = StyleSheet.create({
   },
   productImageBox: { height: 130, overflow: "hidden" },
   productImage: { width: "100%", height: "100%", resizeMode: "cover" },
+
   productBody: { padding: 12 },
   productName: {
     fontSize: 14,
@@ -480,7 +624,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  /* Empty */
   emptyBox: { alignItems: "center", paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 14, color: "#CCC" },
 });

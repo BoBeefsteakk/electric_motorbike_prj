@@ -1,8 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { NavigationContainer, useFocusEffect } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  createNavigationContainerRef,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import React, { useCallback, useEffect } from "react";
+import React, { useEffect } from "react";
 import { Alert, BackHandler, View } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 
@@ -33,20 +36,12 @@ import CategoryTrungCap from "../pages/home_expand/categories_tab/CategoryTrungC
 
 /* STORE */
 import HomeStoreList from "../pages/home_expand/detail_store_compoment/home_store_list";
-import Store10Screen from "../pages/home_expand/detail_store_compoment/Store10Screen";
-import Store1Screen from "../pages/home_expand/detail_store_compoment/Store1Screen";
-import Store2Screen from "../pages/home_expand/detail_store_compoment/Store2Screen";
-import Store3Screen from "../pages/home_expand/detail_store_compoment/Store3Screen";
-import Store4Screen from "../pages/home_expand/detail_store_compoment/Store4Screen";
-import Store5Screen from "../pages/home_expand/detail_store_compoment/Store5Screen";
-import Store6Screen from "../pages/home_expand/detail_store_compoment/Store6Screen";
-import Store7Screen from "../pages/home_expand/detail_store_compoment/Store7Screen";
-import Store8Screen from "../pages/home_expand/detail_store_compoment/Store8Screen";
-import Store9Screen from "../pages/home_expand/detail_store_compoment/Store9Screen";
+import StoreDetailScreen from "../pages/home_expand/detail_store_compoment/StoreBaseScreen";
 
 /* BEST PRICES */
 import BestPriceAllScreen from "../pages/home_expand/best_prices/BestPriceAllScreen";
 import BestPriceDetailScreen from "../pages/home_expand/best_prices/BestPriceDetailScreen";
+import { makeBestPriceRedirect } from "../pages/home_expand/best_prices/Bestpriceredirect ";
 
 /* NEWS */
 import News1 from "../pages/home_expand/news_details/news1";
@@ -56,7 +51,6 @@ import News3 from "../pages/home_expand/news_details/news3";
 /* CAR & ACCESSORY DETAIL */
 import AccessoryDetailScreen from "../pages/home_expand/AccessoryDetailScreen";
 import CarDetailScreen from "../pages/home_expand/CarDetailScreen";
-
 
 /* SETTING */
 import PaymentMethodScreen from "../pages/paymentMethod";
@@ -70,18 +64,42 @@ import {
   TabParamList,
 } from "./types";
 
+/* THEME */
+import { useTheme } from "../../context/themeContext";
+
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 const SearchStack = createNativeStackNavigator();
 const CartStack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<TabParamList>();
+
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
+const BEST_PRICE_IDS = Array.from({ length: 21 }, (_, i) => i + 1);
+const BestPriceRedirects = Object.fromEntries(
+  BEST_PRICE_IDS.map((id) => [`best_prices_${id}`, makeBestPriceRedirect(id)])
+);
+
+const EXIT_ROUTES = new Set(["home_main", "search_main", "cart_main", "setting"]);
+
+function getActiveRouteName(state: any): string {
+  const route = state.routes[state.index];
+  if (route.state) return getActiveRouteName(route.state);
+  return route.name;
+}
 
 /* ================= HOME STACK ================= */
 
 function HomeNavigation() {
   return (
-    <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+    <HomeStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+      }}
+    >
       <HomeStack.Screen name="home_main" component={HomeScreen} />
       <HomeStack.Screen
         name="home_banner_detail"
@@ -104,16 +122,7 @@ function HomeNavigation() {
 
       {/* STORE */}
       <HomeStack.Screen name="home_store_list" component={HomeStoreList} />
-      <HomeStack.Screen name="store_1_detail" component={Store1Screen} />
-      <HomeStack.Screen name="store_2_detail" component={Store2Screen} />
-      <HomeStack.Screen name="store_3_detail" component={Store3Screen} />
-      <HomeStack.Screen name="store_4_detail" component={Store4Screen} />
-      <HomeStack.Screen name="store_5_detail" component={Store5Screen} />
-      <HomeStack.Screen name="store_6_detail" component={Store6Screen} />
-      <HomeStack.Screen name="store_7_detail" component={Store7Screen} />
-      <HomeStack.Screen name="store_8_detail" component={Store8Screen} />
-      <HomeStack.Screen name="store_9_detail" component={Store9Screen} />
-      <HomeStack.Screen name="store_10_detail" component={Store10Screen} />
+      <HomeStack.Screen name="store_detail" component={StoreDetailScreen} />
 
       {/* BEST PRICES */}
       <HomeStack.Screen name="best_price_all" component={BestPriceAllScreen} />
@@ -121,6 +130,14 @@ function HomeNavigation() {
         name="best_price_detail"
         component={BestPriceDetailScreen}
       />
+
+      {BEST_PRICE_IDS.map((id) => (
+        <HomeStack.Screen
+          key={`best_prices_${id}`}
+          name={`best_prices_${id}` as any}
+          component={BestPriceRedirects[`best_prices_${id}`]}
+        />
+      ))}
 
       {/* CAR & ACCESSORY DETAIL */}
       <HomeStack.Screen name="car_detail" component={CarDetailScreen} />
@@ -141,7 +158,13 @@ function HomeNavigation() {
 
 function SearchNavigation() {
   return (
-    <SearchStack.Navigator screenOptions={{ headerShown: false }}>
+    <SearchStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+      }}
+    >
       <SearchStack.Screen name="search_main" component={SearchScreen} />
       <SearchStack.Screen
         name="best_price_detail"
@@ -160,7 +183,13 @@ function SearchNavigation() {
 
 function CartNavigation() {
   return (
-    <CartStack.Navigator screenOptions={{ headerShown: false }}>
+    <CartStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+      }}
+    >
       <CartStack.Screen name="cart_main" component={CartScreen} />
       <CartStack.Screen
         name="best_price_detail"
@@ -190,30 +219,8 @@ function AuthNavigation() {
 /* ================= TAB ================= */
 
 function InappNavigation() {
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        Alert.alert("Thoát ứng dụng", "Bạn có muốn thoát không?", [
-          { text: "Không", style: "cancel" },
-          {
-            text: "Có",
-            onPress: async () => {
-              await AsyncStorage.removeItem("token");
-              BackHandler.exitApp();
-            },
-          },
-        ]);
-        return true;
-      };
-
-      const subscription = BackHandler.addEventListener(
-        "hardwareBackPress",
-        onBackPress
-      );
-
-      return () => subscription.remove();
-    }, [])
-  );
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   return (
     <Tab.Navigator
@@ -228,11 +235,22 @@ function InappNavigation() {
 
           return <Icon name={icon} size={size ?? 22} color={color} />;
         },
-        tabBarActiveTintColor: "#39B78D",
-        tabBarInactiveTintColor: "gray",
-        tabBarStyle: { height: 60 },
-        tabBarLabelStyle: { fontSize: 12, marginBottom: 2 },
+        tabBarActiveTintColor: isDark ? "#60A5FA" : "#39B78D",
+        tabBarInactiveTintColor: isDark ? "#94A3B8" : "gray",
+        tabBarStyle: {
+          height: 60,
+          backgroundColor: isDark ? "#0F172A" : "#FFFFFF",
+          borderTopColor: isDark ? "#1F2937" : "#E5E7EB",
+          borderTopWidth: 1,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginBottom: 2,
+        },
         tabBarItemStyle: { flex: 1 },
+        sceneContainerStyle: {
+          backgroundColor: isDark ? "#020617" : "#FFFFFF",
+        },
       })}
     >
       <Tab.Screen
@@ -269,18 +287,60 @@ export function AppNavigation() {
     clearSession();
   }, []);
 
+  useEffect(() => {
+    const onBackPress = () => {
+      if (!navigationRef.isReady()) return false;
+
+      const rootState = navigationRef.getRootState();
+      const activeRouteName = getActiveRouteName(rootState);
+
+      if (EXIT_ROUTES.has(activeRouteName)) {
+        Alert.alert("Thoát ứng dụng", "Bạn có muốn thoát không?", [
+          { text: "Không", style: "cancel" },
+          {
+            text: "Có",
+            onPress: async () => {
+              await AsyncStorage.removeItem("token");
+              BackHandler.exitApp();
+            },
+          },
+        ]);
+        return true;
+      }
+
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress
+    );
+
+    return () => subscription.remove();
+  }, []);
+
   return (
     <View style={{ flex: 1 }}>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <RootStack.Navigator
           initialRouteName="auth"
-          screenOptions={{ headerShown: false }}
+          screenOptions={{
+            headerShown: false,
+            gestureEnabled: true,
+            fullScreenGestureEnabled: true,
+          }}
         >
           <RootStack.Screen name="auth" component={AuthNavigation} />
           <RootStack.Screen name="inapp" component={InappNavigation} />
           <RootStack.Screen name="checkout" component={CheckoutScreen} />
-          <RootStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
-          <RootStack.Screen name="PaymentMethod" component={PaymentMethodScreen} />
+          <RootStack.Screen
+            name="PaymentSuccess"
+            component={PaymentSuccessScreen}
+          />
+          <RootStack.Screen
+            name="PaymentMethod"
+            component={PaymentMethodScreen}
+          />
           <RootStack.Screen name="DetailScreen" component={DetailScreen} />
           <RootStack.Screen name="Order" component={OrderScreen} />
           <RootStack.Screen name="Warranty" component={WarrantyScreen} />

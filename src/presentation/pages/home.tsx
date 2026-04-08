@@ -42,8 +42,9 @@ type PlaceItem = {
   rating: number;
   address: string;
   image: string;
-  route: string;
+  description?: string; 
 };
+
 type ProductItem = { id: number; name: string; price: string; image: string };
 
 const { width } = Dimensions.get("window");
@@ -358,20 +359,25 @@ const HomeScreen = () => {
   );
 
   const renderStoreItem = useCallback(
-    ({ item }: { item: PlaceItem }) => (
-      <TouchableOpacity
-        activeOpacity={0.85}
-        style={[
-          styles.placeCard,
-          {
-            backgroundColor: colors.card,
-            shadowOpacity: isDark ? 0 : 0.09,
-            elevation: isDark ? 0 : 3,
-            borderWidth: isDark ? 1 : 0,
-            borderColor: isDark ? "#334155" : "transparent",
-          },
-        ]}
-        onPress={() => navigation.navigate(item.route as any)}
+  ({ item }: { item: PlaceItem }) => (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      style={[
+        styles.placeCard,
+        {
+          backgroundColor: colors.card,
+          shadowOpacity: isDark ? 0 : 0.09,
+          elevation: isDark ? 0 : 3,
+          borderWidth: isDark ? 1 : 0,
+          borderColor: isDark ? "#334155" : "transparent",
+        },
+      ]}
+          onPress={() =>
+          navigation.navigate("store_detail", {
+            storeId: item.id,
+            description: item.description,
+          })
+        }
       >
         <Image
           source={{ uri: `${API_URL}${item.image}` }}
@@ -575,7 +581,7 @@ const HomeScreen = () => {
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
       >
-        <View style={[styles.headerDark, { backgroundColor: isDark ? "#000" : "#111827" }]}>
+        <View style={[styles.headerDark, { backgroundColor: "#000" }]}>
           <View style={styles.headerTop}>
             <Image
               source={require("../../../pic/home/vinfast_home_2.png")}

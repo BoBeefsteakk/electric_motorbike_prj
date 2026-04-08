@@ -5,7 +5,6 @@ import {
   Dimensions,
   FlatList,
   Image,
-  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -21,6 +20,8 @@ import { CategoryType } from "../../../../data/categoryProducts";
 import BEST_PRICE_DATA from "../../../../data/bestPrice";
 import API_URL from "../../../../data/api/apis";
 import { HomeStackParamList } from "../../../navigation/types";
+import { useTheme } from "../../../../context/themeContext";
+import { darkTheme, lightTheme } from "../../../../theme/colors";
 
 /* ── Type API ── */
 interface ApiProduct {
@@ -71,8 +72,9 @@ const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
 /* ── Skeleton Card ── */
-const SkeletonCard = () => {
+const SkeletonCard = ({ theme }: { theme: "light" | "dark" }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -86,18 +88,36 @@ const SkeletonCard = () => {
           duration: 800,
           useNativeDriver: true,
         }),
-      ]),
+      ])
     ).start();
-  }, []);
+  }, [anim]);
+
   return (
-    <Animated.View style={[styles.card, { opacity: anim }]}>
-      <View style={[styles.imageBox, { backgroundColor: "#EBEBEB" }]} />
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: anim,
+          backgroundColor: theme === "dark" ? "#1F2937" : "#fff",
+          shadowOpacity: theme === "dark" ? 0 : 0.06,
+          elevation: theme === "dark" ? 0 : 3,
+          borderWidth: theme === "dark" ? 1 : 0,
+          borderColor: theme === "dark" ? "#334155" : "transparent",
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.imageBox,
+          { backgroundColor: theme === "dark" ? "#334155" : "#EBEBEB" },
+        ]}
+      />
       <View style={styles.cardContent}>
         <View
           style={{
             height: 14,
             width: "80%",
-            backgroundColor: "#EBEBEB",
+            backgroundColor: theme === "dark" ? "#334155" : "#EBEBEB",
             borderRadius: 6,
             marginBottom: 8,
           }}
@@ -106,7 +126,7 @@ const SkeletonCard = () => {
           style={{
             height: 12,
             width: "50%",
-            backgroundColor: "#F2F2F2",
+            backgroundColor: theme === "dark" ? "#293548" : "#F2F2F2",
             borderRadius: 6,
             marginBottom: 14,
           }}
@@ -115,7 +135,7 @@ const SkeletonCard = () => {
           style={{
             height: 16,
             width: "60%",
-            backgroundColor: "#EBEBEB",
+            backgroundColor: theme === "dark" ? "#334155" : "#EBEBEB",
             borderRadius: 6,
           }}
         />
@@ -125,55 +145,70 @@ const SkeletonCard = () => {
 };
 
 // Encode từng segment của path, giữ nguyên dấu /
-// "motorbike/VinFast Evo 200 Lite.jpg" → "motorbike/VinFast%20Evo%20200%20Lite.jpg"
 const encodeImagePath = (path: string) =>
   path.split("/").map(encodeURIComponent).join("/");
 
 /* ── RatingStars component ── */
-const RatingStars = React.memo(({ rating }: { rating: number }) => {
-  const full = Math.floor(rating);
-  const half = rating % 1 >= 0.5 ? 1 : 0;
-  const empty = 5 - full - half;
-  return (
-    <View style={styles.ratingRow}>
-      {Array(full)
-        .fill(0)
-        .map((_, i) => (
+const RatingStars = React.memo(
+  ({ rating, theme }: { rating: number; theme: "light" | "dark" }) => {
+    const full = Math.floor(rating);
+    const half = rating % 1 >= 0.5 ? 1 : 0;
+    const empty = 5 - full - half;
+
+    return (
+      <View style={styles.ratingRow}>
+        {Array(full)
+          .fill(0)
+          .map((_, i) => (
+            <FontAwesome
+              key={`f${i}`}
+              name="star"
+              size={11}
+              color="#F5A623"
+              style={i > 0 ? { marginLeft: 2 } : {}}
+            />
+          ))}
+
+        {half === 1 && (
           <FontAwesome
-            key={`f${i}`}
-            name="star"
+            name="star-half-empty"
             size={11}
             color="#F5A623"
-            style={i > 0 ? { marginLeft: 2 } : {}}
-          />
-        ))}
-      {half === 1 && (
-        <FontAwesome
-          name="star-half-empty"
-          size={11}
-          color="#F5A623"
-          style={{ marginLeft: 2 }}
-        />
-      )}
-      {Array(empty)
-        .fill(0)
-        .map((_, i) => (
-          <FontAwesome
-            key={`e${i}`}
-            name="star-o"
-            size={11}
-            color="#DDD"
             style={{ marginLeft: 2 }}
           />
-        ))}
-      <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
-    </View>
-  );
-});
+        )}
+
+        {Array(empty)
+          .fill(0)
+          .map((_, i) => (
+            <FontAwesome
+              key={`e${i}`}
+              name="star-o"
+              size={11}
+              color={theme === "dark" ? "#475569" : "#DDD"}
+              style={{ marginLeft: 2 }}
+            />
+          ))}
+
+        <Text
+          style={[
+            styles.ratingText,
+            { color: theme === "dark" ? "#94A3B8" : "#999" },
+          ]}
+        >
+          {rating.toFixed(1)}
+        </Text>
+      </View>
+    );
+  }
+);
 
 /* ================= SCREEN ================= */
 
 export default function CategoryBaseScreen({ category }: Props) {
+  const { theme } = useTheme();
+  const colors = theme === "dark" ? darkTheme : lightTheme;
+
   const navigation = useNavigation<NavProp>();
   const insets = useSafeAreaInsets();
 
@@ -192,7 +227,7 @@ export default function CategoryBaseScreen({ category }: Props) {
       const res = await fetch(`${API_URL}/api/products`);
       const data = await res.json();
       const filtered = data.filter(
-        (p: any) => DB_CATEGORY_MAP[p.category] === category,
+        (p: any) => DB_CATEGORY_MAP[p.category] === category
       );
       setProducts(filtered);
     } catch (e) {
@@ -205,18 +240,25 @@ export default function CategoryBaseScreen({ category }: Props) {
   const handlePress = useCallback(
     (item: ApiProduct) =>
       navigation.navigate("best_price_detail", { id: item.id }),
-    [navigation],
+    [navigation]
   );
 
-  /* ── Card ── */
   const renderItem = useCallback(
     ({ item }: { item: ApiProduct }) => (
       <TouchableOpacity
-        style={styles.card}
+        style={[
+          styles.card,
+          {
+            backgroundColor: theme === "dark" ? colors.card : "#fff",
+            shadowOpacity: theme === "dark" ? 0 : 0.06,
+            elevation: theme === "dark" ? 0 : 3,
+            borderWidth: theme === "dark" ? 1 : 0,
+            borderColor: theme === "dark" ? "#334155" : "transparent",
+          },
+        ]}
         activeOpacity={0.88}
         onPress={() => handlePress(item)}
       >
-        {/* Ảnh */}
         <View style={styles.imageBox}>
           <Image
             source={{ uri: `${API_URL}/images/${encodeImagePath(item.image)}` }}
@@ -228,27 +270,38 @@ export default function CategoryBaseScreen({ category }: Props) {
           />
         </View>
 
-        {/* Nội dung */}
         <View style={styles.cardContent}>
-          {/* Tên xe */}
-          <Text style={styles.productName} numberOfLines={2}>
+          <Text style={[styles.productName, { color: colors.text }]} numberOfLines={2}>
             {item.name}
           </Text>
 
-          {/* Rating row - lấy từ BEST_PRICE_DATA */}
-          <RatingStars rating={BEST_PRICE_DATA[item.id]?.rating ?? 4.5} />
+          <RatingStars
+            rating={BEST_PRICE_DATA[item.id]?.rating ?? 4.5}
+            theme={theme}
+          />
 
-          {/* Divider */}
-          <View style={styles.divider} />
+          <View
+            style={[
+              styles.divider,
+              { backgroundColor: theme === "dark" ? "#334155" : "#F0F0F0" },
+            ]}
+          />
 
-          {/* Footer */}
           <View style={styles.cardFooter}>
             <View>
-              <Text style={styles.priceLabel}>Giá từ</Text>
+              <Text
+                style={[
+                  styles.priceLabel,
+                  { color: theme === "dark" ? "#94A3B8" : "#BBB" },
+                ]}
+              >
+                Giá từ
+              </Text>
               <Text style={[styles.price, { color: accentColor }]}>
                 {Number(item.price).toLocaleString("vi-VN")} đ
               </Text>
             </View>
+
             <TouchableOpacity
               style={[styles.detailBtn, { backgroundColor: accentColor }]}
               onPress={() => handlePress(item)}
@@ -260,69 +313,110 @@ export default function CategoryBaseScreen({ category }: Props) {
         </View>
       </TouchableOpacity>
     ),
-    [handlePress, accentColor],
+    [handlePress, accentColor, theme, colors]
   );
 
-  /* ── List header ── */
   const ListHeader = () => (
     <View style={[styles.listHeaderBox, { borderLeftColor: accentColor }]}>
-      <Text style={styles.sectionTitle}>{CATEGORY_LABEL[category]}</Text>
-      <Text style={styles.sectionSubtitle}>{CATEGORY_SUBTITLE[category]}</Text>
-      <Text style={styles.sectionCount}>{products.length} mẫu xe</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        {CATEGORY_LABEL[category]}
+      </Text>
+      <Text
+        style={[
+          styles.sectionSubtitle,
+          { color: theme === "dark" ? "#94A3B8" : "#999" },
+        ]}
+      >
+        {CATEGORY_SUBTITLE[category]}
+      </Text>
+      <Text
+        style={[
+          styles.sectionCount,
+          { color: theme === "dark" ? "#64748B" : "#BBB" },
+        ]}
+      >
+        {products.length} mẫu xe
+      </Text>
     </View>
   );
 
-  /* ── Empty ── */
   const renderEmpty = () =>
     !loading ? (
       <View style={styles.emptyBox}>
-        <FontAwesome name="inbox" size={52} color="#DDD" />
-        <Text style={styles.emptyText}>
+        <FontAwesome
+          name="inbox"
+          size={52}
+          color={theme === "dark" ? "#475569" : "#DDD"}
+        />
+        <Text
+          style={[
+            styles.emptyText,
+            { color: theme === "dark" ? "#94A3B8" : "#CCC" },
+          ]}
+        >
           Chưa có sản phẩm trong danh mục này
         </Text>
       </View>
     ) : null;
 
-  /* ── Skeleton grid ── */
   const renderSkeleton = () => (
     <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
       {[0, 1, 2].map((row) => (
         <View key={row} style={[styles.columnWrapper, { marginBottom: 16 }]}>
-          <SkeletonCard />
-          <SkeletonCard />
+          <SkeletonCard theme={theme} />
+          <SkeletonCard theme={theme} />
         </View>
       ))}
     </View>
   );
 
-  /* ── Header height = insets.top + 56 ── */
   const HEADER_H = insets.top + 56;
 
   return (
-    <View style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" translucent />
+    <View style={[styles.safe, { backgroundColor: colors.background }]}>
+      <StatusBar
+        barStyle={theme === "dark" ? "light-content" : "dark-content"}
+        backgroundColor={theme === "dark" ? colors.background : "#fff"}
+        translucent
+      />
 
-      {/* HEADER — manual inset để không bị đẩy quá cao */}
       <View
-        style={[styles.header, { paddingTop: insets.top, height: HEADER_H }]}
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top,
+            height: HEADER_H,
+            backgroundColor: colors.background,
+            borderBottomColor: theme === "dark" ? "#243041" : "#EBEBEB",
+          },
+        ]}
       >
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={styles.backBtn}
+          style={[
+            styles.backBtn,
+            {
+              backgroundColor: theme === "dark" ? "#1F2937" : "#F5F5F5",
+            },
+          ]}
           activeOpacity={0.7}
         >
-          <FontAwesome name="chevron-left" size={15} color="#111" />
+          <FontAwesome
+            name="chevron-left"
+            size={15}
+            color={theme === "dark" ? "#FFF" : "#111"}
+          />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{CATEGORY_LABEL[category]}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            {CATEGORY_LABEL[category]}
+          </Text>
         </View>
 
-        {/* placeholder để căn giữa title */}
         <View style={{ width: 36 }} />
       </View>
 
-      {/* CONTENT */}
       {loading ? (
         renderSkeleton()
       ) : (
@@ -354,7 +448,6 @@ export default function CategoryBaseScreen({ category }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F7F8FA" },
 
-  /* HEADER */
   header: {
     paddingHorizontal: 16,
     flexDirection: "row",
@@ -375,7 +468,6 @@ const styles = StyleSheet.create({
   headerCenter: { flex: 1, alignItems: "center" },
   headerTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
 
-  /* LIST HEADER */
   listHeaderBox: {
     marginHorizontal: 16,
     marginTop: 20,
@@ -394,11 +486,9 @@ const styles = StyleSheet.create({
   },
   sectionCount: { fontSize: 12, color: "#BBB", fontWeight: "500" },
 
-  /* LIST */
   listContent: { paddingHorizontal: 16 },
   columnWrapper: { justifyContent: "space-between", marginBottom: 16 },
 
-  /* CARD */
   card: {
     width: CARD_WIDTH,
     backgroundColor: "#fff",
@@ -457,7 +547,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  /* EMPTY */
   emptyBox: { paddingTop: 80, alignItems: "center", gap: 14 },
   emptyText: {
     fontSize: 14,
