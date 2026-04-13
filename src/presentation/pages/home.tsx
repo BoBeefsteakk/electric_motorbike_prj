@@ -20,117 +20,64 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { HomeStackParamList } from "../navigation/types";
+import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
 import BEST_PRICE_DATA from "../../data/bestPrice";
-import { useTheme } from "../../context/themeContext";
-import { lightTheme, darkTheme } from "../../theme/colors";
+import { darkTheme, lightTheme } from "../../theme/colors";
+import { HomeStackParamList } from "../navigation/types";
 
 type HomeNavProp = NativeStackNavigationProp<HomeStackParamList, "home_main">;
 
 type CategoryItem = {
   id: number;
   name: string;
-  type?: string;
+  type?: string | null;
   color: string;
   route: keyof HomeStackParamList;
-  image?: any;
+  image?: string | null;
 };
+
 type PlaceItem = {
   id: number;
   name: string;
   rating: number;
   address: string;
   image: string;
-  description?: string; 
+  description?: string;
 };
 
-type ProductItem = { id: number; name: string; price: string; image: string };
+type ProductItem = {
+  id: number;
+  name: string;
+  price: string;
+  image: string;
+};
+
+type NewsItem = {
+  id: number;
+  title: string;
+  image: string;
+  route: keyof HomeStackParamList;
+};
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 40 - 24) / 3;
 
 const encodeImagePath = (p: string) =>
   p.split("/").map(encodeURIComponent).join("/");
+
 const keyById = (item: { id: number }) => String(item.id);
-const FEATURED_IDS = [7, 12, 16, 19, 21];
 
-const CATEGORIES: CategoryItem[] = [
-  {
-    id: 1,
-    name: "Special Voucher",
-    type: "special",
-    route: "category_special",
-    color: "#F97316",
-  },
-  {
-    id: 2,
-    name: "Phổ Thông",
-    image: require("../../../pic/home/phothong.png"),
-    route: "category_pho_thong",
-    color: "#F5E6D3",
-  },
-  {
-    id: 3,
-    name: "Trung Cấp",
-    image: require("../../../pic/home/trungcap.png"),
-    route: "category_trung_cap",
-    color: "#FFE5E5",
-  },
-  {
-    id: 4,
-    name: "Cao Cấp",
-    image: require("../../../pic/home/caocap.png"),
-    route: "category_cao_cap",
-    color: "#FFF8F0",
-  },
-  {
-    id: 5,
-    name: "Ô Tô",
-    image: require("../../../pic/home/oto.png"),
-    route: "category_o_to",
-    color: "#FFF8E7",
-  },
-  {
-    id: 6,
-    name: "Phụ Kiện",
-    image: require("../../../pic/home/phukien.png"),
-    route: "category_phu_kien",
-    color: "#F0FFF0",
-  },
-];
-
-const NEWS = [
-  {
-    id: 1,
-    title: "VinFast O2O triển khai nền tảng mua xe máy điện trực tuyến",
-    image: require("../../../pic/home/news1.jpg"),
-    route: "news1",
-  },
-  {
-    id: 2,
-    title:
-      "Vinfast ra mắt 4 mẫu xe máy điện mới, hoàn thiện lắp đặt 4500 trạm đổi pin đầu tiên",
-    image: require("../../../pic/home/news2.jpg"),
-    route: "news2",
-  },
-  {
-    id: 3,
-    title:
-      "VinFast triển khai dịch vụ giao xe toàn quốc: Linh hoạt, thuận tiện, tối ưu trải nghiệm",
-    image: require("../../../pic/home/news3.jpg"),
-    route: "news3",
-  },
-];
+const categoryImageMap: Record<string, any> = {
+  "home/phothong.png": require("../../../pic/home/phothong.png"),
+  "home/trungcap.png": require("../../../pic/home/trungcap.png"),
+  "home/caocap.png": require("../../../pic/home/caocap.png"),
+  "home/oto.png": require("../../../pic/home/oto.png"),
+  "home/phukien.png": require("../../../pic/home/phukien.png"),
+};
 
 /* ── Toast notification ── */
-const Toast = ({
-  message,
-  visible,
-}: {
-  message: string;
-  visible: boolean;
-}) => {
+const Toast = ({ message, visible }: { message: string; visible: boolean }) => {
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -184,7 +131,7 @@ const SkeletonCard = ({
           duration: 750,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, [anim]);
 
@@ -220,8 +167,25 @@ const HomeScreen = () => {
 
   const [stores, setStores] = useState<PlaceItem[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+
   const [storesLoading, setStoresLoading] = useState(true);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/categories`);
+      const data = await res.json();
+      setCategories(data);
+    } catch (e) {
+      console.log("Lỗi fetch categories:", e);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -233,6 +197,8 @@ const HomeScreen = () => {
     const task = InteractionManager.runAfterInteractions(() => {
       fetchStores();
       fetchProducts();
+      fetchNews();
+      fetchCategories();
     });
     return () => task.cancel();
   }, []);
@@ -250,16 +216,25 @@ const HomeScreen = () => {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/products`);
+      const res = await fetch(`${API_URL}/api/products/featured`);
       const data = await res.json();
-      const featured = FEATURED_IDS.map((id) =>
-        data.find((p: ProductItem) => p.id === id)
-      ).filter(Boolean);
-      setProducts(featured);
+      setProducts(data);
     } catch (e) {
-      console.log("Lỗi fetch products:", e);
+      console.log("Lỗi fetch featured products:", e);
     } finally {
       setProductsLoading(false);
+    }
+  };
+
+  const fetchNews = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/news`);
+      const data = await res.json();
+      setNews(data);
+    } catch (e) {
+      console.log("Lỗi fetch news:", e);
+    } finally {
+      setNewsLoading(false);
     }
   };
 
@@ -295,6 +270,7 @@ const HomeScreen = () => {
   const renderCategoryCard = useCallback(
     (cat: CategoryItem) => {
       const isSpecial = cat.type === "special";
+      const localImage = cat.image ? categoryImageMap[cat.image] : undefined;
 
       return (
         <TouchableOpacity
@@ -307,8 +283,8 @@ const HomeScreen = () => {
               borderColor: isDark
                 ? "#334155"
                 : isSpecial
-                ? "rgba(255,255,255,0.25)"
-                : "#E5E7EB",
+                  ? "rgba(255,255,255,0.25)"
+                  : "#E5E7EB",
             },
           ]}
           onPress={() => navigation.navigate(cat.route as never)}
@@ -324,6 +300,7 @@ const HomeScreen = () => {
               >
                 {cat.name}
               </Text>
+
               <View style={styles.discountBadges}>
                 {[
                   { c: "#5DADE2", t: "-50%" },
@@ -341,7 +318,9 @@ const HomeScreen = () => {
             </>
           ) : (
             <>
-              <Image source={cat.image} style={styles.categoryIcon} />
+              {localImage && (
+                <Image source={localImage} style={styles.categoryIcon} />
+              )}
               <Text
                 style={[
                   styles.categoryName,
@@ -355,24 +334,24 @@ const HomeScreen = () => {
         </TouchableOpacity>
       );
     },
-    [navigation, isDark]
+    [navigation, isDark],
   );
 
   const renderStoreItem = useCallback(
-  ({ item }: { item: PlaceItem }) => (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      style={[
-        styles.placeCard,
-        {
-          backgroundColor: colors.card,
-          shadowOpacity: isDark ? 0 : 0.09,
-          elevation: isDark ? 0 : 3,
-          borderWidth: isDark ? 1 : 0,
-          borderColor: isDark ? "#334155" : "transparent",
-        },
-      ]}
-          onPress={() =>
+    ({ item }: { item: PlaceItem }) => (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={[
+          styles.placeCard,
+          {
+            backgroundColor: colors.card,
+            shadowOpacity: isDark ? 0 : 0.09,
+            elevation: isDark ? 0 : 3,
+            borderWidth: isDark ? 1 : 0,
+            borderColor: isDark ? "#334155" : "transparent",
+          },
+        ]}
+        onPress={() =>
           navigation.navigate("store_detail", {
             storeId: item.id,
             description: item.description,
@@ -400,12 +379,7 @@ const HomeScreen = () => {
             >
               {item.rating}
             </Text>
-            <Text
-              style={[
-                styles.dot,
-                { color: isDark ? "#475569" : "#DDD" },
-              ]}
-            >
+            <Text style={[styles.dot, { color: isDark ? "#475569" : "#DDD" }]}>
               •
             </Text>
             <Text
@@ -421,7 +395,7 @@ const HomeScreen = () => {
         </View>
       </TouchableOpacity>
     ),
-    [navigation, colors, isDark]
+    [navigation, colors, isDark],
   );
 
   const renderProductItem = useCallback(
@@ -493,11 +467,11 @@ const HomeScreen = () => {
         </View>
       </TouchableOpacity>
     ),
-    [navigation, colors, isDark]
+    [navigation, colors, isDark],
   );
 
   const renderNewsItem = useCallback(
-    ({ item }: { item: (typeof NEWS)[0] }) => (
+    ({ item }: { item: NewsItem }) => (
       <TouchableOpacity
         activeOpacity={0.85}
         style={[
@@ -512,7 +486,10 @@ const HomeScreen = () => {
         ]}
         onPress={() => navigation.navigate(item.route as any)}
       >
-        <Image source={item.image} style={styles.newsImage} />
+        <Image
+          source={{ uri: `${API_URL}/images/${item.image}` }}
+          style={styles.newsImage}
+        />
         <View style={styles.newsBody}>
           <View
             style={[
@@ -523,10 +500,7 @@ const HomeScreen = () => {
             <Text style={styles.newsBadgeText}>Tin tức</Text>
           </View>
           <Text
-            style={[
-              styles.newsTitle,
-              { color: isDark ? "#E5E7EB" : "#222" },
-            ]}
+            style={[styles.newsTitle, { color: isDark ? "#E5E7EB" : "#222" }]}
             numberOfLines={2}
           >
             {item.title}
@@ -534,7 +508,7 @@ const HomeScreen = () => {
         </View>
       </TouchableOpacity>
     ),
-    [navigation, colors, isDark]
+    [navigation, colors, isDark],
   );
 
   const SectionHeader = ({
@@ -570,7 +544,9 @@ const HomeScreen = () => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor={isDark ? "#000" : colors.background}
@@ -588,6 +564,7 @@ const HomeScreen = () => {
               style={styles.headerImage}
               resizeMode="contain"
             />
+
             <TouchableOpacity
               style={styles.notificationBtn}
               activeOpacity={0.7}
@@ -610,12 +587,41 @@ const HomeScreen = () => {
         </TouchableOpacity>
 
         <View style={styles.categorySection}>
-          <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
-            {CATEGORIES.slice(0, 3).map(renderCategoryCard)}
-          </View>
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            {CATEGORIES.slice(3, 6).map(renderCategoryCard)}
-          </View>
+          {categoriesLoading ? (
+            <>
+              <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
+                {[0, 1, 2].map((i) => (
+                  <SkeletonCard
+                    key={i}
+                    width={CARD_W}
+                    height={CARD_W}
+                    dark={isDark}
+                  />
+                ))}
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                {[3, 4, 5].map((i) => (
+                  <SkeletonCard
+                    key={i}
+                    width={CARD_W}
+                    height={CARD_W}
+                    dark={isDark}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
+                {categories.slice(0, 3).map(renderCategoryCard)}
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                {categories.slice(3, 6).map(renderCategoryCard)}
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -674,16 +680,24 @@ const HomeScreen = () => {
 
         <View style={styles.section}>
           <SectionHeader title="Tin Tức" />
-          <FlatList
-            horizontal
-            data={NEWS}
-            keyExtractor={keyById}
-            renderItem={renderNewsItem}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: 20, paddingVertical: 10 }}
-            removeClippedSubviews
-            initialNumToRender={3}
-          />
+          {newsLoading ? (
+            <View style={styles.skeletonRow}>
+              {[0, 1, 2].map((i) => (
+                <SkeletonCard key={i} width={200} height={160} dark={isDark} />
+              ))}
+            </View>
+          ) : (
+            <FlatList
+              horizontal
+              data={news}
+              keyExtractor={keyById}
+              renderItem={renderNewsItem}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: 20, paddingVertical: 10 }}
+              removeClippedSubviews
+              initialNumToRender={3}
+            />
+          )}
         </View>
 
         <View
@@ -737,7 +751,10 @@ const HomeScreen = () => {
                 placeholder={f.placeholder}
                 placeholderTextColor={isDark ? "#64748B" : "#999"}
                 keyboardType={f.keyboard as any}
-                style={[styles.textInput, { color: isDark ? "#E5E7EB" : "#111" }]}
+                style={[
+                  styles.textInput,
+                  { color: isDark ? "#E5E7EB" : "#111" },
+                ]}
               />
             </View>
           ))}
@@ -769,8 +786,8 @@ const HomeScreen = () => {
                         selectedTab === item
                           ? "#FFF"
                           : isDark
-                          ? "#94A3B8"
-                          : "#888",
+                            ? "#94A3B8"
+                            : "#888",
                     },
                     selectedTab === item && styles.tabTextActive,
                   ]}
@@ -857,16 +874,16 @@ const styles = StyleSheet.create({
 
   headerDark: {
     backgroundColor: "#000",
-    paddingHorizontal: 16,
+    paddingHorizontal: 6,
     paddingBottom: 80,
   },
   headerTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 20,
+    marginTop: 10,
   },
-  headerImage: { width: 140, height: 120 },
+  headerImage: { width: 150, height: 80 },
   notificationBtn: {
     width: 44,
     height: 44,
@@ -886,7 +903,7 @@ const styles = StyleSheet.create({
 
   bannerWrapper: {
     marginHorizontal: 16,
-    marginTop: -90,
+    marginTop: -86,
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",

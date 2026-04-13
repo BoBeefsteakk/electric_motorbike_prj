@@ -1,41 +1,47 @@
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Image,
-  Keyboard,
-  StyleSheet,
+  View,
   Text,
   TextInput,
+  StyleSheet,
+  Image,
   TouchableOpacity,
+  Dimensions,
   TouchableWithoutFeedback,
-  View,
+  Keyboard,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import API_URL from "../../data/api/apis";
 
 const { height } = Dimensions.get("window");
-const BOTTOM_HEIGHT = height * 0.68;
+const BOTTOM_HEIGHT = height * 0.58;
 
-const RegisterScreen = () => {
+const ResetPasswordScreen = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const { account } = route.params || {};
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = async () => {
-    const account = username.trim();
+  const handleResetPassword = async () => {
+    const acc = String(account || "").trim();
 
-    if (!account || !password || !confirmPassword) {
+    if (!acc) {
+      Alert.alert("Error", "Missing account");
+      return;
+    }
+
+    if (!newPassword || !confirmPassword) {
       Alert.alert("Error", "Please fill all fields");
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (newPassword !== confirmPassword) {
       Alert.alert("Error", "Passwords do not match");
       return;
     }
@@ -43,24 +49,28 @@ const RegisterScreen = () => {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/api/auth/register`, {
+      const response = await fetch(`${API_URL}/api/auth/reset-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          account,
-          password,
+          account: acc,
+          newPassword,
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert("Success", data.message);
-        navigation.goBack();
+        Alert.alert("Success", data.message || "Password reset successful", [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("login"),
+          },
+        ]);
       } else {
-        Alert.alert("Error", data.message || "Registration failed");
+        Alert.alert("Error", data.message || "Reset password failed");
       }
     } catch (error) {
       Alert.alert("Error", "Cannot connect to server");
@@ -83,33 +93,27 @@ const RegisterScreen = () => {
         </View>
 
         <View style={styles.bottomBox}>
-          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.title}>Reset Password</Text>
 
-          <View style={styles.inputBox}>
-            <Ionicons name="person-outline" size={20} color="#999" />
-            <TextInput
-              placeholder="Username"
-              style={styles.input}
-              value={username}
-              onChangeText={setUsername}
-            />
-          </View>
+          <Text style={styles.desc}>
+            Account: <Text style={{ fontWeight: "700" }}>{account}</Text>
+          </Text>
 
           <View style={styles.inputBox}>
             <Ionicons name="lock-closed-outline" size={20} color="#999" />
             <TextInput
-              placeholder="Password"
+              placeholder="New Password"
               secureTextEntry
               style={styles.input}
-              value={password}
-              onChangeText={setPassword}
+              value={newPassword}
+              onChangeText={setNewPassword}
             />
           </View>
 
           <View style={styles.inputBox}>
             <Ionicons name="lock-closed-outline" size={20} color="#999" />
             <TextInput
-              placeholder="Confirm Password"
+              placeholder="Confirm New Password"
               secureTextEntry
               style={styles.input}
               value={confirmPassword}
@@ -119,14 +123,14 @@ const RegisterScreen = () => {
 
           <TouchableOpacity
             style={styles.button}
-            onPress={handleRegister}
+            onPress={handleResetPassword}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={styles.buttonText}>Register</Text>
+                <Text style={styles.buttonText}>Reset Password</Text>
                 <View style={styles.arrow}>
                   <Ionicons name="arrow-forward" size={22} color="#fff" />
                 </View>
@@ -135,9 +139,8 @@ const RegisterScreen = () => {
           </TouchableOpacity>
 
           <View style={styles.bottomText}>
-            <Text style={{ color: "#777" }}>Already have an account? </Text>
             <Text style={styles.link} onPress={() => navigation.goBack()}>
-              Sign in
+              Back
             </Text>
           </View>
         </View>
@@ -156,13 +159,13 @@ const styles = StyleSheet.create({
 
   logoWrapper: {
     position: "absolute",
-    top: height * 0.03,
+    top: height * 0.08,
     alignSelf: "center",
   },
 
   logo: {
-    width: 270,
-    height: 270,
+    width: 300,
+    height: 300,
   },
 
   bottomBox: {
@@ -181,7 +184,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: "bold",
-    marginBottom: 25,
+    marginBottom: 20,
   },
 
   desc: {
@@ -244,4 +247,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RegisterScreen;
+export default ResetPasswordScreen;

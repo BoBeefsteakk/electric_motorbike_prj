@@ -1,23 +1,71 @@
-import React from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import React, { useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Keyboard,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
-  Image,
   TouchableOpacity,
-  Dimensions,
   TouchableWithoutFeedback,
-  Keyboard,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+  View,
+} from "react-native";
+import API_URL from "../../data/api/apis";
 
-const { height } = Dimensions.get('window');
+const { height } = Dimensions.get("window");
 const BOTTOM_HEIGHT = height * 0.55;
 
 const ForgotPasswordScreen = () => {
   const navigation = useNavigation<any>();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+
+const handleForgotPassword = async () => {
+  const account = email.trim();
+
+  if (!account) {
+    Alert.alert("Error", "Please enter your account");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const response = await fetch(`${API_URL}/api/auth/forgot`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        account,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      Alert.alert("Success", data.message || "Account verified", [
+        {
+          text: "Continue",
+          onPress: () =>
+            navigation.navigate("resetPassword", {
+              account,
+            }),
+        },
+      ]);
+    } else {
+      Alert.alert("Error", data.message || "Account not found");
+    }
+  } catch (error) {
+    Alert.alert("Error", "Cannot connect to server");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -26,7 +74,7 @@ const ForgotPasswordScreen = () => {
 
         <View style={styles.logoWrapper}>
           <Image
-            source={require('../../../pic/login/logo.png')}
+            source={require("../../../pic/login/logo.png")}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -36,26 +84,39 @@ const ForgotPasswordScreen = () => {
           <Text style={styles.title}>Forgot Password</Text>
 
           <Text style={styles.desc}>
-            Enter your email address and we’ll send you a reset link.
+            Enter your account and we’ll send you a reset request.
           </Text>
 
           <View style={styles.inputBox}>
             <Ionicons name="mail-outline" size={20} color="#999" />
-            <TextInput placeholder="Email" style={styles.input} />
+            <TextInput
+              placeholder="Account"
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+            />
           </View>
 
-          <TouchableOpacity style={styles.button}>
-            <Text style={styles.buttonText}>Send</Text>
-            <View style={styles.arrow}>
-              <Ionicons name="arrow-forward" size={22} color="#fff" />
-            </View>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleForgotPassword}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Send</Text>
+                <View style={styles.arrow}>
+                  <Ionicons name="arrow-forward" size={22} color="#fff" />
+                </View>
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={styles.bottomText}>
-            <Text
-              style={styles.link}
-              onPress={() => navigation.goBack()}
-            >
+            <Text style={styles.link} onPress={() => navigation.goBack()}>
               Back to login
             </Text>
           </View>
@@ -70,13 +131,13 @@ const styles = StyleSheet.create({
 
   background: {
     flex: 1,
-    backgroundColor: '#D6EAF8',
+    backgroundColor: "#D6EAF8",
   },
 
   logoWrapper: {
-    position: 'absolute',
+    position: "absolute",
     top: height * 0.08,
-    alignSelf: 'center',
+    alignSelf: "center",
   },
 
   logo: {
@@ -85,11 +146,11 @@ const styles = StyleSheet.create({
   },
 
   bottomBox: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
-    width: '100%',
+    width: "100%",
     height: BOTTOM_HEIGHT,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderTopLeftRadius: 50,
     borderTopRightRadius: 50,
     padding: 30,
@@ -99,20 +160,20 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 26,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 25,
   },
 
   desc: {
-    color: '#777',
+    color: "#777",
     marginBottom: 20,
     lineHeight: 20,
   },
 
   inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F2F2F2',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F2F2F2",
     borderRadius: 30,
     paddingHorizontal: 20,
     height: 55,
@@ -126,42 +187,41 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    backgroundColor: '#5DADE2',
+    backgroundColor: "#5DADE2",
     height: 60,
     borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 15,
   },
 
   buttonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   arrow: {
-    position: 'absolute',
+    position: "absolute",
     right: 15,
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#3498DB',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#3498DB",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   bottomText: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginTop: 25,
   },
 
   link: {
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
 });
-
 
 export default ForgotPasswordScreen;

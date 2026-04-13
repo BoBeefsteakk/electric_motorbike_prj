@@ -12,6 +12,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import ForgotPasswordScreen from "../pages/forgot";
 import LoginScreen from "../pages/login";
 import RegisterScreen from "../pages/register";
+import ResetPasswordScreen from "../pages/resetPassword";
 
 import DetailScreen from "../../screen/detailScreen";
 import SearchScreen from "../../screen/searchScreen";
@@ -212,6 +213,7 @@ function AuthNavigation() {
       <AuthStack.Screen name="login" component={LoginScreen} />
       <AuthStack.Screen name="register" component={RegisterScreen} />
       <AuthStack.Screen name="forgot" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="resetPassword" component={ResetPasswordScreen} />
     </AuthStack.Navigator>
   );
 }
