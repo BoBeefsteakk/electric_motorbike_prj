@@ -17,10 +17,13 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { addNotification } from "../../data/notifications";
 
 const { height } = Dimensions.get("window");
 const BOTTOM_HEIGHT = height * 0.62;
-
+const AUTH_USER_KEY = "AUTH_USER";
+const PROFILE_KEY = "PROFILE_DATA";
+const WELCOME_KEY = "WELCOME_MESSAGE";
 const LoginScreen = () => {
   const navigation = useNavigation<any>();
 
@@ -30,7 +33,9 @@ const LoginScreen = () => {
 
   // ✅ HANDLE LOGIN
   const handleLogin = async () => {
-    if (!username || !password) {
+    const account = username.trim();
+
+    if (!account || !password) {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin");
       return;
     }
@@ -44,8 +49,8 @@ const LoginScreen = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          account: username,
-          password: password,
+          account,
+          password,
         }),
       });
 
@@ -64,10 +69,47 @@ const LoginScreen = () => {
 
       // ✅ Lưu token
       await AsyncStorage.setItem("token", data.token);
-
+      await addNotification({
+        type: "login",
+        title: "Đăng nhập thành công",
+        message: `Bạn đã đăng nhập thành công với tài khoản ${username}.`,
+      });
       Alert.alert("Thành công", "Đăng nhập thành công!");
+      navigation.replace("inapp");
+      const oldAuthRaw = await AsyncStorage.getItem("AUTH_USER");
+      const oldAuth = oldAuthRaw ? JSON.parse(oldAuthRaw) : null;
 
-      navigation.replace("inapp"); // dùng replace để không quay lại login
+      if (oldAuth?.account !== account) {
+        await AsyncStorage.removeItem("PROFILE_DATA");
+      }
+      // ✅ Lưu user hiện tại
+      await AsyncStorage.setItem(
+        AUTH_USER_KEY,
+        JSON.stringify({
+          account,
+          fullName: account,
+          email: account,
+        }),
+      );
+
+      // ✅ Đồng bộ profile nếu chưa có
+      const rawProfile = await AsyncStorage.getItem(PROFILE_KEY);
+      const oldProfile = rawProfile ? JSON.parse(rawProfile) : {};
+
+      await AsyncStorage.setItem(
+        PROFILE_KEY,
+        JSON.stringify({
+          ...oldProfile,
+          fullName: oldProfile.fullName || account,
+          email: oldProfile.email || account,
+        }),
+      );
+
+      // ✅ Set popup chào mừng cho Home
+      await AsyncStorage.setItem(WELCOME_KEY, `Chào ${account}!`);
+
+      // ❌ bỏ Alert thành công để khỏi hiện 2 popup
+      navigation.replace("inapp");
     } catch (error) {
       Alert.alert("Lỗi", "Không thể kết nối server");
     } finally {

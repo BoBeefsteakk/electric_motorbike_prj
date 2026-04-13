@@ -20,6 +20,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../../context/themeContext";
 import API_URL from "../../../data/api/apis";
 import { darkTheme, lightTheme } from "../../../theme/colors";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DeviceEventEmitter } from "react-native";
+import { CartToastRef } from "../cart";
+
+const AUTH_USER_KEY = "AUTH_USER";
 
 interface Car {
   id: number;
@@ -109,31 +114,39 @@ export default function CarDetailScreen() {
     ]).start();
   };
 
+  const AUTH_USER_KEY = "AUTH_USER";
+
   const handleAddToCart = async () => {
     if (!car || addingToCart) return;
+
     setAddingToCart(true);
+
     try {
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const userId = user?.account || "user_test_123";
+
       const res = await fetch(`${API_URL}/api/cart/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: "user_test_123",
+          userId,
           productId: `car_${car.id}`,
           name: car.name,
           price: car.price,
           image: buildUri(car.image) ?? "",
           quantity: 1,
+          colorId: 0,
+          colorName: "Mặc định",
+          colorValue: null,
         }),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        if (Platform.OS === "android") {
-          ToastAndroid.show("Đã thêm vào giỏ hàng!", ToastAndroid.SHORT);
-        } else {
-          Alert.alert("Thành công", "Đã thêm vào giỏ hàng!");
-        }
+        DeviceEventEmitter.emit("cartUpdated");
+        CartToastRef.current?.show(`Đã thêm "${car.name}" vào giỏ hàng`);
       } else {
         Alert.alert("Lỗi", data.message || "Không thể thêm vào giỏ hàng");
       }

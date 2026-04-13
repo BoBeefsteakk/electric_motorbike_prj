@@ -14,13 +14,16 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DeviceEventEmitter } from "react-native";
+import { useTheme } from "../../../../context/themeContext";
 import API_URL from "../../../../data/api/apis";
 import BEST_PRICE_DATA from "../../../../data/bestPrice";
-import { useTheme } from "../../../../context/themeContext";
-import { lightTheme, darkTheme } from "../../../../theme/colors";
+import { darkTheme, lightTheme } from "../../../../theme/colors";
 import { HomeStackParamList } from "../../../navigation/types";
 import { CartToastRef } from "../../cart";
 
+const AUTH_USER_KEY = "AUTH_USER";
 const encodeImagePath = (path: string) =>
   path.split("/").map(encodeURIComponent).join("/");
 
@@ -70,18 +73,26 @@ export default function BestPriceDetailScreen() {
 
   const selectedVariant = useMemo(
     () => staticData?.colors?.find((c: any) => c?.id === selectedColor),
-    [selectedColor, staticData]
+    [selectedColor, staticData],
   );
+
+  const AUTH_USER_KEY = "AUTH_USER";
 
   const handleAddToCart = async () => {
     if (!product || addingToCart) return;
+
     setAddingToCart(true);
+
     try {
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const userId = user?.account || "user_test_123";
+
       const res = await fetch(`${API_URL}/api/cart/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: "user_test_123",
+          userId,
           productId: String(product.id),
           name: product.name,
           price: selectedVariant?.price ?? product.price,
@@ -92,9 +103,12 @@ export default function BestPriceDetailScreen() {
           colorValue: selectedVariant?.color ?? null,
         }),
       });
+
       const data = await res.json();
+
       if (data.success) {
         CartToastRef.current?.show(`Đã thêm "${product.name}" vào giỏ hàng`);
+        DeviceEventEmitter.emit("cartUpdated");
       } else {
         Alert.alert("Lỗi", data.message || "Không thể thêm vào giỏ hàng");
       }
@@ -268,12 +282,7 @@ export default function BestPriceDetailScreen() {
             </Text>
           </View>
 
-          <Text
-            style={[
-              styles.desc,
-              { color: isDark ? "#CBD5E1" : "#666" },
-            ]}
-          >
+          <Text style={[styles.desc, { color: isDark ? "#CBD5E1" : "#666" }]}>
             {staticData.desc}
           </Text>
 
@@ -373,10 +382,7 @@ export default function BestPriceDetailScreen() {
       >
         <View style={{ flex: 1 }}>
           <Text
-            style={[
-              styles.priceLabel,
-              { color: isDark ? "#94A3B8" : "#AAA" },
-            ]}
+            style={[styles.priceLabel, { color: isDark ? "#94A3B8" : "#AAA" }]}
           >
             Giá bán
           </Text>
@@ -397,8 +403,8 @@ export default function BestPriceDetailScreen() {
                         selectedColor === item.id
                           ? "#C47A4A"
                           : isDark
-                          ? "#475569"
-                          : "#EEE",
+                            ? "#475569"
+                            : "#EEE",
                     },
                     selectedColor === item.id && styles.colorItemActive,
                   ]}

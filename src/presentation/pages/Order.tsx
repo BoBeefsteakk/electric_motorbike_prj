@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useRef, useState } from "react";
@@ -14,18 +15,23 @@ import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
 import { darkTheme, lightTheme } from "../../theme/colors";
 
-const USER_ID = "user_test_123"; // TODO: lấy từ AsyncStorage sau khi có auth
+const AUTH_USER_KEY = "AUTH_USER";
 
 interface OrderItem {
-  product_id: string;
+  id?: number;
+  product_id?: string | number;
   name: string;
   price: number;
   quantity: number;
-  image: string;
+  image?: string;
 }
+
 interface Order {
-  _id: number;
+  id?: number;
   orderId: string;
+  userId?: string;
+  subTotal?: number;
+  discount?: number;
   finalPrice: number;
   status: string;
   createdAt: string;
@@ -33,19 +39,19 @@ interface Order {
 }
 
 const formatCurrency = (v: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-    v,
-  );
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(Number(v || 0));
 
 const STATUS_COLOR: Record<string, string> = {
   "Đang xử lý": "#FF8C00",
   "Đã xác nhận": "#2D6BE4",
   "Đang giao": "#9B51E0",
   "Hoàn thành": "#00B14F",
-  "Đã huỷ": "#FF4D4D",
+  "Đã hủy": "#FF4D4D",
 };
 
-/* ── Skeleton ── */
 const SkeletonCard = ({ dark }: { dark: boolean }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
 
@@ -64,49 +70,18 @@ const SkeletonCard = ({ dark }: { dark: boolean }) => {
         }),
       ]),
     ).start();
-  }, []);
+  }, [anim]);
 
   return (
     <Animated.View
       style={[
-        styles.orderCard,
+        styles.skeletonCard,
         {
+          backgroundColor: dark ? "#1F2937" : "#EBEBEB",
           opacity: anim,
-          backgroundColor: dark ? "#1F2937" : "#fff",
-          shadowOpacity: dark ? 0 : 0.06,
-          elevation: dark ? 0 : 2,
-          borderWidth: dark ? 1 : 0,
-          borderColor: dark ? "#334155" : "transparent",
         },
       ]}
-    >
-      <View
-        style={{
-          height: 14,
-          width: "50%",
-          backgroundColor: dark ? "#334155" : "#EBEBEB",
-          borderRadius: 6,
-          marginBottom: 12,
-        }}
-      />
-      <View
-        style={{
-          height: 12,
-          width: "80%",
-          backgroundColor: dark ? "#293548" : "#F2F2F2",
-          borderRadius: 6,
-          marginBottom: 8,
-        }}
-      />
-      <View
-        style={{
-          height: 12,
-          width: "40%",
-          backgroundColor: dark ? "#293548" : "#F2F2F2",
-          borderRadius: 6,
-        }}
-      />
-    </Animated.View>
+    />
   );
 };
 
@@ -114,16 +89,27 @@ export default function OrderScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
-
   const navigation = useNavigation<any>();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/orders/user/${USER_ID}`);
+
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+      const authUser = rawUser ? JSON.parse(rawUser) : null;
+      const userId = authUser?.account;
+
+      if (!userId) {
+        setOrders([]);
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/orders/user/${userId}`);
       const data = await res.json();
+
       if (data.success && Array.isArray(data.data)) {
         setOrders(data.data);
       } else {
@@ -149,26 +135,33 @@ export default function OrderScreen() {
 
     return (
       <Pressable
-        style={[
+        onPress={() =>
+          navigation.navigate("OrderDetail", {
+            orderId: item.orderId,
+          })
+        }
+        style={({ pressed }) => [
           styles.orderCard,
           {
-            backgroundColor: colors.card,
+            backgroundColor: isDark ? colors.card : "#fff",
             shadowOpacity: isDark ? 0 : 0.06,
             elevation: isDark ? 0 : 2,
             borderWidth: isDark ? 1 : 0,
             borderColor: isDark ? "#334155" : "transparent",
           },
+          pressed && { opacity: 0.9 },
         ]}
-        onPress={() => {}}
       >
-        {/* Header */}
         <View style={styles.orderHeader}>
           <View>
             <Text style={[styles.orderId, { color: colors.text }]}>
               #{item.orderId}
             </Text>
             <Text
-              style={[styles.orderDate, { color: isDark ? "#94A3B8" : "#AAA" }]}
+              style={[
+                styles.orderDate,
+                { color: isDark ? "#94A3B8" : "#AAA" },
+              ]}
             >
               {new Date(item.createdAt).toLocaleDateString("vi-VN", {
                 day: "2-digit",
@@ -182,8 +175,8 @@ export default function OrderScreen() {
             style={[
               styles.statusBadge,
               {
-                backgroundColor: statusColor + "18",
-                borderColor: statusColor + "55",
+                borderColor: statusColor,
+                backgroundColor: `${statusColor}15`,
               },
             ]}
           >
@@ -203,8 +196,7 @@ export default function OrderScreen() {
           ]}
         />
 
-        {/* Sản phẩm đại diện */}
-        {firstItem && (
+        {firstItem ? (
           <View style={styles.productRow}>
             <View
               style={[
@@ -212,11 +204,7 @@ export default function OrderScreen() {
                 { backgroundColor: isDark ? "#0F172A" : "#F5F5F5" },
               ]}
             >
-              <FontAwesome
-                name="motorcycle"
-                size={22}
-                color={isDark ? "#94A3B8" : "#999"}
-              />
+              <FontAwesome name="shopping-bag" size={18} color="#00B14F" />
             </View>
 
             <View style={styles.productInfo}>
@@ -248,9 +236,8 @@ export default function OrderScreen() {
               x{firstItem.quantity}
             </Text>
           </View>
-        )}
+        ) : null}
 
-        {/* Footer */}
         <View
           style={[
             styles.orderFooter,
@@ -258,7 +245,10 @@ export default function OrderScreen() {
           ]}
         >
           <Text
-            style={[styles.itemCount, { color: isDark ? "#94A3B8" : "#AAA" }]}
+            style={[
+              styles.itemCount,
+              { color: isDark ? "#94A3B8" : "#AAA" },
+            ]}
           >
             {item.items.length} sản phẩm
           </Text>
@@ -267,7 +257,7 @@ export default function OrderScreen() {
             <Text
               style={[
                 styles.totalLabel,
-                { color: isDark ? "#CBD5E1" : "#888" },
+                { color: isDark ? "#94A3B8" : "#888" },
               ]}
             >
               Tổng:{" "}
@@ -283,12 +273,11 @@ export default function OrderScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      {/* Header */}
       <View
         style={[
           styles.header,
           {
-            backgroundColor: colors.background,
+            backgroundColor: isDark ? colors.card : "#fff",
             borderBottomColor: isDark ? "#334155" : "#EBEBEB",
           },
         ]}
@@ -296,32 +285,27 @@ export default function OrderScreen() {
         <Pressable
           style={[
             styles.backBtn,
-            { backgroundColor: isDark ? "#1F2937" : "#F5F5F5" },
+            { backgroundColor: isDark ? "#0F172A" : "#F5F5F5" },
           ]}
           onPress={() => navigation.goBack()}
           hitSlop={12}
         >
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
+          <Ionicons
+            name="chevron-back"
+            size={24}
+            color={isDark ? "#E5E7EB" : "#111"}
+          />
         </Pressable>
 
         <Text style={[styles.headerTitle, { color: colors.text }]}>
           Đơn Hàng Của Tôi
         </Text>
 
-        <Pressable
-          style={[
-            styles.backBtn,
-            { backgroundColor: isDark ? "#1F2937" : "#F5F5F5" },
-          ]}
-          onPress={fetchOrders}
-          hitSlop={12}
-        >
-          <Ionicons name="refresh" size={20} color={colors.text} />
-        </Pressable>
+        <View style={{ width: 36 }} />
       </View>
 
       {loading ? (
-        <View style={{ padding: 16, gap: 14 }}>
+        <View style={styles.list}>
           {[0, 1, 2].map((i) => (
             <SkeletonCard key={i} dark={isDark} />
           ))}
@@ -329,36 +313,35 @@ export default function OrderScreen() {
       ) : (
         <FlatList
           data={orders}
-          keyExtractor={(i) => String(i._id)}
+          keyExtractor={(item, index) =>
+            item.orderId
+              ? `order-${item.orderId}`
+              : `order-fallback-${item.id ?? index}`
+          }
           renderItem={renderItem}
           contentContainerStyle={[
             styles.list,
-            orders.length === 0 && { flex: 1 },
+            orders.length === 0 && { flex: 1, justifyContent: "center" },
           ]}
           showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Ionicons
                 name="receipt-outline"
-                size={72}
-                color={isDark ? "#475569" : "#DDD"}
+                size={52}
+                color={isDark ? "#475569" : "#D1D5DB"}
               />
-              <Text
-                style={[
-                  styles.emptyTitle,
-                  { color: isDark ? "#94A3B8" : "#CCC" },
-                ]}
-              >
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
                 Chưa có đơn hàng nào
               </Text>
               <Text
                 style={[
                   styles.emptySub,
-                  { color: isDark ? "#64748B" : "#DDD" },
+                  { color: isDark ? "#94A3B8" : "#AAA" },
                 ]}
               >
-                Hãy mua xe VinFast đầu tiên của bạn!
+                Các đơn đã đặt và đã hủy sẽ hiển thị tại đây.
               </Text>
             </View>
           }
@@ -397,7 +380,15 @@ const styles = StyleSheet.create({
     color: "#111",
   },
 
-  list: { padding: 16 },
+  list: {
+    padding: 16,
+  },
+
+  skeletonCard: {
+    height: 140,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
 
   orderCard: {
     backgroundColor: "#fff",
@@ -438,9 +429,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
 
-  statusText: { fontSize: 12, fontWeight: "700" },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
 
   divider: {
     height: 0.5,
@@ -463,7 +461,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  productInfo: { flex: 1, marginLeft: 12 },
+  productInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
 
   productName: {
     fontSize: 14,
@@ -529,5 +530,6 @@ const styles = StyleSheet.create({
   emptySub: {
     fontSize: 13,
     color: "#DDD",
+    textAlign: "center",
   },
 });

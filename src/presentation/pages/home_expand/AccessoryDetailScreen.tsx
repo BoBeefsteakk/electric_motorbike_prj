@@ -1,10 +1,12 @@
 import { FontAwesome } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
+  DeviceEventEmitter,
   Image,
   Platform,
   ScrollView,
@@ -17,9 +19,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import API_URL from "../../../data/api/apis";
 import { useTheme } from "../../../context/themeContext";
-import { lightTheme, darkTheme } from "../../../theme/colors";
+import API_URL from "../../../data/api/apis";
+import { darkTheme, lightTheme } from "../../../theme/colors";
+import { CartToastRef } from "../cart";
+
+const AUTH_USER_KEY = "AUTH_USER";
 
 interface Accessory {
   id: number;
@@ -83,29 +88,35 @@ export default function AccessoryDetailScreen() {
 
   const handleAddToCart = async () => {
     if (!item || addingToCart) return;
+
     setAddingToCart(true);
+
     try {
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const userId = user?.account || "user_test_123";
+
       const res = await fetch(`${API_URL}/api/cart/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: "user_test_123",
+          userId,
           productId: `acc_${item.id}`,
           name: item.name,
           price: item.price,
           image: `${API_URL}/${encodeImagePath(item.image)}`,
           quantity: 1,
+          colorId: 0,
+          colorName: "Mặc định",
+          colorValue: null,
         }),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        if (Platform.OS === "android") {
-          ToastAndroid.show("Đã thêm vào giỏ hàng!", ToastAndroid.SHORT);
-        } else {
-          Alert.alert("Thành công", "Đã thêm vào giỏ hàng!");
-        }
+        DeviceEventEmitter.emit("cartUpdated");
+        CartToastRef.current?.show(`Đã thêm "${item.name}" vào giỏ hàng`);
       } else {
         Alert.alert("Lỗi", data.message || "Không thể thêm vào giỏ hàng");
       }
@@ -142,12 +153,7 @@ export default function AccessoryDetailScreen() {
           size={40}
           color={isDark ? "#475569" : "#DDD"}
         />
-        <Text
-          style={[
-            styles.notFound,
-            { color: isDark ? "#94A3B8" : "#999" },
-          ]}
-        >
+        <Text style={[styles.notFound, { color: isDark ? "#94A3B8" : "#999" }]}>
           Không tìm thấy sản phẩm
         </Text>
       </View>
@@ -250,13 +256,10 @@ export default function AccessoryDetailScreen() {
         </View>
 
         <View style={styles.content}>
-          <Text style={[styles.title, { color: colors.text }]}>{item.name}</Text>
-          <Text
-            style={[
-              styles.desc,
-              { color: isDark ? "#94A3B8" : "#666" },
-            ]}
-          >
+          <Text style={[styles.title, { color: colors.text }]}>
+            {item.name}
+          </Text>
+          <Text style={[styles.desc, { color: isDark ? "#94A3B8" : "#666" }]}>
             Phụ kiện chính hãng VinFast — được sản xuất và kiểm định đạt tiêu
             chuẩn chất lượng quốc tế, bảo hành 12 tháng, tương thích hoàn toàn
             với các dòng xe VinFast.
@@ -317,9 +320,7 @@ export default function AccessoryDetailScreen() {
               "Bảo hành chính hãng 12 tháng toàn quốc",
             ].map((text, i) => (
               <View key={i} style={styles.bulletRow}>
-                <View
-                  style={[styles.bulletDot, { backgroundColor: accent }]}
-                />
+                <View style={[styles.bulletDot, { backgroundColor: accent }]} />
                 <Text
                   style={[
                     styles.bulletText,
@@ -392,10 +393,7 @@ export default function AccessoryDetailScreen() {
       >
         <View style={{ flex: 1 }}>
           <Text
-            style={[
-              styles.priceLabel,
-              { color: isDark ? "#94A3B8" : "#999" },
-            ]}
+            style={[styles.priceLabel, { color: isDark ? "#94A3B8" : "#999" }]}
           >
             Giá bán
           </Text>
@@ -403,10 +401,7 @@ export default function AccessoryDetailScreen() {
             {Number(item.price).toLocaleString("vi-VN")}đ
           </Text>
           <Text
-            style={[
-              styles.priceSub,
-              { color: isDark ? "#64748B" : "#BBB" },
-            ]}
+            style={[styles.priceSub, { color: isDark ? "#64748B" : "#BBB" }]}
           >
             Đã bao gồm VAT
           </Text>

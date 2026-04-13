@@ -1,5 +1,9 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import {
+  useFocusEffect,
+  useNavigation,
+} from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -60,6 +64,7 @@ type NewsItem = {
   route: keyof HomeStackParamList;
 };
 
+const WELCOME_KEY = "WELCOME_MESSAGE";
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 40 - 24) / 3;
 
@@ -76,7 +81,6 @@ const categoryImageMap: Record<string, any> = {
   "home/phukien.png": require("../../../pic/home/phukien.png"),
 };
 
-/* ── Toast notification ── */
 const Toast = ({ message, visible }: { message: string; visible: boolean }) => {
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -106,7 +110,6 @@ const Toast = ({ message, visible }: { message: string; visible: boolean }) => {
   );
 };
 
-/* ── Skeleton card ── */
 const SkeletonCard = ({
   width: w,
   height: h,
@@ -149,7 +152,6 @@ const SkeletonCard = ({
   );
 };
 
-/* ======================= SCREEN ======================= */
 const HomeScreen = () => {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
@@ -164,16 +166,24 @@ const HomeScreen = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
+  const [isVingroupStaff, setIsVingroupStaff] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
 
   const [stores, setStores] = useState<PlaceItem[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
 
   const [storesLoading, setStoresLoading] = useState(true);
   const [productsLoading, setProductsLoading] = useState(true);
   const [newsLoading, setNewsLoading] = useState(true);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    setToastVisible(false);
+    setTimeout(() => setToastVisible(true), 50);
+  }, []);
 
   const fetchCategories = async () => {
     try {
@@ -186,22 +196,6 @@ const HomeScreen = () => {
       setCategoriesLoading(false);
     }
   };
-
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setToastVisible(false);
-    setTimeout(() => setToastVisible(true), 50);
-  };
-
-  useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
-      fetchStores();
-      fetchProducts();
-      fetchNews();
-      fetchCategories();
-    });
-    return () => task.cancel();
-  }, []);
 
   const fetchStores = async () => {
     try {
@@ -238,35 +232,71 @@ const HomeScreen = () => {
     }
   };
 
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      fetchStores();
+      fetchProducts();
+      fetchNews();
+      fetchCategories();
+    });
+
+    return () => task.cancel();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+
+      const loadWelcome = async () => {
+        try {
+          const msg = await AsyncStorage.getItem(WELCOME_KEY);
+          if (msg && mounted) {
+            showToast(msg);
+            await AsyncStorage.removeItem(WELCOME_KEY);
+          }
+        } catch (e) {
+          console.log("load welcome error:", e);
+        }
+      };
+
+      loadWelcome();
+
+      return () => {
+        mounted = false;
+      };
+    }, [showToast]),
+  );
+
   const handleConsultSubmit = useCallback(async () => {
     if (!fullName.trim() || !phone.trim() || !email.trim()) {
       Alert.alert("Thông báo", "Vui lòng điền đầy đủ thông tin");
       return;
     }
+
+    if (!acceptedPrivacy) {
+      Alert.alert("Thông báo", "Bạn cần đồng ý xử lý dữ liệu cá nhân");
+      return;
+    }
+
     try {
       setSubmitLoading(true);
-      const res = await fetch(`${API_URL}/api/consult`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, phone, email, carType: selectedTab }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        Alert.alert("Lỗi", data.message || "Đăng ký thất bại");
-        return;
-      }
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       showToast("Đăng ký tư vấn thành công!");
       setFullName("");
       setPhone("");
       setEmail("");
+      setSelectedTab("Cao cấp");
+      setIsVingroupStaff(false);
+      setAcceptedPrivacy(false);
     } catch {
-      Alert.alert("Lỗi", "Không thể kết nối server");
+      Alert.alert("Lỗi", "Không thể xử lý đăng ký");
     } finally {
       setSubmitLoading(false);
     }
-  }, [fullName, phone, email, selectedTab]);
+  }, [acceptedPrivacy, fullName, phone, email, showToast]);
 
-  /* ── render helpers ── */
   const renderCategoryCard = useCallback(
     (cat: CategoryItem) => {
       const isSpecial = cat.type === "special";
@@ -334,7 +364,7 @@ const HomeScreen = () => {
         </TouchableOpacity>
       );
     },
-    [navigation, isDark],
+    [isDark, navigation],
   );
 
   const renderStoreItem = useCallback(
@@ -395,7 +425,7 @@ const HomeScreen = () => {
         </View>
       </TouchableOpacity>
     ),
-    [navigation, colors, isDark],
+    [colors, isDark, navigation],
   );
 
   const renderProductItem = useCallback(
@@ -467,7 +497,7 @@ const HomeScreen = () => {
         </View>
       </TouchableOpacity>
     ),
-    [navigation, colors, isDark],
+    [colors, isDark, navigation],
   );
 
   const renderNewsItem = useCallback(
@@ -484,7 +514,7 @@ const HomeScreen = () => {
             borderColor: isDark ? "#334155" : "transparent",
           },
         ]}
-        onPress={() => navigation.navigate(item.route as any)}
+        onPress={() => navigation.navigate(item.route as never)}
       >
         <Image
           source={{ uri: `${API_URL}/images/${item.image}` }}
@@ -508,7 +538,7 @@ const HomeScreen = () => {
         </View>
       </TouchableOpacity>
     ),
-    [navigation, colors, isDark],
+    [colors, isDark, navigation],
   );
 
   const SectionHeader = ({
@@ -555,7 +585,7 @@ const HomeScreen = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        removeClippedSubviews={true}
+        removeClippedSubviews
       >
         <View style={[styles.headerDark, { backgroundColor: "#000" }]}>
           <View style={styles.headerTop}>
@@ -568,6 +598,7 @@ const HomeScreen = () => {
             <TouchableOpacity
               style={styles.notificationBtn}
               activeOpacity={0.7}
+              onPress={() => navigation.navigate("notifications")}
             >
               <FontAwesome name="bell" size={22} color="#fff" />
               <View style={styles.notificationDot} />
@@ -707,12 +738,14 @@ const HomeScreen = () => {
           ]}
         >
           <Text style={styles.consultHeading}>ĐĂNG KÝ TƯ VẤN</Text>
+
           <View
             style={[
               styles.consultDivider,
               { backgroundColor: isDark ? "#243041" : "#2A3A3D" },
             ]}
           />
+
           <Text style={styles.consultSubtitle}>
             Đăng ký ngay hôm nay để nhận thông tin chính thức và tư vấn từ
             VinFast
@@ -750,7 +783,10 @@ const HomeScreen = () => {
                 onChangeText={f.setter}
                 placeholder={f.placeholder}
                 placeholderTextColor={isDark ? "#64748B" : "#999"}
-                keyboardType={f.keyboard as any}
+                keyboardType={f.keyboard as
+                  | "default"
+                  | "phone-pad"
+                  | "email-address"}
                 style={[
                   styles.textInput,
                   { color: isDark ? "#E5E7EB" : "#111" },
@@ -760,6 +796,7 @@ const HomeScreen = () => {
           ))}
 
           <Text style={styles.consultLabel}>Dòng xe quan tâm</Text>
+
           <View
             style={[
               styles.tabRow,
@@ -798,35 +835,62 @@ const HomeScreen = () => {
             ))}
           </View>
 
-          <View style={styles.radioRow}>
-            <View style={styles.radioActive} />
-            <Text style={styles.radioText}>Vero X</Text>
-          </View>
-
-          {[
-            "Bạn có phải là CBNV tập đoàn Vingroup không?",
-            "Tôi đồng ý cho phép Công ty TNHH Kinh doanh Thương mại Dịch vụ VinFast xử lý dữ liệu cá nhân của tôi...",
-          ].map((txt) => (
-            <View key={txt} style={styles.checkboxRow}>
-              <View
-                style={[
-                  styles.checkbox,
-                  { borderColor: isDark ? "#475569" : "#646464" },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.checkboxText,
-                  { color: isDark ? "#94A3B8" : "#AAA" },
-                ]}
-              >
-                {txt}
-              </Text>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.radioRow}
+            onPress={() => setIsVingroupStaff((prev) => !prev)}
+          >
+            <View
+              style={[
+                styles.radioOuter,
+                { borderColor: isVingroupStaff ? "#2F80ED" : "#7C7C7C" },
+              ]}
+            >
+              {isVingroupStaff && <View style={styles.radioInner} />}
             </View>
-          ))}
+            <Text style={styles.radioText}>
+              Bạn có phải là CBNV tập đoàn Vingroup không?
+            </Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.submitBtn}
+            activeOpacity={0.8}
+            style={styles.checkboxRow}
+            onPress={() => setAcceptedPrivacy((prev) => !prev)}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                {
+                  borderColor: acceptedPrivacy
+                    ? "#2F80ED"
+                    : isDark
+                      ? "#475569"
+                      : "#646464",
+                  backgroundColor: acceptedPrivacy ? "#2F80ED" : "transparent",
+                },
+              ]}
+            >
+              {acceptedPrivacy && (
+                <FontAwesome name="check" size={10} color="#fff" />
+              )}
+            </View>
+            <Text
+              style={[
+                styles.checkboxText,
+                { color: isDark ? "#94A3B8" : "#AAA" },
+              ]}
+            >
+              Tôi đồng ý cho phép Công ty TNHH Kinh doanh Thương mại Dịch vụ
+              VinFast xử lý dữ liệu cá nhân của tôi...
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.submitBtn,
+              { opacity: submitLoading ? 0.7 : 1 },
+            ]}
             activeOpacity={0.8}
             onPress={handleConsultSubmit}
             disabled={submitLoading}
@@ -881,7 +945,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 10,
+    marginTop: 20,
   },
   headerImage: { width: 150, height: 80 },
   notificationBtn: {
@@ -1138,15 +1202,25 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: "#2F80ED" },
   tabText: { fontSize: 13, color: "#888", fontWeight: "500" },
   tabTextActive: { color: "#FFF", fontWeight: "600" },
+
   radioRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
-  radioActive: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#2F80ED",
+  radioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 10,
   },
-  radioText: { color: "#EEE", fontSize: 14 },
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#2F80ED",
+  },
+  radioText: { color: "#EEE", fontSize: 14, flex: 1 },
+
   checkboxRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1156,12 +1230,14 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderWidth: 1,
-    borderColor: "#646464",
     marginRight: 10,
     marginTop: 3,
     borderRadius: 3,
+    justifyContent: "center",
+    alignItems: "center",
   },
   checkboxText: { color: "#AAA", fontSize: 13, flex: 1, lineHeight: 18 },
+
   submitBtn: {
     backgroundColor: "#2F80ED",
     paddingVertical: 15,

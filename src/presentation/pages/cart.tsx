@@ -1,8 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Animated,
+  DeviceEventEmitter,
   FlatList,
   Image,
   Modal,
@@ -18,6 +26,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
 import { darkTheme, lightTheme } from "../../theme/colors";
+
+const AUTH_USER_KEY = "AUTH_USER";
 
 interface CartItem {
   productId: string;
@@ -37,8 +47,6 @@ interface Voucher {
   minSpend: number;
   description: string;
 }
-
-const USER_ID = "user_test_123";
 
 const VOUCHERS_MOCK: Voucher[] = [
   {
@@ -210,7 +218,19 @@ const getCartItemKey = (item: {
   colorId?: number | null;
   colorName?: string | null;
 }) =>
-  `${item.productId}__${item.colorId ?? "no-color"}__${item.colorName ?? "default"}`;
+  `${item.productId}__${item.colorId ?? 0}__${item.colorName ?? "Mặc định"}`;
+
+const safeEncodePath = (path: string) =>
+  path
+    .split("/")
+    .map((segment) => {
+      try {
+        return encodeURIComponent(decodeURIComponent(segment));
+      } catch {
+        return encodeURIComponent(segment);
+      }
+    })
+    .join("/");
 
 const buildImageUri = (image?: string) => {
   if (!image) return "";
@@ -225,13 +245,15 @@ const buildImageUri = (image?: string) => {
     return trimmed;
   }
 
-  const encoded = trimmed.split("/").map(encodeURIComponent).join("/");
-
-  if (encoded.startsWith("images/")) {
-    return `${API_URL}/${encoded}`;
+  if (trimmed.startsWith("/images/")) {
+    return `${API_URL}${trimmed}`;
   }
 
-  return `${API_URL}/images/${encoded}`;
+  if (trimmed.startsWith("images/")) {
+    return `${API_URL}/${safeEncodePath(trimmed)}`;
+  }
+
+  return `${API_URL}/images/${safeEncodePath(trimmed)}`;
 };
 
 export default function CartScreen() {
@@ -248,7 +270,18 @@ export default function CartScreen() {
   const fetchCart = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/cart/${USER_ID}`);
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const userId = user?.account;
+
+      if (!userId) {
+        setCartItems([]);
+        return;
+      }
+
+      const res = await fetch(
+        `${API_URL}/api/cart/${encodeURIComponent(userId)}`,
+      );
       const data = await res.json();
 
       if (data.success && Array.isArray(data.data?.items)) {
@@ -277,7 +310,15 @@ export default function CartScreen() {
     }, [fetchCart]),
   );
 
-  const removeItem = (
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("cartUpdated", () => {
+      fetchCart();
+    });
+
+    return () => sub.remove();
+  }, [fetchCart]);
+
+  const removeItem = async (
     productId: string,
     colorId?: number | null,
     colorName?: string | null,
@@ -288,15 +329,29 @@ export default function CartScreen() {
       prev.filter((i) => getCartItemKey(i) !== keyToRemove),
     );
 
-    fetch(`${API_URL}/api/cart/remove-item`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: USER_ID,
-        productId,
-        colorId: colorId ?? null,
-      }),
-    }).catch(() => {});
+    try {
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const userId = user?.account;
+
+      if (!userId) return;
+
+      await fetch(`${API_URL}/api/cart/remove-item`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          productId,
+          colorId: colorId ?? null,
+        }),
+      });
+
+      DeviceEventEmitter.emit("cartUpdated");
+    } catch (e) {
+      console.log("remove error:", e);
+    }
   };
 
   const updateQuantity = async (
@@ -323,16 +378,28 @@ export default function CartScreen() {
       ),
     );
 
-    fetch(`${API_URL}/api/cart/update-quantity`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: USER_ID,
-        productId,
-        quantity: newQty,
-        colorId: colorId ?? null,
-      }),
-    }).catch(() => {});
+    try {
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const userId = user?.account;
+
+      if (!userId) return;
+
+      await fetch(`${API_URL}/api/cart/update-quantity`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          productId,
+          quantity: newQty,
+          colorId: colorId ?? null,
+        }),
+      });
+
+      DeviceEventEmitter.emit("cartUpdated");
+    } catch (e) {
+      console.log("update quantity error:", e);
+    }
   };
 
   const toggleSelect = (key: string) =>
@@ -362,22 +429,54 @@ export default function CartScreen() {
 
   const finalPrice = Math.max(0, subTotal - (appliedVoucher?.discount ?? 0));
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     const selected = cartItems.filter((i) => i.selected);
     if (!selected.length) return;
 
-    navigation.navigate("checkout", {
-      cartItems: selected,
-      appliedVoucher,
-      userId: USER_ID,
-    });
+    try {
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const userId = user?.account;
+
+      if (!userId) {
+        return;
+      }
+
+      navigation.navigate("checkout", {
+        cartItems: selected,
+        appliedVoucher,
+        userId,
+      });
+    } catch (e) {
+      console.log("checkout user error:", e);
+    }
   };
 
   const renderItem = ({ item }: { item: CartItem }) => {
     const itemKey = getCartItemKey(item);
 
+    const handleNavigateToDetail = () => {
+      if (item.productId.startsWith("car_")) {
+        const id = Number(item.productId.replace("car_", ""));
+        navigation.navigate("car_detail", { id });
+        return;
+      }
+
+      if (item.productId.startsWith("acc_")) {
+        const id = Number(item.productId.replace("acc_", ""));
+        navigation.navigate("accessory_detail", { id });
+        return;
+      }
+
+      navigation.navigate("best_price_detail", {
+        id: Number(item.productId),
+      });
+    };
+
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={handleNavigateToDetail}
         style={[
           styles.card,
           {
@@ -526,7 +625,7 @@ export default function CartScreen() {
             </View>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

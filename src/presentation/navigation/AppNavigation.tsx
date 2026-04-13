@@ -5,9 +5,11 @@ import {
   createNavigationContainerRef,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import React, { useEffect } from "react";
-import { Alert, BackHandler, View } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { Alert, BackHandler, DeviceEventEmitter, View } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
+
+import API_URL from "../../data/api/apis";
 
 import ForgotPasswordScreen from "../pages/forgot";
 import LoginScreen from "../pages/login";
@@ -26,6 +28,7 @@ import SettingScreen from "../pages/setting";
 import WarrantyScreen from "../pages/WarrantyScreen";
 
 import HomeBannerDetail from "../pages/home_expand/home_banner_detail";
+import OrderDetailScreen from "../pages/orderDetail";
 
 /* CATEGORY */
 import CategoryCaoCap from "../pages/home_expand/categories_tab/CategoryCaoCap";
@@ -54,19 +57,19 @@ import AccessoryDetailScreen from "../pages/home_expand/AccessoryDetailScreen";
 import CarDetailScreen from "../pages/home_expand/CarDetailScreen";
 
 /* SETTING */
-import PaymentMethodScreen from "../pages/paymentMethod";
-import EditProfileScreen from "../pages/editProfile";
 import AddressScreen from "../pages/address";
+import EditProfileScreen from "../pages/editProfile";
+import PaymentMethodScreen from "../pages/paymentMethod";
 
 /* TYPES */
-import {
-  HomeStackParamList,
-  RootStackParamList,
-  TabParamList,
-} from "./types";
+import { HomeStackParamList, RootStackParamList, TabParamList } from "./types";
 
 /* THEME */
 import { useTheme } from "../../context/themeContext";
+import NotificationScreen from "../pages/notifications";
+
+
+const AUTH_USER_KEY = "AUTH_USER";
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -79,10 +82,15 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const BEST_PRICE_IDS = Array.from({ length: 21 }, (_, i) => i + 1);
 const BestPriceRedirects = Object.fromEntries(
-  BEST_PRICE_IDS.map((id) => [`best_prices_${id}`, makeBestPriceRedirect(id)])
+  BEST_PRICE_IDS.map((id) => [`best_prices_${id}`, makeBestPriceRedirect(id)]),
 );
 
-const EXIT_ROUTES = new Set(["home_main", "search_main", "cart_main", "setting"]);
+const EXIT_ROUTES = new Set([
+  "home_main",
+  "search_main",
+  "cart_main",
+  "setting",
+]);
 
 function getActiveRouteName(state: any): string {
   const route = state.routes[state.index];
@@ -106,6 +114,7 @@ function HomeNavigation() {
         name="home_banner_detail"
         component={HomeBannerDetail}
       />
+      <HomeStack.Screen name="notifications" component={NotificationScreen} />
 
       {/* CATEGORY */}
       <HomeStack.Screen name="category_special" component={CategorySpecial} />
@@ -224,6 +233,53 @@ function InappNavigation() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  const [cartCount, setCartCount] = useState(0);
+
+  const loadCartCount = useCallback(async () => {
+    try {
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+
+      if (!rawUser) {
+        setCartCount(0);
+        return;
+      }
+
+      const user = JSON.parse(rawUser);
+      const userId = user?.account;
+
+      if (!userId) {
+        setCartCount(0);
+        return;
+      }
+
+      const res = await fetch(
+        `${API_URL}/api/cart/${encodeURIComponent(userId)}`,
+      );
+      const data = await res.json();
+
+      const items = data?.data?.items || [];
+      const total = items.reduce(
+        (sum: number, item: any) => sum + Number(item.quantity || 0),
+        0,
+      );
+
+      setCartCount(total);
+    } catch (e) {
+      console.log("load cart badge error:", e);
+      setCartCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCartCount();
+
+    const sub = DeviceEventEmitter.addListener("cartUpdated", loadCartCount);
+
+    return () => {
+      sub.remove();
+    };
+  }, [loadCartCount]);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -236,6 +292,15 @@ function InappNavigation() {
           if (route.name === "setting") icon = "cog";
 
           return <Icon name={icon} size={size ?? 22} color={color} />;
+        },
+        tabBarBadge:
+          route.name === "cart" && cartCount > 0 ? cartCount : undefined,
+        tabBarBadgeStyle: {
+          backgroundColor: "#EF4444",
+          color: "#fff",
+          fontSize: 11,
+          minWidth: 18,
+          height: 18,
         },
         tabBarActiveTintColor: isDark ? "#60A5FA" : "#39B78D",
         tabBarInactiveTintColor: isDark ? "#94A3B8" : "gray",
@@ -315,7 +380,7 @@ export function AppNavigation() {
 
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
-      onBackPress
+      onBackPress,
     );
 
     return () => subscription.remove();
@@ -345,6 +410,7 @@ export function AppNavigation() {
           />
           <RootStack.Screen name="DetailScreen" component={DetailScreen} />
           <RootStack.Screen name="Order" component={OrderScreen} />
+          <RootStack.Screen name="OrderDetail" component={OrderDetailScreen} />
           <RootStack.Screen name="Warranty" component={WarrantyScreen} />
           <RootStack.Screen name="EditProfile" component={EditProfileScreen} />
           <RootStack.Screen name="Address" component={AddressScreen} />

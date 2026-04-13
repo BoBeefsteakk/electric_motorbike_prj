@@ -1,9 +1,11 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  DeviceEventEmitter,
   Pressable,
   ScrollView,
   StatusBar,
@@ -16,10 +18,13 @@ import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
 import { darkTheme, lightTheme } from "../../theme/colors";
 
+const AUTH_USER_KEY = "AUTH_USER";
+
 const formatCurrency = (v: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-    v,
-  );
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(v);
 
 export default function CheckoutScreen() {
   const { theme } = useTheme();
@@ -28,37 +33,63 @@ export default function CheckoutScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
 
-  const userId = route.params?.userId || "user_test_123";
-  const cartItems = route.params?.cartItems || [];
+  const cartItems = Array.isArray(route.params?.cartItems)
+    ? route.params.cartItems
+    : [];
   const appliedVoucher = route.params?.appliedVoucher || null;
 
   const subTotal = cartItems.reduce(
-    (s: number, i: any) => s + i.price * i.quantity,
+    (s: number, i: any) => s + Number(i.price || 0) * Number(i.quantity || 0),
     0,
   );
-  const discount = appliedVoucher?.discount || 0;
+  const discount = Number(appliedVoucher?.discount || 0);
   const finalPrice = Math.max(0, subTotal - discount);
 
   const [paying, setPaying] = useState(false);
 
   const handlePayment = async () => {
     if (cartItems.length === 0) return;
+
     try {
       setPaying(true);
+
+      const rawUser = await AsyncStorage.getItem("AUTH_USER");
+      const authUser = rawUser ? JSON.parse(rawUser) : null;
+      const currentUserId = route.params?.userId || authUser?.account;
+
+      if (!currentUserId) {
+        Alert.alert("Lỗi", "Không xác định được tài khoản thanh toán");
+        return;
+      }
+
       const res = await fetch(`${API_URL}/api/orders/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
+          userId: currentUserId,
           cartItems,
           subTotal,
           discount,
           finalPrice,
         }),
       });
+
       const data = await res.json();
-      if (data.success) {
-        navigation.navigate("PaymentSuccess", { orderId: data.orderId });
+      const createdOrderId =
+        data?.orderId || data?.data?.orderId || data?.order_id || null;
+
+      if (data.success && createdOrderId) {
+        DeviceEventEmitter.emit("cartUpdated");
+
+        navigation.navigate("PaymentSuccess", {
+          orderId: createdOrderId,
+          userId: currentUserId,
+          cartItems,
+          subTotal,
+          discount,
+          finalPrice,
+          createdAt: new Date().toISOString(),
+        });
       } else {
         Alert.alert("Lỗi", data.message || "Không thể tạo đơn hàng");
       }
@@ -136,7 +167,7 @@ export default function CheckoutScreen() {
           ) : (
             cartItems.map((item: any, index: number) => (
               <View
-                key={`${item.productId}_${item.colorId ?? "default"}_${index}`}
+                key={`checkout-${item.productId ?? item.id ?? "item"}-${item.colorId ?? "default"}-${index}`}
                 style={styles.itemRow}
               >
                 <View style={styles.itemInfo}>
@@ -174,7 +205,9 @@ export default function CheckoutScreen() {
                     { color: theme === "dark" ? "#F8FAFC" : "#111" },
                   ]}
                 >
-                  {formatCurrency(item.price * item.quantity)}
+                  {formatCurrency(
+                    Number(item.price || 0) * Number(item.quantity || 0),
+                  )}
                 </Text>
               </View>
             ))
@@ -297,7 +330,6 @@ export default function CheckoutScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F7F8FA" },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -308,7 +340,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: "#EBEBEB",
   },
-
   backBtn: {
     width: 38,
     height: 38,
@@ -317,11 +348,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
   headerTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
-
   scroll: { padding: 16 },
-
   card: {
     backgroundColor: "#fff",
     borderRadius: 20,
@@ -333,57 +361,43 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-
   cardTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: "#111",
     marginBottom: 14,
   },
-
   itemRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
   },
-
   itemInfo: { flex: 1, marginRight: 10 },
-
   itemName: {
     fontSize: 14,
     fontWeight: "600",
     color: "#333",
     marginBottom: 3,
   },
-
   itemQty: { fontSize: 12, color: "#999" },
-
   itemPrice: { fontSize: 14, fontWeight: "700", color: "#111" },
-
   emptyText: { color: "#CCC", textAlign: "center", paddingVertical: 8 },
-
   priceRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 10,
   },
-
   priceLabel: { fontSize: 14, color: "#888" },
-
   priceValue: { fontSize: 14, fontWeight: "500", color: "#333" },
-
   totalRow: {
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 0.5,
     borderTopColor: "#F0F0F0",
   },
-
   totalLabel: { fontSize: 16, fontWeight: "700", color: "#111" },
-
   totalValue: { fontSize: 18, fontWeight: "800", color: "#00B14F" },
-
   secureRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -392,16 +406,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 24,
   },
-
   secureText: { fontSize: 12, color: "#AAA" },
-
   footer: {
     padding: 16,
     backgroundColor: "#fff",
     borderTopWidth: 0.5,
     borderTopColor: "#EBEBEB",
   },
-
   payBtn: {
     backgroundColor: "#00B14F",
     paddingVertical: 16,
@@ -413,6 +424,5 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-
   payText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 });

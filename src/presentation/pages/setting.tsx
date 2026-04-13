@@ -15,9 +15,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../context/themeContext";
-import { lightTheme, darkTheme } from "../../theme/colors";
+import { darkTheme, lightTheme } from "../../theme/colors";
 
-/* Định nghĩa kiểu dữ liệu cho từng mục Menu */
+const AUTH_USER_KEY = "AUTH_USER";
+const PROFILE_KEY = "PROFILE_DATA";
+
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -25,8 +27,6 @@ interface MenuItemProps {
   isLogout?: boolean;
   onPress?: () => void;
 }
-
-const PROFILE_KEY = "PROFILE_DATA";
 
 const DEFAULT_AVATAR =
   "https://i.pinimg.com/736x/21/6b/03/216b036577589d7010a30b696f839634.jpg";
@@ -45,19 +45,39 @@ export default function SettingScreen() {
 
   const loadProfileData = async () => {
     try {
-      const raw = await AsyncStorage.getItem(PROFILE_KEY);
-      if (!raw) {
-        setAvatarUri(DEFAULT_AVATAR);
-        setFullName(DEFAULT_NAME);
-        setEmail(DEFAULT_EMAIL);
-        return;
+      const rawProfile = await AsyncStorage.getItem(PROFILE_KEY);
+      const rawAuth = await AsyncStorage.getItem(AUTH_USER_KEY);
+
+      const profile = rawProfile ? JSON.parse(rawProfile) : {};
+      const auth = rawAuth ? JSON.parse(rawAuth) : {};
+
+      const isSameUser = profile.email === auth.account;
+
+      const mergedName = isSameUser
+        ? profile.fullName || auth.account
+        : auth.account || DEFAULT_NAME;
+
+      const mergedEmail = auth.account || DEFAULT_EMAIL;
+      const mergedAvatar = profile.avatarUri || DEFAULT_AVATAR;
+
+      setAvatarUri(mergedAvatar);
+      setFullName(mergedName);
+      setEmail(mergedEmail);
+
+      if (!rawProfile) {
+        await AsyncStorage.setItem(
+          PROFILE_KEY,
+          JSON.stringify({
+            avatarUri: mergedAvatar,
+            fullName: mergedName,
+            email: mergedEmail,
+            phone: "",
+            birthday: "",
+            gender: "Nam",
+            address: "",
+          }),
+        );
       }
-
-      const data = JSON.parse(raw);
-
-      setAvatarUri(data.avatarUri || DEFAULT_AVATAR);
-      setFullName(data.fullName || DEFAULT_NAME);
-      setEmail(data.email || DEFAULT_EMAIL);
     } catch (error) {
       console.log("Load profile setting error:", error);
       setAvatarUri(DEFAULT_AVATAR);
@@ -69,7 +89,7 @@ export default function SettingScreen() {
   useFocusEffect(
     useCallback(() => {
       loadProfileData();
-    }, [])
+    }, []),
   );
 
   const pickImage = async () => {
@@ -107,12 +127,33 @@ export default function SettingScreen() {
             birthday: oldData.birthday || "",
             gender: oldData.gender || "Nam",
             address: oldData.address || "",
-          })
+          }),
         );
       }
     } catch (error) {
       Alert.alert("Lỗi", "Không thể chọn ảnh đại diện.");
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert("Đăng xuất", "Bạn có muốn đăng xuất không?", [
+      { text: "Không", style: "cancel" },
+      {
+        text: "Có",
+        onPress: async () => {
+          try {
+            await AsyncStorage.multiRemove(["token", AUTH_USER_KEY, PROFILE_KEY]);
+
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "auth" }],
+            });
+          } catch (error) {
+            Alert.alert("Lỗi", "Không thể đăng xuất");
+          }
+        },
+      },
+    ]);
   };
 
   const MenuItem = ({
@@ -125,7 +166,9 @@ export default function SettingScreen() {
     <Pressable
       style={({ pressed }) => [
         styles.menuItem,
-        pressed && { backgroundColor: theme === "dark" ? "#2A3342" : "#F5F5F5" },
+        pressed && {
+          backgroundColor: theme === "dark" ? "#2A3342" : "#F5F5F5",
+        },
       ]}
       onPress={onPress}
     >
@@ -139,8 +182,8 @@ export default function SettingScreen() {
                   ? "#3A1F24"
                   : "#FFF5F5"
                 : theme === "dark"
-                ? "#1F2937"
-                : "#F8F9FA",
+                  ? "#1F2937"
+                  : "#F8F9FA",
             },
           ]}
         >
@@ -148,11 +191,7 @@ export default function SettingScreen() {
             name={icon}
             size={22}
             color={
-              isLogout
-                ? "#F75555"
-                : theme === "dark"
-                ? "#FFFFFF"
-                : "#212121"
+              isLogout ? "#F75555" : theme === "dark" ? "#FFFFFF" : "#212121"
             }
           />
         </View>
@@ -211,9 +250,11 @@ export default function SettingScreen() {
               <Ionicons name="camera" size={16} color="white" />
             </Pressable>
           </View>
+
           <Text style={[styles.userName, { color: colors.text }]}>
             {fullName}
           </Text>
+
           <Text
             style={[
               styles.userPhone,
@@ -301,13 +342,17 @@ export default function SettingScreen() {
           <MenuItem
             icon="help-circle-outline"
             label="Trung tâm trợ giúp"
-            onPress={() => Alert.alert("Thông báo", "Chưa có nội dung trợ giúp")}
+            onPress={() =>
+              Alert.alert("Thông báo", "Chưa có nội dung trợ giúp")
+            }
           />
 
           <MenuItem
             icon="information-circle-outline"
             label="Chính sách bảo mật"
-            onPress={() => Alert.alert("Thông báo", "Chưa có nội dung chính sách")}
+            onPress={() =>
+              Alert.alert("Thông báo", "Chưa có nội dung chính sách")
+            }
           />
 
           <View style={{ marginTop: 10 }}>
@@ -315,9 +360,7 @@ export default function SettingScreen() {
               icon="log-out-outline"
               label="Đăng xuất"
               isLogout={true}
-              onPress={() =>
-                Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn thoát?")
-              }
+              onPress={handleLogout}
             />
           </View>
         </View>

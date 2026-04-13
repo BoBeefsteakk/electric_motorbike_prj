@@ -17,7 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/themeContext";
 import { lightTheme, darkTheme } from "../../theme/colors";
-
+const AUTH_USER_KEY = "AUTH_USER";
 const PRIMARY = "#2563EB";
 const PRIMARY_DARK = "#1D4ED8";
 const PRIMARY_SOFT = "#DBEAFE";
@@ -51,26 +51,37 @@ export default function EditProfileScreen() {
 
   const emailValid = useMemo(
     () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
-    [email]
+    [email],
   );
+
+  const getProfileKey = async () => {
+    const rawAuth = await AsyncStorage.getItem(AUTH_USER_KEY);
+    const auth = rawAuth ? JSON.parse(rawAuth) : null;
+    const account = auth?.account;
+
+    return account ? `PROFILE_DATA_${account}` : "PROFILE_DATA";
+  };
 
   const phoneValid = useMemo(() => /^[0-9]{9,11}$/.test(phone.trim()), [phone]);
 
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const raw = await AsyncStorage.getItem(PROFILE_KEY);
-        if (!raw) return;
+        const profileKey = await getProfileKey();
+        const raw = await AsyncStorage.getItem(profileKey);
+        const profile = raw ? JSON.parse(raw) : {};
 
-        const data = JSON.parse(raw);
+        const rawAuth = await AsyncStorage.getItem(AUTH_USER_KEY);
+        const auth = rawAuth ? JSON.parse(rawAuth) : null;
+        const account = auth?.account || "";
 
-        setAvatarUri(data.avatarUri ?? DEFAULT_AVATAR);
-        setFullName(data.fullName ?? DEFAULT_NAME);
-        setEmail(data.email ?? DEFAULT_EMAIL);
-        setPhone(data.phone ?? DEFAULT_PHONE);
-        setBirthday(data.birthday ?? DEFAULT_BIRTHDAY);
-        setGender(data.gender ?? DEFAULT_GENDER);
-        setAddress(data.address ?? DEFAULT_ADDRESS);
+        setAvatarUri(profile.avatarUri || DEFAULT_AVATAR);
+        setFullName(profile.fullName || account || DEFAULT_NAME);
+        setEmail(profile.email || account || DEFAULT_EMAIL);
+        setPhone(profile.phone || "");
+        setBirthday(profile.birthday || "");
+        setGender(profile.gender || DEFAULT_GENDER);
+        setAddress(profile.address || "");
       } catch (error) {
         console.log("Load profile error:", error);
       }
@@ -126,8 +137,10 @@ export default function EditProfileScreen() {
     }
 
     try {
+      const profileKey = await getProfileKey();
+
       await AsyncStorage.setItem(
-        PROFILE_KEY,
+        profileKey,
         JSON.stringify({
           avatarUri,
           fullName,
@@ -136,7 +149,7 @@ export default function EditProfileScreen() {
           birthday,
           gender,
           address,
-        })
+        }),
       );
 
       Alert.alert("Thành công", "Cập nhật hồ sơ thành công.", [
@@ -167,13 +180,13 @@ export default function EditProfileScreen() {
           borderColor: active
             ? PRIMARY
             : theme === "dark"
-            ? "#334155"
-            : "#E5E7EB",
+              ? "#334155"
+              : "#E5E7EB",
           backgroundColor: active
             ? PRIMARY_SOFT
             : theme === "dark"
-            ? colors.card
-            : "#F9FAFB",
+              ? colors.card
+              : "#F9FAFB",
         },
       ]}
     >
@@ -184,8 +197,8 @@ export default function EditProfileScreen() {
             color: active
               ? PRIMARY_DARK
               : theme === "dark"
-              ? "#CBD5E1"
-              : "#6B7280",
+                ? "#CBD5E1"
+                : "#6B7280",
           },
         ]}
       >
@@ -196,10 +209,7 @@ export default function EditProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={PRIMARY}
-      />
+      <StatusBar barStyle="light-content" backgroundColor={PRIMARY} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -207,7 +217,10 @@ export default function EditProfileScreen() {
       >
         <View style={[styles.topHeader, { paddingTop: insets.top + 4 }]}>
           <View style={styles.headerRow}>
-            <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={styles.backBtn}
+            >
               <Ionicons name="arrow-back" size={18} color="#FFF" />
             </Pressable>
 
@@ -284,8 +297,8 @@ export default function EditProfileScreen() {
                       email.length > 0 && !emailValid
                         ? "#EF4444"
                         : theme === "dark"
-                        ? "#334155"
-                        : "#E5E7EB",
+                          ? "#334155"
+                          : "#E5E7EB",
                     color: colors.text,
                   },
                 ]}
@@ -315,8 +328,8 @@ export default function EditProfileScreen() {
                       phone.length > 0 && !phoneValid
                         ? "#EF4444"
                         : theme === "dark"
-                        ? "#334155"
-                        : "#E5E7EB",
+                          ? "#334155"
+                          : "#E5E7EB",
                     color: colors.text,
                   },
                 ]}

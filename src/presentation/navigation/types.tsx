@@ -30,6 +30,7 @@ export type HomeStackParamList = {
 
   car_detail: { id: number };
   accessory_detail: { id: number };
+  notifications: undefined;
 };
 
 /* ================= TAB ================= */
@@ -49,9 +50,11 @@ export type RootStackParamList = {
   checkout: undefined;
   PaymentSuccess: undefined;
   PaymentMethod: undefined;
+  DetailScreen: undefined;
+  Order: undefined;
+  OrderDetail: { orderId: string };
+  Warranty: undefined;
   EditProfile: undefined;
   Address: undefined;
-  DetailScreen: any;
-  Order: undefined;
-  Warranty: undefined;
 };
+
