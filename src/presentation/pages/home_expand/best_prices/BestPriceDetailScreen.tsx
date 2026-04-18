@@ -1,10 +1,10 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -22,10 +22,17 @@ import BEST_PRICE_DATA from "../../../../data/bestPrice";
 import { darkTheme, lightTheme } from "../../../../theme/colors";
 import { HomeStackParamList } from "../../../navigation/types";
 import { CartToastRef } from "../../cart";
+import AppImage from "../../../components/AppImage";
+import { ApiErrorState, ApiSkeleton } from "../../../components/ApiFeedback";
 
 const AUTH_USER_KEY = "AUTH_USER";
 const encodeImagePath = (path: string) =>
   path.split("/").map(encodeURIComponent).join("/");
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 type RouteProps = RouteProp<HomeStackParamList, "best_price_detail">;
 
@@ -41,6 +48,7 @@ export default function BestPriceDetailScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
+  const pageBg = isDark ? "#120F0D" : "#F4ECE4";
 
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProps>();
@@ -49,34 +57,50 @@ export default function BestPriceDetailScreen() {
 
   const [product, setProduct] = useState<ProductFromDB | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<number>(0);
   const [addingToCart, setAddingToCart] = useState(false);
 
   const staticData = BEST_PRICE_DATA[id as number];
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/products/${id}`);
-        const data = await res.json();
+  const fetchProduct = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await fetch(`${API_URL}/api/products/${id}`);
+
+      if (!res.ok) {
+        throw new Error(`fetch product failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (data && typeof data === "object" && data.id) {
         setProduct(data);
         if (staticData?.colors?.length > 0) {
           setSelectedColor(staticData.colors[0].id);
         }
-      } catch (e) {
-        console.log("Lỗi fetch product:", e);
-      } finally {
-        setLoading(false);
+      } else {
+        setProduct(null);
       }
-    })();
+    } catch (e) {
+      console.log("Lỗi fetch product:", e);
+      setProduct(null);
+      setError("Không tải được dữ liệu");
+    } finally {
+      setLoading(false);
+    }
   }, [id, staticData]);
+
+  useEffect(() => {
+    fetchProduct();
+  }, [fetchProduct]);
 
   const selectedVariant = useMemo(
     () => staticData?.colors?.find((c: any) => c?.id === selectedColor),
     [selectedColor, staticData],
   );
-
-  const AUTH_USER_KEY = "AUTH_USER";
 
   const handleAddToCart = async () => {
     if (!product || addingToCart) return;
@@ -128,18 +152,98 @@ export default function BestPriceDetailScreen() {
           styles.container,
           {
             paddingTop: insets.top,
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
           },
         ]}
       >
         <StatusBar
           barStyle={isDark ? "light-content" : "dark-content"}
-          backgroundColor={colors.background}
+          backgroundColor={pageBg}
         />
-        <ActivityIndicator
-          size="large"
-          color="#C47A4A"
-          style={{ marginTop: 40 }}
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: isDark ? "#334155" : "#EEE",
+              backgroundColor: pageBg,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            style={styles.headerBtn}
+            activeOpacity={0.7}
+          >
+            <FontAwesome
+              name="chevron-left"
+              size={18}
+              color={isDark ? "#E5E7EB" : "#111"}
+            />
+          </TouchableOpacity>
+
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Chi Tiết
+          </Text>
+
+          <View style={styles.headerBtn} />
+        </View>
+
+        <ApiSkeleton dark={isDark} variant="detail" count={2} />
+      </View>
+    );
+  }
+
+  if (error && !product) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            paddingTop: insets.top,
+            backgroundColor: pageBg,
+          },
+        ]}
+      >
+        <StatusBar
+          barStyle={isDark ? "light-content" : "dark-content"}
+          backgroundColor={pageBg}
+        />
+
+        <View
+          style={[
+            styles.header,
+            {
+              borderBottomColor: isDark ? "#334155" : "#EEE",
+              backgroundColor: pageBg,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            style={styles.headerBtn}
+            activeOpacity={0.7}
+          >
+            <FontAwesome
+              name="chevron-left"
+              size={18}
+              color={isDark ? "#E5E7EB" : "#111"}
+            />
+          </TouchableOpacity>
+
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Chi Tiết
+          </Text>
+
+          <View style={styles.headerBtn} />
+        </View>
+
+        <ApiErrorState
+          dark={isDark}
+          title="Không tải được dữ liệu"
+          description="Thông tin xe máy hiện chưa thể tải. Vui lòng thử lại."
+          onRetry={fetchProduct}
         />
       </View>
     );
@@ -154,13 +258,13 @@ export default function BestPriceDetailScreen() {
             paddingTop: insets.top,
             justifyContent: "center",
             alignItems: "center",
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
           },
         ]}
       >
         <StatusBar
           barStyle={isDark ? "light-content" : "dark-content"}
-          backgroundColor={colors.background}
+          backgroundColor={pageBg}
         />
         <Ionicons
           name="alert-circle-outline"
@@ -172,6 +276,7 @@ export default function BestPriceDetailScreen() {
             marginTop: 12,
             color: isDark ? "#94A3B8" : "#AAA",
             fontSize: 15,
+            fontFamily: SERIF_FONT,
           }}
         >
           Không tìm thấy sản phẩm
@@ -186,7 +291,7 @@ export default function BestPriceDetailScreen() {
         styles.container,
         {
           paddingTop: insets.top,
-          backgroundColor: colors.background,
+          backgroundColor: pageBg,
         },
       ]}
     >
@@ -201,7 +306,7 @@ export default function BestPriceDetailScreen() {
           styles.header,
           {
             borderBottomColor: isDark ? "#334155" : "#EEE",
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
           },
         ]}
       >
@@ -242,15 +347,16 @@ export default function BestPriceDetailScreen() {
         <View
           style={[
             styles.imageBox,
-            { backgroundColor: isDark ? "#1F2937" : "#F5F5F5" },
+            { backgroundColor: isDark ? "#1F2937" : "#F5EAE1" },
           ]}
         >
-          <Image
-            source={{
-              uri: `${API_URL}/images/${encodeImagePath(product.image)}`,
-            }}
+          <AppImage
+            uri={`${API_URL}/images/${encodeImagePath(product.image)}`}
             style={styles.image}
             resizeMode="cover"
+            dark={isDark}
+            fallbackEmoji="🏍️"
+            fallbackLabel="Ảnh xe máy chưa sẵn sàng"
           />
         </View>
 
@@ -293,8 +399,8 @@ export default function BestPriceDetailScreen() {
                 style={[
                   styles.quickItem,
                   {
-                    backgroundColor: isDark ? "#1F2937" : "#F8F8F8",
-                    borderColor: isDark ? "#334155" : "#F0F0F0",
+                    backgroundColor: isDark ? "#1F2937" : "#FFF8F2",
+                    borderColor: isDark ? "#334155" : "#E8D7CB",
                   },
                 ]}
               >
@@ -336,34 +442,76 @@ export default function BestPriceDetailScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Thông số chính
             </Text>
-            {staticData.specs.map((item: any, i: number) => (
+            <View
+              style={[
+                styles.specTable,
+                {
+                  backgroundColor: isDark ? "#181311" : "#FFFDF9",
+                  borderColor: isDark ? "#3B2F29" : "#E8D7CB",
+                },
+              ]}
+            >
               <View
-                key={i}
                 style={[
-                  styles.specRow,
+                  styles.specHeaderRow,
                   {
-                    backgroundColor:
-                      i % 2 === 0
-                        ? isDark
-                          ? "#1F2937"
-                          : "#F9F9F9"
-                        : "transparent",
+                    backgroundColor: isDark ? "#221B18" : "#F8EEE6",
+                    borderBottomColor: isDark ? "#3B2F29" : "#E8D7CB",
                   },
                 ]}
               >
                 <Text
                   style={[
-                    styles.specLabel,
-                    { color: isDark ? "#94A3B8" : "#888" },
+                    styles.specHeaderText,
+                    { color: isDark ? "#E5E7EB" : "#6B4F3C" },
                   ]}
                 >
-                  {item.label}
+                  Thông số
                 </Text>
-                <Text style={[styles.specValue, { color: colors.text }]}>
-                  {item.value}
+                <Text
+                  style={[
+                    styles.specHeaderText,
+                    { color: isDark ? "#E5E7EB" : "#6B4F3C" },
+                  ]}
+                >
+                  Giá trị
                 </Text>
               </View>
-            ))}
+
+              {staticData.specs.map((item: any, i: number) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.specRow,
+                    {
+                      backgroundColor:
+                        i % 2 === 0
+                          ? isDark
+                            ? "#1F2937"
+                            : "#FFF8F2"
+                          : isDark
+                            ? "#181311"
+                            : "#FFFDF9",
+                      borderBottomWidth:
+                        i === staticData.specs.length - 1 ? 0 : 1,
+                      borderBottomColor: isDark ? "#2F3B4A" : "#F0E2D6",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.specLabel,
+                      { color: isDark ? "#94A3B8" : "#7C6557" },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                  <Text style={[styles.specValue, { color: colors.text }]}>
+                    {item.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -374,7 +522,7 @@ export default function BestPriceDetailScreen() {
           {
             paddingBottom: insets.bottom + 12,
             borderTopColor: isDark ? "#334155" : "#EEE",
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
             shadowOpacity: isDark ? 0 : 0.06,
             elevation: isDark ? 0 : 12,
           },
@@ -440,7 +588,7 @@ export default function BestPriceDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFF" },
+  container: { flex: 1, backgroundColor: "#F4ECE4" },
 
   header: {
     height: 56,
@@ -462,6 +610,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: "#111",
+    fontFamily: SERIF_FONT,
   },
 
   imageBox: { height: 280, backgroundColor: "#F5F5F5" },
@@ -469,13 +618,35 @@ const styles = StyleSheet.create({
 
   content: { paddingHorizontal: 16, paddingTop: 20 },
 
-  title: { fontSize: 24, fontWeight: "800", color: "#111", marginBottom: 10 },
+  title: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#111",
+    marginBottom: 10,
+    fontFamily: SERIF_FONT,
+  },
 
   ratingRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
-  rating: { marginLeft: 8, fontWeight: "700", color: "#111" },
-  ratingCount: { marginLeft: 4, fontSize: 12, color: "#AAA" },
+  rating: {
+    marginLeft: 8,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
+  ratingCount: {
+    marginLeft: 4,
+    fontSize: 12,
+    color: "#AAA",
+    fontFamily: SERIF_FONT,
+  },
 
-  desc: { fontSize: 14, color: "#666", lineHeight: 22, marginBottom: 20 },
+  desc: {
+    fontSize: 14,
+    color: "#666",
+    lineHeight: 22,
+    marginBottom: 20,
+    fontFamily: SERIF_FONT,
+  },
 
   quickInfo: {
     flexDirection: "row",
@@ -491,8 +662,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#F0F0F0",
   },
-  quickValue: { fontWeight: "800", fontSize: 15, color: "#111" },
-  quickLabel: { marginTop: 4, fontSize: 11, color: "#999" },
+  quickValue: {
+    fontWeight: "800",
+    fontSize: 15,
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
+  quickLabel: {
+    marginTop: 4,
+    fontSize: 11,
+    color: "#999",
+    fontFamily: SERIF_FONT,
+  },
 
   sectionBox: { marginBottom: 24 },
   sectionTitle: {
@@ -500,6 +681,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#111",
     marginBottom: 12,
+    fontFamily: SERIF_FONT,
   },
 
   bulletRow: {
@@ -515,18 +697,53 @@ const styles = StyleSheet.create({
     marginTop: 7,
     marginRight: 10,
   },
-  bulletText: { fontSize: 14, color: "#555", lineHeight: 22, flex: 1 },
+  bulletText: {
+    fontSize: 14,
+    color: "#555",
+    lineHeight: 22,
+    flex: 1,
+    fontFamily: SERIF_FONT,
+  },
 
   specRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    marginBottom: 2,
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
-  specLabel: { color: "#888", fontSize: 13 },
-  specValue: { fontWeight: "700", color: "#111", fontSize: 13 },
+  specTable: {
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  specHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  specHeaderText: {
+    fontSize: 12,
+    fontWeight: "800",
+    fontFamily: SERIF_FONT,
+  },
+  specLabel: {
+    color: "#888",
+    fontSize: 13,
+    fontFamily: SERIF_FONT,
+    width: "48%",
+  },
+  specValue: {
+    fontWeight: "700",
+    color: "#111",
+    fontSize: 13,
+    fontFamily: SERIF_FONT,
+    width: "48%",
+    textAlign: "right",
+  },
 
   footer: {
     position: "absolute",
@@ -537,7 +754,7 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     flexDirection: "row",
     alignItems: "center",
-    borderTopWidth: 0.5,
+    borderTopWidth: 1,
     borderTopColor: "#EEE",
     backgroundColor: "#FFF",
     shadowColor: "#000",
@@ -546,12 +763,13 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 12,
   },
-  priceLabel: { fontSize: 11, color: "#AAA" },
+  priceLabel: { fontSize: 11, color: "#AAA", fontFamily: SERIF_FONT },
   price: {
     fontSize: 20,
     fontWeight: "800",
     color: "#C0392B",
     marginBottom: 6,
+    fontFamily: SERIF_FONT,
   },
 
   colorRow: { flexDirection: "row", gap: 8 },
@@ -583,5 +801,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 12,
     letterSpacing: 0.5,
+    fontFamily: SERIF_FONT,
   },
 });

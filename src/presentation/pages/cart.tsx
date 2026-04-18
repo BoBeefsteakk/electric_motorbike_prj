@@ -16,6 +16,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   ToastAndroid,
@@ -26,8 +27,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
 import { darkTheme, lightTheme } from "../../theme/colors";
+import EmptyState from "../components/EmptyState";
 
 const AUTH_USER_KEY = "AUTH_USER";
+const getCartCacheKey = (userId: string) => `CART_CACHE_${userId}`;
+const getPendingCheckoutKey = (userId: string) =>
+  `PENDING_CHECKOUT_CART_${userId}`;
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 interface CartItem {
   productId: string;
@@ -256,16 +266,118 @@ const buildImageUri = (image?: string) => {
   return `${API_URL}/images/${safeEncodePath(trimmed)}`;
 };
 
+const normalizeCartItems = (items: any[]): CartItem[] =>
+  items.map((i: any) => ({
+    ...i,
+    selected: false,
+    colorId: i.colorId ?? null,
+    colorName: i.colorName ?? null,
+    colorValue: i.colorValue ?? null,
+  }));
+
+const serializeCartItems = (items: CartItem[]) =>
+  items.map((item) => ({
+    ...item,
+    selected: false,
+  }));
+
 export default function CartScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
+  const pageBg = theme === "dark" ? "#120F0D" : "#F4ECE4";
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [isVoucherModal, setVoucherModal] = useState(false);
   const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+
+  const persistCartCache = useCallback(async (items: CartItem[]) => {
+    try {
+      const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
+      const user = rawUser ? JSON.parse(rawUser) : null;
+      const userId = user?.account;
+
+      if (!userId) return;
+
+      await AsyncStorage.setItem(
+        getCartCacheKey(userId),
+        JSON.stringify(serializeCartItems(items)),
+      );
+    } catch (e) {
+      console.log("persist cart cache error:", e);
+    }
+  }, []);
+
+  const resolveCartAfterCheckout = useCallback(
+    async (userId: string, serverItems: CartItem[]) => {
+      const pendingRaw = await AsyncStorage.getItem(getPendingCheckoutKey(userId));
+
+      if (!pendingRaw) {
+        return serverItems;
+      }
+
+      let pending:
+        | {
+            remainingItems: CartItem[];
+            selectedKeys: string[];
+          }
+        | null = null;
+
+      try {
+        pending = JSON.parse(pendingRaw);
+      } catch {
+        pending = null;
+      }
+
+      if (!pending) {
+        await AsyncStorage.removeItem(getPendingCheckoutKey(userId));
+        return serverItems;
+      }
+
+      const serverKeys = new Set(serverItems.map(getCartItemKey));
+      const selectedStillInCart = pending.selectedKeys.some((key) =>
+        serverKeys.has(key),
+      );
+
+      if (selectedStillInCart) {
+        await AsyncStorage.removeItem(getPendingCheckoutKey(userId));
+        return serverItems;
+      }
+
+      if (!pending.remainingItems.length) {
+        await AsyncStorage.removeItem(getPendingCheckoutKey(userId));
+        return serverItems;
+      }
+
+      const hasAllRemaining = pending.remainingItems.every((item) =>
+        serverKeys.has(getCartItemKey(item)),
+      );
+
+      if (hasAllRemaining) {
+        await AsyncStorage.removeItem(getPendingCheckoutKey(userId));
+        return serverItems;
+      }
+
+      const merged = new Map<string, CartItem>();
+
+      serverItems.forEach((item) => {
+        merged.set(getCartItemKey(item), { ...item, selected: false });
+      });
+
+      pending.remainingItems.forEach((item) => {
+        const key = getCartItemKey(item);
+        if (!merged.has(key)) {
+          merged.set(key, { ...item, selected: false });
+        }
+      });
+
+      return Array.from(merged.values());
+    },
+    [],
+  );
 
   const fetchCart = useCallback(async () => {
     try {
@@ -284,25 +396,24 @@ export default function CartScreen() {
       );
       const data = await res.json();
 
-      if (data.success && Array.isArray(data.data?.items)) {
-        setCartItems(
-          data.data.items.map((i: any) => ({
-            ...i,
-            selected: false,
-            colorId: i.colorId ?? null,
-            colorName: i.colorName ?? null,
-            colorValue: i.colorValue ?? null,
-          })),
-        );
-      } else {
-        setCartItems([]);
-      }
+      const normalizedItems =
+        data.success && Array.isArray(data.data?.items)
+          ? normalizeCartItems(data.data.items)
+          : [];
+
+      const resolvedItems = await resolveCartAfterCheckout(
+        userId,
+        normalizedItems,
+      );
+
+      setCartItems(resolvedItems);
+      await persistCartCache(resolvedItems);
     } catch (e) {
       setCartItems([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [persistCartCache, resolveCartAfterCheckout]);
 
   useFocusEffect(
     useCallback(() => {
@@ -318,16 +429,29 @@ export default function CartScreen() {
     return () => sub.remove();
   }, [fetchCart]);
 
+  const handleRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await fetchCart();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchCart]);
+
   const removeItem = async (
     productId: string,
     colorId?: number | null,
     colorName?: string | null,
   ) => {
-    const keyToRemove = `${productId}__${colorId ?? "no-color"}__${colorName ?? "default"}`;
+    const keyToRemove = getCartItemKey({
+      productId,
+      colorId: colorId ?? null,
+      colorName: colorName ?? null,
+    });
 
-    setCartItems((prev) =>
-      prev.filter((i) => getCartItemKey(i) !== keyToRemove),
-    );
+    const nextItems = cartItems.filter((i) => getCartItemKey(i) !== keyToRemove);
+    setCartItems(nextItems);
+    persistCartCache(nextItems);
 
     try {
       const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
@@ -360,7 +484,11 @@ export default function CartScreen() {
     colorId?: number | null,
     colorName?: string | null,
   ) => {
-    const key = `${productId}__${colorId ?? "no-color"}__${colorName ?? "default"}`;
+    const key = getCartItemKey({
+      productId,
+      colorId: colorId ?? null,
+      colorName: colorName ?? null,
+    });
     const item = cartItems.find((i) => getCartItemKey(i) === key);
 
     if (!item) return;
@@ -372,11 +500,11 @@ export default function CartScreen() {
 
     const newQty = Math.max(1, item.quantity + delta);
 
-    setCartItems((prev) =>
-      prev.map((i) =>
-        getCartItemKey(i) === key ? { ...i, quantity: newQty } : i,
-      ),
+    const nextItems = cartItems.map((i) =>
+      getCartItemKey(i) === key ? { ...i, quantity: newQty } : i,
     );
+    setCartItems(nextItems);
+    persistCartCache(nextItems);
 
     try {
       const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
@@ -442,6 +570,18 @@ export default function CartScreen() {
         return;
       }
 
+      const remainingItems = cartItems
+        .filter((item) => !item.selected)
+        .map((item) => ({ ...item, selected: false }));
+
+      await AsyncStorage.setItem(
+        getPendingCheckoutKey(userId),
+        JSON.stringify({
+          remainingItems,
+          selectedKeys: selected.map(getCartItemKey),
+        }),
+      );
+
       navigation.navigate("checkout", {
         cartItems: selected,
         appliedVoucher,
@@ -478,12 +618,12 @@ export default function CartScreen() {
         activeOpacity={0.88}
         onPress={handleNavigateToDetail}
         style={[
-          styles.card,
-          {
-            backgroundColor: colors.card,
-            shadowOpacity: theme === "dark" ? 0 : 0.06,
-            elevation: theme === "dark" ? 0 : 2,
-            borderWidth: theme === "dark" ? 1 : 0,
+        styles.card,
+        {
+          backgroundColor: theme === "dark" ? colors.card : "#fff",
+          shadowOpacity: theme === "dark" ? 0 : 0.06,
+          elevation: theme === "dark" ? 0 : 2,
+          borderWidth: theme === "dark" ? 1 : 0,
             borderColor: theme === "dark" ? "#334155" : "transparent",
           },
         ]}
@@ -635,7 +775,7 @@ export default function CartScreen() {
         styles.safe,
         {
           paddingTop: insets.top,
-          backgroundColor: theme === "dark" ? "#0F172A" : "#F7F8FA",
+          backgroundColor: pageBg,
         },
       ]}
     >
@@ -643,7 +783,7 @@ export default function CartScreen() {
         style={[
           styles.header,
           {
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
             borderBottomColor: theme === "dark" ? "#243041" : "#EBEBEB",
           },
         ]}
@@ -665,32 +805,27 @@ export default function CartScreen() {
           ))}
         </View>
       ) : cartItems.length === 0 ? (
-        <View style={styles.emptyBox}>
-          <Ionicons
-            name="cart-outline"
-            size={72}
-            color={theme === "dark" ? "#475569" : "#DDD"}
-          />
-          <Text
-            style={[
-              styles.emptyText,
-              { color: theme === "dark" ? "#94A3B8" : "#CCC" },
-            ]}
-          >
-            Giỏ hàng trống
-          </Text>
-          <TouchableOpacity
-            style={styles.shopBtn}
-            onPress={() => navigation.navigate("home")}
-          >
-            <Text style={styles.shopBtnText}>Khám phá xe ngay</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="cart-outline"
+          dark={theme === "dark"}
+          title="Giỏ hàng đang trống"
+          description="Chưa có sản phẩm nào trong giỏ. Chọn xe hoặc phụ kiện để tiếp tục mua sắm."
+          actionLabel="Khám phá xe ngay"
+          onPressAction={() => navigation.navigate("home")}
+        />
       ) : (
         <FlatList
           data={cartItems}
           keyExtractor={(i) => getCartItemKey(i)}
           renderItem={renderItem}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#C47A4A"
+              colors={["#C47A4A"]}
+            />
+          }
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + 180 },
@@ -706,7 +841,7 @@ export default function CartScreen() {
             styles.footer,
             {
               paddingBottom: insets.bottom + 12,
-              backgroundColor: colors.background,
+              backgroundColor: pageBg,
               shadowOpacity: theme === "dark" ? 0 : 0.08,
               elevation: theme === "dark" ? 0 : 18,
               borderTopWidth: theme === "dark" ? 1 : 0,
@@ -812,7 +947,7 @@ export default function CartScreen() {
             style={[
               styles.modalBox,
               {
-                backgroundColor: colors.background,
+                backgroundColor: pageBg,
                 borderTopWidth: theme === "dark" ? 1 : 0,
                 borderTopColor: theme === "dark" ? "#243041" : "transparent",
               },
@@ -903,7 +1038,7 @@ export default function CartScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F7F8FA" },
+  safe: { flex: 1, backgroundColor: "#F4ECE4" },
 
   header: {
     flexDirection: "row",
@@ -915,14 +1050,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: "#EBEBEB",
   },
-  headerTitle: { fontSize: 22, fontWeight: "800", color: "#111" },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
   countBadge: {
     backgroundColor: "#39B78D",
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  countBadgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  countBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+    fontFamily: SERIF_FONT,
+  },
 
   listContent: { padding: 16 },
 
@@ -971,12 +1116,14 @@ const styles = StyleSheet.create({
     color: "#111",
     paddingRight: 8,
     lineHeight: 20,
+    fontFamily: SERIF_FONT,
   },
 
   itemSub: {
     fontSize: 11,
     color: "#BBB",
     marginTop: 2,
+    fontFamily: SERIF_FONT,
   },
 
   colorRow: {
@@ -998,12 +1145,14 @@ const styles = StyleSheet.create({
   metaLabel: {
     fontSize: 13,
     color: "#666",
+    fontFamily: SERIF_FONT,
   },
 
   metaValue: {
     fontSize: 13,
     color: "#222",
     fontWeight: "600",
+    fontFamily: SERIF_FONT,
   },
 
   cardBottom: {
@@ -1017,6 +1166,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     color: "#111",
+    fontFamily: SERIF_FONT,
   },
 
   qtyControl: {
@@ -1038,6 +1188,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
     color: "#111",
+    fontFamily: SERIF_FONT,
   },
 
   emptyBox: {
@@ -1046,7 +1197,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 14,
   },
-  emptyText: { color: "#CCC", fontSize: 17, fontWeight: "600" },
+  emptyText: {
+    color: "#CCC",
+    fontSize: 17,
+    fontWeight: "600",
+    fontFamily: SERIF_FONT,
+  },
   shopBtn: {
     backgroundColor: "#39B78D",
     paddingHorizontal: 24,
@@ -1054,7 +1210,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 4,
   },
-  shopBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  shopBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+    fontFamily: SERIF_FONT,
+  },
 
   footer: {
     position: "absolute",
@@ -1084,8 +1245,18 @@ const styles = StyleSheet.create({
   },
   voucherLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   voucherRight: { flexDirection: "row", alignItems: "center", gap: 4 },
-  voucherLabel: { fontSize: 14, fontWeight: "600", color: "#111" },
-  voucherValue: { fontSize: 13, color: "#AAA", fontWeight: "500" },
+  voucherLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
+  voucherValue: {
+    fontSize: 13,
+    color: "#AAA",
+    fontWeight: "500",
+    fontFamily: SERIF_FONT,
+  },
 
   actionRow: {
     flexDirection: "row",
@@ -1093,10 +1264,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   selectAllBtn: { flexDirection: "row", alignItems: "center", gap: 8 },
-  selectAllText: { fontSize: 14, color: "#666" },
+  selectAllText: { fontSize: 14, color: "#666", fontFamily: SERIF_FONT },
   checkoutGroup: { flexDirection: "row", alignItems: "center", gap: 14 },
-  totalLabel: { fontSize: 11, color: "#AAA", marginBottom: 2 },
-  totalAmount: { fontSize: 16, fontWeight: "800", color: "#111" },
+  totalLabel: {
+    fontSize: 11,
+    color: "#AAA",
+    marginBottom: 2,
+    fontFamily: SERIF_FONT,
+  },
+  totalAmount: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
   checkoutBtn: {
     backgroundColor: "#39B78D",
     paddingHorizontal: 20,
@@ -1104,7 +1285,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   checkoutBtnDisabled: { backgroundColor: "#CCC" },
-  checkoutText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  checkoutText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+    fontFamily: SERIF_FONT,
+  },
 
   modalOverlay: {
     flex: 1,
@@ -1132,7 +1318,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: "#111" },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
 
   voucherItem: {
     flexDirection: "row",
@@ -1158,14 +1349,25 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#111",
     marginBottom: 3,
+    fontFamily: SERIF_FONT,
   },
-  voucherDesc: { fontSize: 12, color: "#888" },
+  voucherDesc: { fontSize: 12, color: "#888", fontFamily: SERIF_FONT },
   voucherDiscountBox: { paddingHorizontal: 14 },
-  voucherDiscount: { fontSize: 15, fontWeight: "800", color: "#FF4D4D" },
+  voucherDiscount: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FF4D4D",
+    fontFamily: SERIF_FONT,
+  },
   removeVoucherBtn: {
     alignItems: "center",
     marginTop: 6,
     paddingVertical: 12,
   },
-  removeVoucherText: { color: "#FF4D4D", fontWeight: "700", fontSize: 14 },
+  removeVoucherText: {
+    color: "#FF4D4D",
+    fontWeight: "700",
+    fontSize: 14,
+    fontFamily: SERIF_FONT,
+  },
 });

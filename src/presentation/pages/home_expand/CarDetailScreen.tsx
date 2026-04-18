@@ -1,6 +1,6 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,8 +23,15 @@ import { darkTheme, lightTheme } from "../../../theme/colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { DeviceEventEmitter } from "react-native";
 import { CartToastRef } from "../cart";
+import { ApiErrorState, ApiSkeleton } from "../../components/ApiFeedback";
+import AppImage from "../../components/AppImage";
 
 const AUTH_USER_KEY = "AUTH_USER";
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 interface Car {
   id: number;
@@ -68,6 +75,7 @@ const SPECS = [
 export default function CarDetailScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
+  const pageBg = theme === "dark" ? "#120F0D" : "#F4ECE4";
 
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -76,19 +84,43 @@ export default function CarDetailScreen() {
 
   const [car, setCar] = useState<Car | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
   const heartScale = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/cars/${id}`)
-      .then((r) => r.json())
-      .then(setCar)
-      .catch((e) => console.log("fetch car error:", e))
-      .finally(() => setLoading(false));
+  const fetchCar = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await fetch(`${API_URL}/api/cars/${id}`);
+
+      if (!res.ok) {
+        throw new Error(`fetch car failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (data && typeof data === "object" && data.id) {
+        setCar(data);
+      } else {
+        setCar(null);
+      }
+    } catch (e) {
+      console.log("fetch car error:", e);
+      setCar(null);
+      setError("Không tải được dữ liệu");
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    fetchCar();
+  }, [fetchCar]);
 
   const handleGoBack = () => {
     if (isClosing) return;
@@ -113,8 +145,6 @@ export default function CarDetailScreen() {
       }),
     ]).start();
   };
-
-  const AUTH_USER_KEY = "AUTH_USER";
 
   const handleAddToCart = async () => {
     if (!car || addingToCart) return;
@@ -161,14 +191,109 @@ export default function CarDetailScreen() {
     return (
       <View
         style={[
-          styles.center,
-          {
-            paddingTop: insets.top,
-            backgroundColor: colors.background,
-          },
+          styles.container,
+          { paddingTop: insets.top, backgroundColor: pageBg },
         ]}
       >
-        <ActivityIndicator size="large" color="#C8902A" />
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: pageBg,
+              borderBottomColor: theme === "dark" ? "#243041" : "#EEE",
+            },
+          ]}
+        >
+          <View style={styles.headerSideLeft}>
+            <TouchableOpacity
+              onPress={handleGoBack}
+              disabled={isClosing}
+              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+              style={[styles.headerBtn, isClosing && styles.headerBtnPressed]}
+              activeOpacity={0.7}
+            >
+              <FontAwesome
+                name="chevron-left"
+                size={18}
+                color={theme === "dark" ? "#FFF" : "#111"}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <Text
+            style={[
+              styles.headerTitle,
+              { color: theme === "dark" ? "#FFF" : "#111" },
+            ]}
+          >
+            Chi Tiết
+          </Text>
+
+          <View style={styles.headerSideRight} />
+        </View>
+
+        <ApiSkeleton dark={theme === "dark"} variant="detail" count={2} />
+      </View>
+    );
+  }
+
+  if (error && !car) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { paddingTop: insets.top, backgroundColor: pageBg },
+        ]}
+      >
+        <StatusBar
+          barStyle={theme === "dark" ? "light-content" : "dark-content"}
+          translucent
+          backgroundColor="transparent"
+        />
+
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: pageBg,
+              borderBottomColor: theme === "dark" ? "#243041" : "#EEE",
+            },
+          ]}
+        >
+          <View style={styles.headerSideLeft}>
+            <TouchableOpacity
+              onPress={handleGoBack}
+              disabled={isClosing}
+              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+              style={[styles.headerBtn, isClosing && styles.headerBtnPressed]}
+              activeOpacity={0.7}
+            >
+              <FontAwesome
+                name="chevron-left"
+                size={18}
+                color={theme === "dark" ? "#FFF" : "#111"}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <Text
+            style={[
+              styles.headerTitle,
+              { color: theme === "dark" ? "#FFF" : "#111" },
+            ]}
+          >
+            Chi Tiết
+          </Text>
+
+          <View style={styles.headerSideRight} />
+        </View>
+
+        <ApiErrorState
+          dark={theme === "dark"}
+          title="Không tải được dữ liệu"
+          description="Thông tin xe hiện chưa thể tải. Vui lòng thử lại."
+          onRetry={fetchCar}
+        />
       </View>
     );
   }
@@ -180,7 +305,7 @@ export default function CarDetailScreen() {
           styles.center,
           {
             paddingTop: insets.top,
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
           },
         ]}
       >
@@ -209,7 +334,7 @@ export default function CarDetailScreen() {
     <View
       style={[
         styles.container,
-        { paddingTop: insets.top, backgroundColor: colors.background },
+        { paddingTop: insets.top, backgroundColor: pageBg },
       ]}
     >
       <StatusBar
@@ -222,7 +347,7 @@ export default function CarDetailScreen() {
         style={[
           styles.header,
           {
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
             borderBottomColor: theme === "dark" ? "#243041" : "#EEE",
           },
         ]}
@@ -295,21 +420,14 @@ export default function CarDetailScreen() {
         bounces={false}
       >
         <View style={styles.imageBox}>
-          {uri ? (
-            <Image source={{ uri }} style={styles.image} resizeMode="cover" />
-          ) : (
-            <View
-              style={[
-                styles.image,
-                styles.imageFallback,
-                {
-                  backgroundColor: theme === "dark" ? "#1F2937" : "#F0ECE8",
-                },
-              ]}
-            >
-              <Text style={{ fontSize: 60 }}>🚗</Text>
-            </View>
-          )}
+          <AppImage
+            uri={uri}
+            style={styles.image}
+            resizeMode="cover"
+            dark={theme === "dark"}
+            fallbackEmoji="🚗"
+            fallbackLabel="Ảnh xe chưa sẵn sàng"
+          />
 
           <View style={[styles.catBadge, { backgroundColor: accent }]}>
             <Text style={styles.catBadgeText}>{catLabel}</Text>
@@ -338,7 +456,7 @@ export default function CarDetailScreen() {
                   styles.quickItem,
                   {
                     borderTopColor: accent,
-                    backgroundColor: theme === "dark" ? colors.card : "#F8F8F8",
+                    backgroundColor: theme === "dark" ? colors.card : "#FFFFFF",
                   },
                 ]}
               >
@@ -362,7 +480,7 @@ export default function CarDetailScreen() {
             style={[
               styles.card,
               {
-                backgroundColor: theme === "dark" ? colors.card : "#F8F8F8",
+                backgroundColor: theme === "dark" ? colors.card : "#FFFFFF",
                 borderWidth: theme === "dark" ? 1 : 0,
                 borderColor: theme === "dark" ? "#334155" : "transparent",
               },
@@ -396,7 +514,7 @@ export default function CarDetailScreen() {
               styles.card,
               {
                 marginTop: 16,
-                backgroundColor: theme === "dark" ? colors.card : "#F8F8F8",
+                backgroundColor: theme === "dark" ? colors.card : "#FFFFFF",
                 borderWidth: theme === "dark" ? 1 : 0,
                 borderColor: theme === "dark" ? "#334155" : "transparent",
               },
@@ -448,7 +566,7 @@ export default function CarDetailScreen() {
           styles.footer,
           {
             paddingBottom: insets.bottom + 12,
-            backgroundColor: colors.background,
+            backgroundColor: theme === "dark" ? colors.card : "#FFFFFF",
             borderTopColor: theme === "dark" ? "#243041" : "#EEE",
           },
         ]}
@@ -499,9 +617,14 @@ export default function CarDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFF" },
+  container: { flex: 1, backgroundColor: "#F4ECE4" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  notFound: { color: "#999", marginTop: 12, fontSize: 15 },
+  notFound: {
+    color: "#999",
+    marginTop: 12,
+    fontSize: 15,
+    fontFamily: SERIF_FONT,
+  },
 
   header: {
     height: 56,
@@ -522,6 +645,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: "#111",
+    fontFamily: SERIF_FONT,
   },
   headerSideLeft: {
     width: 44,
@@ -549,11 +673,6 @@ const styles = StyleSheet.create({
 
   imageBox: { height: 280, overflow: "hidden", position: "relative" },
   image: { width: "100%", height: "100%" },
-  imageFallback: {
-    backgroundColor: "#F0ECE8",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   catBadge: {
     position: "absolute",
     bottom: 14,
@@ -562,7 +681,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
   },
-  catBadgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  catBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+    fontFamily: SERIF_FONT,
+  },
 
   content: { paddingHorizontal: 16 },
   title: {
@@ -571,8 +695,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 20,
     color: "#111",
+    fontFamily: SERIF_FONT,
   },
-  desc: { fontSize: 14, color: "#666", lineHeight: 22, marginBottom: 20 },
+  desc: {
+    fontSize: 14,
+    color: "#666",
+    lineHeight: 22,
+    marginBottom: 20,
+    fontFamily: SERIF_FONT,
+  },
 
   quickInfo: {
     flexDirection: "row",
@@ -583,20 +714,26 @@ const styles = StyleSheet.create({
     width: "23%",
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     borderTopWidth: 3,
     gap: 4,
   },
-  quickValue: { fontWeight: "800", fontSize: 13, marginTop: 2 },
-  quickLabel: { fontSize: 10, color: "#888" },
+  quickValue: {
+    fontWeight: "800",
+    fontSize: 13,
+    marginTop: 2,
+    fontFamily: SERIF_FONT,
+  },
+  quickLabel: { fontSize: 10, color: "#888", fontFamily: SERIF_FONT },
 
-  card: { backgroundColor: "#F8F8F8", borderRadius: 16, padding: 16 },
+  card: { backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16 },
   cardTitle: {
     fontSize: 15,
     fontWeight: "700",
     color: "#111",
     marginBottom: 12,
+    fontFamily: SERIF_FONT,
   },
   bulletRow: {
     flexDirection: "row",
@@ -610,7 +747,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginRight: 10,
   },
-  bulletText: { fontSize: 14, color: "#555", lineHeight: 22, flex: 1 },
+  bulletText: {
+    fontSize: 14,
+    color: "#555",
+    lineHeight: 22,
+    flex: 1,
+    fontFamily: SERIF_FONT,
+  },
 
   specRow: {
     flexDirection: "row",
@@ -618,8 +761,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   specRowBorder: { borderBottomWidth: 0.5, borderBottomColor: "#EBEBEB" },
-  specLabel: { color: "#777", fontSize: 14 },
-  specValue: { fontWeight: "700", fontSize: 14 },
+  specLabel: { color: "#777", fontSize: 14, fontFamily: SERIF_FONT },
+  specValue: { fontWeight: "700", fontSize: 14, fontFamily: SERIF_FONT },
 
   footer: {
     position: "absolute",
@@ -630,13 +773,23 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     flexDirection: "row",
     alignItems: "center",
-    borderTopWidth: 0.5,
+    borderTopWidth: 1,
     borderTopColor: "#EEE",
-    backgroundColor: "#FFF",
+    backgroundColor: "#FFFFFF",
   },
-  priceLabel: { fontSize: 11, color: "#999", marginBottom: 2 },
-  price: { fontSize: 22, fontWeight: "800" },
-  priceSub: { fontSize: 11, color: "#BBB", marginTop: 2 },
+  priceLabel: {
+    fontSize: 11,
+    color: "#999",
+    marginBottom: 2,
+    fontFamily: SERIF_FONT,
+  },
+  price: { fontSize: 22, fontWeight: "800", fontFamily: SERIF_FONT },
+  priceSub: {
+    fontSize: 11,
+    color: "#BBB",
+    marginTop: 2,
+    fontFamily: SERIF_FONT,
+  },
   buyBtn: {
     marginLeft: 16,
     flexDirection: "row",
@@ -647,5 +800,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 18,
   },
-  buyText: { color: "#FFF", fontWeight: "800", fontSize: 13 },
+  buyText: {
+    color: "#FFF",
+    fontWeight: "800",
+    fontSize: 13,
+    fontFamily: SERIF_FONT,
+  },
 });

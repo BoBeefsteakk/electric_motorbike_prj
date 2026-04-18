@@ -1,18 +1,25 @@
 import { FontAwesome } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
-  Image,
+  Keyboard,
+  Platform,
+  RefreshControl,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import AppImage from "../../../components/AppImage";
+import { ApiErrorState } from "../../../components/ApiFeedback";
+import EmptyState from "../../../components/EmptyState";
 import { useTheme } from "../../../../context/themeContext";
 import API_URL from "../../../../data/api/apis";
 import { darkTheme, lightTheme } from "../../../../theme/colors";
@@ -26,6 +33,14 @@ interface Store {
   route?: string;
   description?: string;
 }
+
+const STORE_SEARCH_HISTORY_KEY = "STORE_SEARCH_HISTORY";
+
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 const SkeletonRow = ({ dark }: { dark: boolean }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
@@ -43,7 +58,7 @@ const SkeletonRow = ({ dark }: { dark: boolean }) => {
           duration: 750,
           useNativeDriver: true,
         }),
-      ]),
+      ])
     ).start();
   }, [anim]);
 
@@ -142,6 +157,7 @@ const RatingStars = ({ rating, dark }: { rating: number; dark: boolean }) => {
           color: dark ? "#CBD5E1" : "#555",
           fontWeight: "600",
           marginLeft: 5,
+          fontFamily: SERIF_FONT,
         }}
       >
         {rating}
@@ -154,20 +170,105 @@ export default function HomeStoreList() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
+  const pageBg = isDark ? "#120F0D" : "#F4ECE4";
 
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
 
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+
+  const fetchStores = useCallback(async (preserveData = false) => {
+    try {
+      setError(null);
+
+      const res = await fetch(`${API_URL}/api/stores`);
+
+      if (!res.ok) {
+        throw new Error(`fetch stores failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setStores(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.log("Lỗi fetch stores:", e);
+      if (!preserveData) {
+        setStores([]);
+      }
+      setError("Không tải được dữ liệu");
+    }
+  }, []);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/stores`)
-      .then((r) => r.json())
-      .then(setStores)
-      .catch((e) => console.log(e))
-      .finally(() => setLoading(false));
+    setLoading(true);
+    fetchStores().finally(() => setLoading(false));
+  }, [fetchStores]);
+
+  useEffect(() => {
+    const loadSearchHistory = async () => {
+      try {
+        const rawHistory = await AsyncStorage.getItem(STORE_SEARCH_HISTORY_KEY);
+        const parsed = rawHistory ? JSON.parse(rawHistory) : [];
+        setSearchHistory(Array.isArray(parsed) ? parsed : []);
+      } catch (e) {
+        console.log("Lỗi load store search history:", e);
+      }
+    };
+
+    loadSearchHistory();
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchStores(true);
+    setRefreshing(false);
+  }, [fetchStores]);
+
+  const handleRetry = useCallback(async () => {
+    setLoading(true);
+    await fetchStores();
+    setLoading(false);
+  }, [fetchStores]);
+
+  const filteredStores = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    if (!normalizedQuery) return stores;
+
+    return stores.filter((item) => {
+      const name = item.name?.toLowerCase?.() || "";
+      const address = item.address?.toLowerCase?.() || "";
+
+      return (
+        name.includes(normalizedQuery) || address.includes(normalizedQuery)
+      );
+    });
+  }, [searchQuery, stores]);
+
+  const commitStoreSearchHistory = useCallback(async () => {
+    const normalizedQuery = searchQuery.trim();
+    if (!normalizedQuery) return;
+
+    const nextHistory = [
+      normalizedQuery,
+      ...searchHistory.filter((item) => item !== normalizedQuery),
+    ].slice(0, 8);
+
+    setSearchHistory(nextHistory);
+
+    try {
+      await AsyncStorage.setItem(
+        STORE_SEARCH_HISTORY_KEY,
+        JSON.stringify(nextHistory)
+      );
+    } catch (e) {
+      console.log("Lỗi save store search history:", e);
+    }
+  }, [searchHistory, searchQuery]);
 
   const goStoreDetail = (item: Store) => {
     navigation.navigate("store_detail", {
@@ -182,7 +283,7 @@ export default function HomeStoreList() {
       style={[
         styles.card,
         {
-          backgroundColor: colors.card,
+          backgroundColor: isDark ? colors.card : "#fff",
           shadowOpacity: isDark ? 0 : 0.07,
           elevation: isDark ? 0 : 3,
           borderWidth: isDark ? 1 : 0,
@@ -192,9 +293,12 @@ export default function HomeStoreList() {
       onPress={() => goStoreDetail(item)}
     >
       <View style={styles.imageBox}>
-        <Image
-          source={{ uri: `${API_URL}${item.image}` }}
+        <AppImage
+          uri={`${API_URL}${item.image}`}
           style={styles.image}
+          dark={isDark}
+          fallbackIcon="storefront-outline"
+          fallbackLabel="Ảnh cửa hàng chưa sẵn sàng"
         />
         <View style={styles.indexBadge}>
           <Text style={styles.indexText}>
@@ -248,7 +352,7 @@ export default function HomeStoreList() {
         styles.safe,
         {
           paddingTop: insets.top,
-          backgroundColor: colors.background,
+          backgroundColor: pageBg,
         },
       ]}
     >
@@ -262,7 +366,7 @@ export default function HomeStoreList() {
         style={[
           styles.header,
           {
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
             borderBottomColor: isDark ? "#243041" : "#EBEBEB",
           },
         ]}
@@ -291,50 +395,181 @@ export default function HomeStoreList() {
         <View style={{ width: 36 }} />
       </View>
 
-      {!loading && (
-        <View
-          style={[
-            styles.subHeader,
-            {
-              backgroundColor: colors.background,
-              borderBottomColor: isDark ? "#243041" : "#F0F0F0",
-            },
-          ]}
-        >
-          <View style={styles.accentBar} />
-          <Text
-            style={[styles.subTitle, { color: isDark ? "#94A3B8" : "#888" }]}
-          >
-            {stores.length} cửa hàng trên toàn quốc
-          </Text>
-        </View>
-      )}
-
       {loading ? (
         <View style={{ padding: 16, gap: 14 }}>
           {[0, 1, 2, 3].map((i) => (
             <SkeletonRow key={i} dark={isDark} />
           ))}
         </View>
-      ) : (
-        <FlatList
-          data={stores}
-          keyExtractor={(i) => String(i.id)}
-          renderItem={renderItem}
-          contentContainerStyle={[
-            styles.list,
-            { paddingBottom: insets.bottom + 32 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+      ) : error && stores.length === 0 ? (
+        <ApiErrorState
+          dark={isDark}
+          title="Không tải được dữ liệu"
+          description="Danh sách cửa hàng hiện chưa thể tải. Vui lòng thử lại."
+          onRetry={handleRetry}
         />
+      ) : (
+        <>
+          <View style={styles.searchWrap}>
+            <View
+              style={[
+                styles.searchBox,
+                {
+                  backgroundColor: isDark ? "#0F172A" : "#FFF8F3",
+                  borderColor: isDark ? "#334155" : "#E8D7CB",
+                },
+              ]}
+            >
+              <FontAwesome
+                name="search"
+                size={14}
+                color={isDark ? "#94A3B8" : "#8B7163"}
+              />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={() => {
+                  commitStoreSearchHistory();
+                  Keyboard.dismiss();
+                }}
+                placeholder="Tìm cửa hàng theo tên hoặc địa chỉ"
+                placeholderTextColor={isDark ? "#64748B" : "#A8A29E"}
+                style={[styles.searchInput, { color: colors.text }]}
+              />
+            </View>
+          </View>
+
+          {!searchQuery && searchHistory.length > 0 ? (
+            <View style={styles.historyWrap}>
+              <View style={styles.historyHeader}>
+                <Text
+                  style={[
+                    styles.historyTitle,
+                    { color: isDark ? "#94A3B8" : "#78716C" },
+                  ]}
+                >
+                  Tìm kiếm gần đây
+                </Text>
+                <TouchableOpacity
+                  onPress={async () => {
+                    setSearchHistory([]);
+                    try {
+                      await AsyncStorage.removeItem(STORE_SEARCH_HISTORY_KEY);
+                    } catch (e) {
+                      console.log("Lỗi clear store search history:", e);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.historyClearText}>Xóa</Text>
+                </TouchableOpacity>
+              </View>
+
+              <FlatList
+                horizontal
+                data={searchHistory}
+                keyExtractor={(item) => item}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.historyRow}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setSearchQuery(item);
+                      Keyboard.dismiss();
+                    }}
+                    style={[
+                      styles.historyChip,
+                      {
+                        backgroundColor: isDark ? "#0F172A" : "#FFF8F3",
+                        borderColor: isDark ? "#334155" : "#E8D7CB",
+                      },
+                    ]}
+                  >
+                    <FontAwesome
+                      name="history"
+                      size={12}
+                      color={isDark ? "#94A3B8" : "#8B7163"}
+                    />
+                    <Text
+                      style={[
+                        styles.historyChipText,
+                        { color: isDark ? "#CBD5E1" : "#6B4F3C" },
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          ) : null}
+
+          <View
+            style={[
+              styles.subHeader,
+              {
+                backgroundColor: pageBg,
+                borderBottomColor: isDark ? "#243041" : "#F0F0F0",
+              },
+            ]}
+          >
+            <View style={styles.accentBar} />
+            <Text
+              style={[styles.subTitle, { color: isDark ? "#94A3B8" : "#888" }]}
+            >
+              {filteredStores.length} / {stores.length} cửa hàng
+            </Text>
+          </View>
+
+          {stores.length === 0 ? (
+            <EmptyState
+              dark={isDark}
+              icon="storefront-outline"
+              title="Chưa có cửa hàng"
+              description="Danh sách cửa hàng hiện chưa có dữ liệu. Vui lòng thử lại sau."
+              actionLabel="Tải lại"
+              onAction={handleRetry}
+            />
+          ) : filteredStores.length === 0 ? (
+            <EmptyState
+              dark={isDark}
+              icon="search-outline"
+              title="Không tìm thấy cửa hàng"
+              description="Thử đổi từ khóa tìm kiếm hoặc kiểm tra lại địa chỉ."
+              actionLabel="Xóa tìm kiếm"
+              onAction={() => setSearchQuery("")}
+            />
+          ) : (
+            <FlatList
+              data={filteredStores}
+              keyExtractor={(i) => String(i.id)}
+              renderItem={renderItem}
+              contentContainerStyle={[
+                styles.list,
+                { paddingBottom: insets.bottom + 32 },
+              ]}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={isDark ? "#E5E7EB" : "#C47A4A"}
+                  colors={["#C47A4A"]}
+                  progressBackgroundColor={isDark ? "#1F2937" : "#FFFFFF"}
+                />
+              }
+            />
+          )}
+        </>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F7F8FA" },
+  safe: { flex: 1, backgroundColor: "#F4ECE4" },
 
   header: {
     height: 56,
@@ -354,8 +589,67 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
-
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
+  searchWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+  },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 14,
+    fontFamily: SERIF_FONT,
+    paddingVertical: 0,
+  },
+  historyWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  historyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  historyTitle: {
+    fontSize: 12,
+    fontFamily: SERIF_FONT,
+  },
+  historyClearText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#C47A4A",
+    fontFamily: SERIF_FONT,
+  },
+  historyRow: {
+    gap: 8,
+  },
+  historyChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  historyChipText: {
+    fontSize: 12,
+    fontFamily: SERIF_FONT,
+  },
   subHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -372,7 +666,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF8C00",
     marginRight: 10,
   },
-  subTitle: { fontSize: 13, color: "#888", fontWeight: "500" },
+  subTitle: {
+    fontSize: 13,
+    color: "#888",
+    fontWeight: "500",
+    fontFamily: SERIF_FONT,
+  },
 
   list: { padding: 16 },
 
@@ -399,7 +698,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  indexText: { fontSize: 11, fontWeight: "800", color: "#fff" },
+  indexText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#fff",
+    fontFamily: SERIF_FONT,
+  },
 
   info: { flex: 1, padding: 14, justifyContent: "space-between" },
   storeName: {
@@ -407,6 +711,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
     marginBottom: 4,
+    fontFamily: SERIF_FONT,
   },
 
   addressRow: {
@@ -415,7 +720,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
     gap: 5,
   },
-  addressText: { flex: 1, fontSize: 12, color: "#999", lineHeight: 17 },
+  addressText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#999",
+    lineHeight: 17,
+    fontFamily: SERIF_FONT,
+  },
 
   viewBtn: {
     flexDirection: "row",
@@ -428,5 +739,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "#111",
   },
-  viewText: { fontSize: 12, color: "#fff", fontWeight: "600" },
+  viewText: {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: "600",
+    fontFamily: SERIF_FONT,
+  },
 });

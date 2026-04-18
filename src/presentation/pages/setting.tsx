@@ -6,6 +6,7 @@ import React, { useCallback, useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,13 @@ import { darkTheme, lightTheme } from "../../theme/colors";
 
 const AUTH_USER_KEY = "AUTH_USER";
 const PROFILE_KEY = "PROFILE_DATA";
+const ACCENT = "#C47A4A";
+const ACCENT_DARK = "#9F633B";
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -36,6 +44,7 @@ const DEFAULT_EMAIL = "thanhvan@example.com";
 export default function SettingScreen() {
   const { theme, toggleTheme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
+  const pageBg = theme === "dark" ? "#120F0D" : "#F4ECE4";
 
   const navigation = useNavigation<any>();
 
@@ -43,21 +52,25 @@ export default function SettingScreen() {
   const [fullName, setFullName] = useState(DEFAULT_NAME);
   const [email, setEmail] = useState(DEFAULT_EMAIL);
 
+  const getProfileKey = async () => {
+    const rawAuth = await AsyncStorage.getItem(AUTH_USER_KEY);
+    const auth = rawAuth ? JSON.parse(rawAuth) : null;
+    const account = auth?.account;
+
+    return account ? `PROFILE_DATA_${account}` : PROFILE_KEY;
+  };
+
   const loadProfileData = async () => {
     try {
-      const rawProfile = await AsyncStorage.getItem(PROFILE_KEY);
+      const profileKey = await getProfileKey();
+      const rawProfile = await AsyncStorage.getItem(profileKey);
       const rawAuth = await AsyncStorage.getItem(AUTH_USER_KEY);
 
       const profile = rawProfile ? JSON.parse(rawProfile) : {};
       const auth = rawAuth ? JSON.parse(rawAuth) : {};
 
-      const isSameUser = profile.email === auth.account;
-
-      const mergedName = isSameUser
-        ? profile.fullName || auth.account
-        : auth.account || DEFAULT_NAME;
-
-      const mergedEmail = auth.account || DEFAULT_EMAIL;
+      const mergedName = profile.fullName || auth.account || DEFAULT_NAME;
+      const mergedEmail = profile.email || auth.account || DEFAULT_EMAIL;
       const mergedAvatar = profile.avatarUri || DEFAULT_AVATAR;
 
       setAvatarUri(mergedAvatar);
@@ -66,7 +79,7 @@ export default function SettingScreen() {
 
       if (!rawProfile) {
         await AsyncStorage.setItem(
-          PROFILE_KEY,
+          profileKey,
           JSON.stringify({
             avatarUri: mergedAvatar,
             fullName: mergedName,
@@ -111,14 +124,15 @@ export default function SettingScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const newAvatar = result.assets[0].uri;
+        const profileKey = await getProfileKey();
 
         setAvatarUri(newAvatar);
 
-        const raw = await AsyncStorage.getItem(PROFILE_KEY);
+        const raw = await AsyncStorage.getItem(profileKey);
         const oldData = raw ? JSON.parse(raw) : {};
 
         await AsyncStorage.setItem(
-          PROFILE_KEY,
+          profileKey,
           JSON.stringify({
             avatarUri: newAvatar,
             fullName: oldData.fullName || fullName || DEFAULT_NAME,
@@ -142,7 +156,11 @@ export default function SettingScreen() {
         text: "Có",
         onPress: async () => {
           try {
-            await AsyncStorage.multiRemove(["token", AUTH_USER_KEY, PROFILE_KEY]);
+            await AsyncStorage.multiRemove([
+              "token",
+              AUTH_USER_KEY,
+              PROFILE_KEY,
+            ]);
 
             navigation.reset({
               index: 0,
@@ -162,74 +180,99 @@ export default function SettingScreen() {
     rightElement,
     isLogout,
     onPress,
-  }: MenuItemProps) => (
-    <Pressable
-      style={({ pressed }) => [
-        styles.menuItem,
-        pressed && {
-          backgroundColor: theme === "dark" ? "#2A3342" : "#F5F5F5",
-        },
-      ]}
-      onPress={onPress}
-    >
-      <View style={styles.menuLeft}>
-        <View
-          style={[
-            styles.iconWrapper,
-            {
-              backgroundColor: isLogout
-                ? theme === "dark"
-                  ? "#3A1F24"
-                  : "#FFF5F5"
-                : theme === "dark"
-                  ? "#1F2937"
-                  : "#F8F9FA",
-            },
-          ]}
-        >
-          <Ionicons
-            name={icon}
-            size={22}
-            color={
-              isLogout ? "#F75555" : theme === "dark" ? "#FFFFFF" : "#212121"
-            }
-          />
+  }: MenuItemProps) => {
+    const itemBg = isLogout
+      ? theme === "dark"
+        ? "#2A1717"
+        : "#FFF7F7"
+      : theme === "dark"
+        ? "#1D1814"
+        : "#FFF8F2";
+    const itemBorder = isLogout
+      ? theme === "dark"
+        ? "#5B2C2C"
+        : "#F3D1D1"
+      : theme === "dark"
+        ? "#3C2D22"
+        : "#E7D5C8";
+    const iconBg = isLogout ? "#D84E4E" : ACCENT;
+    const chevronColor = isLogout
+      ? theme === "dark"
+        ? "#FCA5A5"
+        : "#E57373"
+      : theme === "dark"
+        ? "#D6B8A4"
+        : ACCENT_DARK;
+
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.menuItem,
+          {
+            backgroundColor: pressed
+              ? theme === "dark"
+                ? isLogout
+                  ? "#341C1C"
+                  : "#261F1A"
+                : isLogout
+                  ? "#FFF0F0"
+                  : "#FFF2E8"
+              : itemBg,
+            borderColor: itemBorder,
+          },
+        ]}
+        onPress={onPress}
+      >
+        <View style={styles.menuLeft}>
+          <View
+            style={[
+              styles.iconWrapper,
+              {
+                backgroundColor: iconBg,
+                borderColor: isLogout
+                  ? theme === "dark"
+                    ? "#7A3333"
+                    : "#F1B4B4"
+                  : theme === "dark"
+                    ? "#C99268"
+                    : "#E4B694",
+              },
+            ]}
+          >
+            <Ionicons name={icon} size={20} color="#FFFFFF" />
+          </View>
+
+          <Text
+            style={[
+              styles.menuLabel,
+              { color: isLogout ? "#F75555" : colors.text },
+            ]}
+          >
+            {label}
+          </Text>
         </View>
 
-        <Text
-          style={[
-            styles.menuLabel,
-            { color: isLogout ? "#F75555" : colors.text },
-          ]}
-        >
-          {label}
-        </Text>
-      </View>
-
-      <View style={styles.menuRight}>
-        {rightElement ? (
-          rightElement
-        ) : !isLogout ? (
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={theme === "dark" ? "#94A3B8" : "#BDBDBD"}
-          />
-        ) : null}
-      </View>
-    </Pressable>
-  );
+        <View style={styles.menuRight}>
+          {rightElement ? (
+            rightElement
+          ) : !isLogout ? (
+            <Ionicons name="chevron-forward" size={20} color={chevronColor} />
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  };
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: pageBg }]}
       edges={["top"]}
     >
       <View
         style={[
           styles.header,
           {
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
             borderBottomColor: theme === "dark" ? "#243041" : "#F0F0F0",
           },
         ]}
@@ -266,12 +309,7 @@ export default function SettingScreen() {
         </View>
 
         <View style={styles.menuSection}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: theme === "dark" ? "#64748B" : "#BDBDBD" },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Quản lý giao dịch
           </Text>
 
@@ -293,12 +331,7 @@ export default function SettingScreen() {
             onPress={() => navigation.navigate("PaymentMethod")}
           />
 
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: theme === "dark" ? "#64748B" : "#BDBDBD" },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Cài đặt hệ thống
           </Text>
 
@@ -330,12 +363,7 @@ export default function SettingScreen() {
             }
           />
 
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: theme === "dark" ? "#64748B" : "#BDBDBD" },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Hỗ trợ
           </Text>
 
@@ -372,7 +400,7 @@ export default function SettingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F4ECE4",
   },
 
   header: {
@@ -389,6 +417,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: "#1A1A1A",
+    fontFamily: SERIF_FONT,
     textAlign: "left",
   },
 
@@ -420,12 +449,14 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 20,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
     marginTop: 12,
     color: "#1A1A1A",
   },
 
   userPhone: {
     fontSize: 14,
+    fontFamily: SERIF_FONT,
     color: "#8C8C8C",
     marginTop: 4,
   },
@@ -433,8 +464,9 @@ const styles = StyleSheet.create({
   menuSection: { paddingHorizontal: 20 },
 
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
     color: "#BDBDBD",
     marginTop: 25,
     marginBottom: 10,
@@ -446,9 +478,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
 
   menuLeft: {
@@ -458,10 +497,11 @@ const styles = StyleSheet.create({
   },
 
   iconWrapper: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     backgroundColor: "#F8F9FA",
-    borderRadius: 12,
+    borderRadius: 14,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -469,6 +509,7 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: 16,
     fontWeight: "500",
+    fontFamily: SERIF_FONT,
     color: "#333",
   },
 

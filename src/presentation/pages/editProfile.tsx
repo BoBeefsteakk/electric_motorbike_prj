@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StatusBar,
@@ -17,11 +18,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/themeContext";
 import { lightTheme, darkTheme } from "../../theme/colors";
+import { showFeedback } from "../utils/feedback";
+
 const AUTH_USER_KEY = "AUTH_USER";
 const PRIMARY = "#2563EB";
 const PRIMARY_DARK = "#1D4ED8";
 const PRIMARY_SOFT = "#DBEAFE";
 const PROFILE_KEY = "PROFILE_DATA";
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 type GenderType = "Nam" | "Nữ" | "Khác";
 
@@ -37,6 +45,7 @@ const DEFAULT_ADDRESS = "Hà Nội, Việt Nam";
 export default function EditProfileScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
+  const pageBg = theme === "dark" ? "#120F0D" : "#F4ECE4";
 
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -152,14 +161,16 @@ export default function EditProfileScreen() {
         }),
       );
 
-      Alert.alert("Thành công", "Cập nhật hồ sơ thành công.", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      showFeedback({
+        type: "success",
+        message: "Cập nhật hồ sơ thành công.",
+      });
+      navigation.goBack();
     } catch (error) {
-      Alert.alert("Lỗi", "Không thể lưu hồ sơ.");
+      showFeedback({
+        type: "error",
+        message: "Không thể lưu hồ sơ.",
+      });
     }
   };
 
@@ -208,7 +219,7 @@ export default function EditProfileScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: pageBg }]}>
       <StatusBar barStyle="light-content" backgroundColor={PRIMARY} />
 
       <ScrollView
@@ -418,7 +429,7 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F3F4F6" },
+  container: { flex: 1, backgroundColor: "#F4ECE4" },
 
   topHeader: {
     paddingHorizontal: 20,
@@ -448,6 +459,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     color: "#FFF",
+    fontFamily: SERIF_FONT,
   },
 
   content: {
@@ -491,6 +503,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 12,
     color: "#6B7280",
+    fontFamily: SERIF_FONT,
   },
 
   formCard: {
@@ -512,6 +525,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#374151",
     marginBottom: 8,
+    fontFamily: SERIF_FONT,
   },
 
   input: {
@@ -523,6 +537,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 15,
     color: "#111827",
+    fontFamily: SERIF_FONT,
   },
 
   textArea: {
@@ -535,6 +550,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 12,
     color: "#EF4444",
+    fontFamily: SERIF_FONT,
   },
 
   genderRow: {
@@ -557,6 +573,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#6B7280",
+    fontFamily: SERIF_FONT,
   },
 
   saveBtn: {
@@ -574,5 +591,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 16,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
   },
 });

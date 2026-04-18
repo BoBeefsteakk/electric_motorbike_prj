@@ -6,7 +6,8 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Image,
+  Platform,
+  RefreshControl,
   StatusBar,
   StyleSheet,
   Text,
@@ -20,6 +21,9 @@ import API_URL from "../../../../data/api/apis";
 import BEST_PRICE_DATA from "../../../../data/bestPrice";
 import { darkTheme, lightTheme } from "../../../../theme/colors";
 import { HomeStackParamList } from "../../../navigation/types";
+import AppImage from "../../../components/AppImage";
+import { ApiErrorState } from "../../../components/ApiFeedback";
+import EmptyState from "../../../components/EmptyState";
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, "best_price_all">;
 
@@ -33,6 +37,11 @@ interface Product {
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 48) / 2;
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 const encodeImagePath = (p: string) =>
   p.split("/").map(encodeURIComponent).join("/");
@@ -163,6 +172,7 @@ const Stars = ({ rating, dark }: { rating: number; dark: boolean }) => {
           fontSize: 11,
           color: dark ? "#94A3B8" : "#999",
           marginLeft: 4,
+          fontFamily: SERIF_FONT,
         }}
       >
         {rating.toFixed(1)}
@@ -178,18 +188,48 @@ export default function BestPriceAllScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
+  const pageBg = isDark ? "#120F0D" : "#F4ECE4";
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState("all");
 
-  useEffect(() => {
-    fetch(`${API_URL}/api/products`)
-      .then((r) => r.json())
-      .then(setProducts)
-      .catch((e) => console.log(e))
-      .finally(() => setLoading(false));
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await fetch(`${API_URL}/api/products`);
+
+      if (!res.ok) {
+        throw new Error(`fetch products failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.log(e);
+      setProducts([]);
+      setError("Không tải được dữ liệu");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const handleRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await fetchProducts();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchProducts]);
 
   const filtered =
     filter === "all" ? products : products.filter((p) => p.category === filter);
@@ -213,7 +253,7 @@ export default function BestPriceAllScreen() {
             styles.card,
             {
               width: CARD_W,
-              backgroundColor: colors.card,
+              backgroundColor: isDark ? colors.card : "#fff",
               shadowOpacity: isDark ? 0 : 0.07,
               elevation: isDark ? 0 : 3,
               borderWidth: isDark ? 1 : 0,
@@ -226,12 +266,13 @@ export default function BestPriceAllScreen() {
           }
         >
           <View style={styles.imageBox}>
-            <Image
-              source={{
-                uri: `${API_URL}/images/${encodeImagePath(item.image)}`,
-              }}
+            <AppImage
+              uri={`${API_URL}/images/${encodeImagePath(item.image)}`}
               style={styles.image}
-              fadeDuration={200}
+              resizeMode="cover"
+              dark={isDark}
+              fallbackEmoji="🏍️"
+              fallbackLabel="Ảnh xe máy chưa sẵn sàng"
             />
             {catLabel && (
               <View
@@ -362,7 +403,7 @@ export default function BestPriceAllScreen() {
     <View
       style={[
         styles.safe,
-        { paddingTop: insets.top, backgroundColor: colors.background },
+        { paddingTop: insets.top, backgroundColor: pageBg },
       ]}
     >
       <StatusBar
@@ -375,7 +416,7 @@ export default function BestPriceAllScreen() {
         style={[
           styles.header,
           {
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
             borderBottomColor: isDark ? "#243041" : "#EBEBEB",
           },
         ]}
@@ -408,11 +449,35 @@ export default function BestPriceAllScreen() {
             <SkeletonCard key={i} dark={isDark} />
           ))}
         </View>
+      ) : error && products.length === 0 ? (
+        <ApiErrorState
+          dark={isDark}
+          title="Không tải được dữ liệu"
+          description="Danh sách xe máy bán chạy hiện chưa thể tải. Vui lòng thử lại."
+          onRetry={fetchProducts}
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon="search-outline"
+          dark={isDark}
+          title="Không có sản phẩm phù hợp"
+          description="Thử đổi bộ lọc để xem thêm các mẫu xe máy khác."
+          actionLabel="Xem tất cả"
+          onPressAction={() => setFilter("all")}
+        />
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(item) => String(item.id)}
           numColumns={2}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#C47A4A"
+              colors={["#C47A4A"]}
+            />
+          }
           ListHeaderComponent={ListHeader}
           contentContainerStyle={[
             styles.list,
@@ -431,7 +496,7 @@ export default function BestPriceAllScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F7F8FA" },
+  safe: { flex: 1, backgroundColor: "#F4ECE4" },
 
   header: {
     height: 56,
@@ -451,7 +516,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
 
   filterBar: {
     paddingHorizontal: 16,
@@ -466,10 +536,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFEFEF",
     marginRight: 8,
   },
-  filterText: { fontSize: 13, fontWeight: "600", color: "#777" },
+  filterText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#777",
+    fontFamily: SERIF_FONT,
+  },
 
   countRow: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 },
-  countText: { fontSize: 13, color: "#AAA", fontWeight: "500" },
+  countText: {
+    fontSize: 13,
+    color: "#AAA",
+    fontWeight: "500",
+    fontFamily: SERIF_FONT,
+  },
 
   list: { paddingHorizontal: 16 },
   row: { justifyContent: "space-between", marginBottom: 16 },
@@ -494,7 +574,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   imageBox: { height: 140, overflow: "hidden" },
-  image: { width: "100%", height: "100%", resizeMode: "cover" },
+  image: { width: "100%", height: "100%" },
 
   catPill: {
     position: "absolute",
@@ -505,7 +585,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  catText: { fontSize: 10, fontWeight: "700" },
+  catText: { fontSize: 10, fontWeight: "700", fontFamily: SERIF_FONT },
 
   cardBody: { padding: 12 },
   cardName: {
@@ -515,6 +595,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     minHeight: 42,
     marginBottom: 4,
+    fontFamily: SERIF_FONT,
   },
   divider: { height: 0.5, backgroundColor: "#F0F0F0", marginVertical: 8 },
   footer: {
@@ -522,8 +603,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  fromLabel: { fontSize: 10, color: "#BBB", marginBottom: 2 },
-  price: { fontSize: 14, fontWeight: "800" },
+  fromLabel: {
+    fontSize: 10,
+    color: "#BBB",
+    marginBottom: 2,
+    fontFamily: SERIF_FONT,
+  },
+  price: { fontSize: 14, fontWeight: "800", fontFamily: SERIF_FONT },
   plusBtn: {
     width: 28,
     height: 28,

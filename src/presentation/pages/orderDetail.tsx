@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,8 @@ import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
 import { addNotification } from "../../data/notifications";
 import { darkTheme, lightTheme } from "../../theme/colors";
+import { ApiErrorState, ApiSkeleton } from "../components/ApiFeedback";
+import { showFeedback } from "../utils/feedback";
 
 type OrderItem = {
   id?: number;
@@ -37,6 +40,19 @@ type OrderDetailData = {
   items: OrderItem[];
 };
 
+type TimelineStep = {
+  key: string;
+  title: string;
+  description: string;
+  state: "completed" | "current" | "upcoming" | "canceled";
+};
+
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
+
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -54,10 +70,82 @@ const formatDateTime = (value?: string) => {
   return `${day}/${month}/${year} ${hour}:${minute}`;
 };
 
+const ORDER_PROGRESS: Array<{
+  key: string;
+  title: string;
+  description: string;
+}> = [
+  {
+    key: "processing",
+    title: "Đang xử lý",
+    description: "Đơn hàng đã được ghi nhận và đang chờ xác nhận.",
+  },
+  {
+    key: "confirmed",
+    title: "Đã xác nhận",
+    description: "Đơn hàng đã được xác nhận và chuẩn bị xuất kho.",
+  },
+  {
+    key: "shipping",
+    title: "Đang giao",
+    description: "Đơn hàng đang được vận chuyển tới địa chỉ của bạn.",
+  },
+  {
+    key: "done",
+    title: "Hoàn thành",
+    description: "Đơn hàng đã giao thành công.",
+  },
+];
+
+const STATUS_INDEX: Record<string, number> = {
+  "Đang xử lý": 0,
+  "Đã xác nhận": 1,
+  "Đang giao": 2,
+  "Hoàn thành": 3,
+};
+
+const getTimelineSteps = (
+  status: string,
+  createdAt?: string,
+): TimelineStep[] => {
+  if (status === "Đã hủy") {
+    return [
+      {
+        key: "created",
+        title: "Đơn đã tạo",
+        description: `Đặt lúc ${formatDateTime(createdAt)}`,
+        state: "completed",
+      },
+      {
+        key: "canceled",
+        title: "Đã hủy",
+        description: "Đơn hàng đã được hủy và không tiếp tục xử lý.",
+        state: "canceled",
+      },
+    ];
+  }
+
+  const currentIndex = STATUS_INDEX[status] ?? 0;
+
+  return ORDER_PROGRESS.map((step, index) => ({
+    key: step.key,
+    title: step.title,
+    description:
+      index === 0 ? `Đặt lúc ${formatDateTime(createdAt)}` : step.description,
+    state:
+      index < currentIndex
+        ? "completed"
+        : index === currentIndex
+          ? "current"
+          : "upcoming",
+  }));
+};
+
 export default function OrderDetailScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
+  const pageBg = isDark ? "#120F0D" : "#F4ECE4";
 
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -66,13 +154,20 @@ export default function OrderDetailScreen() {
 
   const [order, setOrder] = useState<OrderDetailData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [canceling, setCanceling] = useState(false);
 
   const fetchOrderDetail = useCallback(async () => {
-    if (!orderId) return;
+    if (!orderId) {
+      setError("Không tải được dữ liệu");
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
+      setError(null);
+
       const res = await fetch(`${API_URL}/api/orders/${orderId}`);
       const data = await res.json();
 
@@ -89,16 +184,16 @@ export default function OrderDetailScreen() {
           items: Array.isArray(data.data.items) ? data.data.items : [],
         });
       } else {
-        Alert.alert("Lỗi", data.message || "Không tìm thấy đơn hàng");
-        navigation.goBack();
+        setOrder(null);
+        setError(data.message || "Không tải được dữ liệu");
       }
     } catch (error) {
-      Alert.alert("Lỗi", "Không thể tải chi tiết đơn hàng");
-      navigation.goBack();
+      setOrder(null);
+      setError("Không tải được dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, [navigation, orderId]);
+  }, [orderId]);
 
   useEffect(() => {
     fetchOrderDetail();
@@ -128,10 +223,11 @@ export default function OrderDetailScreen() {
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-              Alert.alert(
-                "Thông báo",
-                data.message || "Không thể hủy đơn hàng",
-              );
+              showFeedback({
+                type: "error",
+                title: "Thông báo",
+                message: data.message || "Không thể hủy đơn hàng.",
+              });
               return;
             }
 
@@ -150,9 +246,15 @@ export default function OrderDetailScreen() {
                 : prev,
             );
 
-            Alert.alert("Thành công", "Đơn hàng đã được hủy.");
+            showFeedback({
+              type: "success",
+              message: "Đơn hàng đã được hủy.",
+            });
           } catch (error) {
-            Alert.alert("Lỗi", "Không thể kết nối server để hủy đơn.");
+            showFeedback({
+              type: "error",
+              message: "Không thể kết nối server để hủy đơn.",
+            });
           } finally {
             setCanceling(false);
           }
@@ -164,19 +266,55 @@ export default function OrderDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={[styles.container, { backgroundColor: pageBg }]}
       >
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color="#00B14F" />
-          <Text
+        <ApiSkeleton dark={isDark} variant="detail" count={2} />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && !order) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: pageBg }]}
+      >
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: pageBg,
+              borderBottomColor: isDark ? "#334155" : "#EBEBEB",
+            },
+          ]}
+        >
+          <Pressable
             style={[
-              styles.loadingText,
-              { color: isDark ? "#94A3B8" : "#64748B" },
+              styles.backBtn,
+              { backgroundColor: isDark ? "#0F172A" : "#F5F5F5" },
             ]}
+            onPress={() => navigation.goBack()}
+            hitSlop={12}
           >
-            Đang tải chi tiết đơn hàng...
+            <Ionicons
+              name="chevron-back"
+              size={24}
+              color={isDark ? "#E5E7EB" : "#111"}
+            />
+          </Pressable>
+
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Chi tiết đơn hàng
           </Text>
+
+          <View style={{ width: 38 }} />
         </View>
+
+        <ApiErrorState
+          dark={isDark}
+          title="Không tải được dữ liệu"
+          description="Chi tiết đơn hàng hiện chưa thể tải. Vui lòng thử lại."
+          onRetry={fetchOrderDetail}
+        />
       </SafeAreaView>
     );
   }
@@ -184,16 +322,62 @@ export default function OrderDetailScreen() {
   if (!order) return null;
 
   const isCanceled = order.status === "Đã hủy";
+  const timelineSteps = getTimelineSteps(order.status, order.createdAt);
+
+  const getStepColors = (state: TimelineStep["state"]) => {
+    switch (state) {
+      case "completed":
+        return {
+          dotBg: "#16A34A",
+          dotBorder: "#16A34A",
+          line: "#16A34A",
+          title: colors.text,
+          description: isDark ? "#94A3B8" : "#64748B",
+          icon: "checkmark",
+          iconColor: "#FFFFFF",
+        };
+      case "current":
+        return {
+          dotBg: "#C47A4A",
+          dotBorder: "#C47A4A",
+          line: isDark ? "#334155" : "#E5E7EB",
+          title: colors.text,
+          description: "#C47A4A",
+          icon: "ellipse",
+          iconColor: "#FFFFFF",
+        };
+      case "canceled":
+        return {
+          dotBg: "#EF4444",
+          dotBorder: "#EF4444",
+          line: "#EF4444",
+          title: "#EF4444",
+          description: isDark ? "#FCA5A5" : "#B91C1C",
+          icon: "close",
+          iconColor: "#FFFFFF",
+        };
+      default:
+        return {
+          dotBg: isDark ? "#0F172A" : "#FFFFFF",
+          dotBorder: isDark ? "#334155" : "#D6D3D1",
+          line: isDark ? "#334155" : "#E5E7EB",
+          title: isDark ? "#CBD5E1" : "#64748B",
+          description: isDark ? "#64748B" : "#94A3B8",
+          icon: "ellipse-outline",
+          iconColor: isDark ? "#94A3B8" : "#94A3B8",
+        };
+    }
+  };
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: pageBg }]}
     >
       <View
         style={[
           styles.header,
           {
-            backgroundColor: isDark ? colors.card : "#fff",
+            backgroundColor: pageBg,
             borderBottomColor: isDark ? "#334155" : "#EBEBEB",
           },
         ]}
@@ -283,6 +467,80 @@ export default function OrderDetailScreen() {
               {order.status}
             </Text>
           </View>
+        </View>
+
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? colors.card : "#fff",
+              borderColor: isDark ? "#334155" : "#EAEAEA",
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Tiến trình đơn hàng
+          </Text>
+
+          {timelineSteps.map((step, index) => {
+            const stepColors = getStepColors(step.state);
+            const isLast = index === timelineSteps.length - 1;
+
+            return (
+              <View key={step.key} style={styles.timelineRow}>
+                <View style={styles.timelineRail}>
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      {
+                        backgroundColor: stepColors.dotBg,
+                        borderColor: stepColors.dotBorder,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={stepColors.icon as any}
+                      size={12}
+                      color={stepColors.iconColor}
+                    />
+                  </View>
+
+                  {!isLast && (
+                    <View
+                      style={[
+                        styles.timelineLine,
+                        { backgroundColor: stepColors.line },
+                      ]}
+                    />
+                  )}
+                </View>
+
+                <View
+                  style={[
+                    styles.timelineContent,
+                    !isLast && styles.timelineContentSpaced,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.timelineTitle,
+                      { color: stepColors.title },
+                    ]}
+                  >
+                    {step.title}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.timelineDescription,
+                      { color: stepColors.description },
+                    ]}
+                  >
+                    {step.description}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
         </View>
 
         <View
@@ -402,6 +660,7 @@ export default function OrderDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#F4ECE4",
   },
   loadingWrap: {
     flex: 1,
@@ -411,6 +670,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
+    fontFamily: SERIF_FONT,
   },
   header: {
     flexDirection: "row",
@@ -430,6 +690,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
   scroll: {
     padding: 16,
@@ -444,7 +705,48 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
     marginBottom: 14,
+  },
+  timelineRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  timelineRail: {
+    width: 26,
+    alignItems: "center",
+  },
+  timelineDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    marginTop: 6,
+    borderRadius: 999,
+  },
+  timelineContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  timelineContentSpaced: {
+    paddingBottom: 18,
+  },
+  timelineTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    fontFamily: SERIF_FONT,
+  },
+  timelineDescription: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: SERIF_FONT,
   },
   infoRow: {
     flexDirection: "row",
@@ -453,10 +755,12 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
+    fontFamily: SERIF_FONT,
   },
   infoValue: {
     fontSize: 14,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
   itemRow: {
     flexDirection: "row",
@@ -472,14 +776,17 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 15,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
     marginBottom: 4,
   },
   itemMeta: {
     fontSize: 13,
+    fontFamily: SERIF_FONT,
   },
   itemPrice: {
     fontSize: 14,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
   summaryWrap: {
     marginTop: 14,
@@ -494,18 +801,22 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
+    fontFamily: SERIF_FONT,
   },
   summaryValue: {
     fontSize: 14,
     fontWeight: "600",
+    fontFamily: SERIF_FONT,
   },
   totalLabel: {
     fontSize: 16,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
   },
   totalValue: {
     fontSize: 18,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
     color: "#00B14F",
   },
   footer: {
@@ -525,5 +836,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
 });

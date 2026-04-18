@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   DeviceEventEmitter,
+  Platform,
   Pressable,
   ScrollView,
   StatusBar,
@@ -17,8 +18,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
 import { darkTheme, lightTheme } from "../../theme/colors";
+import { showFeedback } from "../utils/feedback";
 
 const AUTH_USER_KEY = "AUTH_USER";
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("vi-VN", {
@@ -29,6 +36,7 @@ const formatCurrency = (v: number) =>
 export default function CheckoutScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
+  const pageBg = theme === "dark" ? "#120F0D" : "#F4ECE4";
 
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -58,7 +66,10 @@ export default function CheckoutScreen() {
       const currentUserId = route.params?.userId || authUser?.account;
 
       if (!currentUserId) {
-        Alert.alert("Lỗi", "Không xác định được tài khoản thanh toán");
+        showFeedback({
+          type: "error",
+          message: "Không xác định được tài khoản thanh toán.",
+        });
         return;
       }
 
@@ -91,27 +102,33 @@ export default function CheckoutScreen() {
           createdAt: new Date().toISOString(),
         });
       } else {
-        Alert.alert("Lỗi", data.message || "Không thể tạo đơn hàng");
+        showFeedback({
+          type: "error",
+          message: data.message || "Không thể tạo đơn hàng.",
+        });
       }
     } catch (e: any) {
-      Alert.alert("Lỗi", "Không thể kết nối server. Hãy kiểm tra lại kết nối!");
+      showFeedback({
+        type: "error",
+        message: "Không thể kết nối server. Hãy kiểm tra lại kết nối!",
+      });
     } finally {
       setPaying(false);
     }
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]}>
       <StatusBar
         barStyle={theme === "dark" ? "light-content" : "dark-content"}
-        backgroundColor={theme === "dark" ? colors.background : "#F7F8FA"}
+        backgroundColor={pageBg}
       />
 
       <View
         style={[
           styles.header,
           {
-            backgroundColor: theme === "dark" ? colors.card : "#fff",
+            backgroundColor: pageBg,
             borderBottomColor: theme === "dark" ? "#334155" : "#EBEBEB",
           },
         ]}
@@ -299,7 +316,7 @@ export default function CheckoutScreen() {
         style={[
           styles.footer,
           {
-            backgroundColor: theme === "dark" ? colors.card : "#fff",
+            backgroundColor: pageBg,
             borderTopColor: theme === "dark" ? "#334155" : "#EBEBEB",
           },
         ]}
@@ -329,7 +346,7 @@ export default function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F7F8FA" },
+  safe: { flex: 1, backgroundColor: "#F4ECE4" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -348,7 +365,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
   scroll: { padding: 16 },
   card: {
     backgroundColor: "#fff",
@@ -366,6 +388,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
     marginBottom: 14,
+    fontFamily: SERIF_FONT,
   },
   itemRow: {
     flexDirection: "row",
@@ -379,25 +402,51 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
     marginBottom: 3,
+    fontFamily: SERIF_FONT,
   },
-  itemQty: { fontSize: 12, color: "#999" },
-  itemPrice: { fontSize: 14, fontWeight: "700", color: "#111" },
-  emptyText: { color: "#CCC", textAlign: "center", paddingVertical: 8 },
+  itemQty: { fontSize: 12, color: "#999", fontFamily: SERIF_FONT },
+  itemPrice: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
+  emptyText: {
+    color: "#CCC",
+    textAlign: "center",
+    paddingVertical: 8,
+    fontFamily: SERIF_FONT,
+  },
   priceRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  priceLabel: { fontSize: 14, color: "#888" },
-  priceValue: { fontSize: 14, fontWeight: "500", color: "#333" },
+  priceLabel: { fontSize: 14, color: "#888", fontFamily: SERIF_FONT },
+  priceValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+    fontFamily: SERIF_FONT,
+  },
   totalRow: {
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 0.5,
     borderTopColor: "#F0F0F0",
   },
-  totalLabel: { fontSize: 16, fontWeight: "700", color: "#111" },
-  totalValue: { fontSize: 18, fontWeight: "800", color: "#00B14F" },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
+  totalValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#00B14F",
+    fontFamily: SERIF_FONT,
+  },
   secureRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -406,7 +455,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 24,
   },
-  secureText: { fontSize: 12, color: "#AAA" },
+  secureText: { fontSize: 12, color: "#AAA", fontFamily: SERIF_FONT },
   footer: {
     padding: 16,
     backgroundColor: "#fff",
@@ -424,5 +473,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  payText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  payText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: SERIF_FONT,
+  },
 });

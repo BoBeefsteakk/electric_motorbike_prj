@@ -1,9 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome } from "@expo/vector-icons";
-import {
-  useFocusEffect,
-  useNavigation,
-} from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -14,7 +11,10 @@ import {
   FlatList,
   Image,
   InteractionManager,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -64,9 +64,20 @@ type NewsItem = {
   route: keyof HomeStackParamList;
 };
 
+type BannerItem = {
+  id: number;
+  image: string;
+};
+
 const WELCOME_KEY = "WELCOME_MESSAGE";
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 40 - 24) / 3;
+const BANNER_W = width - 32;
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 const encodeImagePath = (p: string) =>
   p.split("/").map(encodeURIComponent).join("/");
@@ -80,6 +91,13 @@ const categoryImageMap: Record<string, any> = {
   "home/oto.png": require("../../../pic/home/oto.png"),
   "home/phukien.png": require("../../../pic/home/phukien.png"),
 };
+
+const HOME_BANNERS: BannerItem[] = [
+  { id: 1, image: "voucher/voucher1.jpg" },
+  { id: 2, image: "voucher/voucher2.jpg" },
+  { id: 3, image: "voucher/voucher3.jpg" },
+  { id: 4, image: "voucher/voucher4.jpg" },
+];
 
 const Toast = ({ message, visible }: { message: string; visible: boolean }) => {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -134,7 +152,7 @@ const SkeletonCard = ({
           duration: 750,
           useNativeDriver: true,
         }),
-      ]),
+      ])
     ).start();
   }, [anim]);
 
@@ -156,8 +174,15 @@ const HomeScreen = () => {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
+  const homePageBg = isDark ? "#120F0D" : "#F4ECE4";
+  const homeAccent = isDark ? "#D78A6B" : "#C96442";
+  const homeCardBg = isDark ? "#1E1A18" : "#FFFBF7";
+  const homeBorder = isDark ? "#4A3930" : "#E8D7CB";
+  const homeMuted = isDark ? "#BDAA9B" : "#8B7163";
+  const homeShadow = isDark ? "#000000" : "#8F5A43";
 
   const navigation = useNavigation<HomeNavProp>();
+  const bannerListRef = useRef<FlatList<BannerItem>>(null);
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -168,6 +193,7 @@ const HomeScreen = () => {
   const [toastMsg, setToastMsg] = useState("");
   const [isVingroupStaff, setIsVingroupStaff] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
   const [stores, setStores] = useState<PlaceItem[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -264,8 +290,25 @@ const HomeScreen = () => {
       return () => {
         mounted = false;
       };
-    }, [showToast]),
+    }, [showToast])
   );
+
+  useEffect(() => {
+    if (HOME_BANNERS.length <= 1) return;
+
+    const timer = setInterval(() => {
+      setActiveBannerIndex((prev) => {
+        const nextIndex = (prev + 1) % HOME_BANNERS.length;
+        bannerListRef.current?.scrollToOffset({
+          offset: nextIndex * BANNER_W,
+          animated: true,
+        });
+        return nextIndex;
+      });
+    }, 3500);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const handleConsultSubmit = useCallback(async () => {
     if (!fullName.trim() || !phone.trim() || !email.trim()) {
@@ -296,6 +339,15 @@ const HomeScreen = () => {
       setSubmitLoading(false);
     }
   }, [acceptedPrivacy, fullName, phone, email, showToast]);
+
+  const handleBannerScrollEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offsetX = event.nativeEvent.contentOffset.x;
+      const nextIndex = Math.round(offsetX / BANNER_W);
+      setActiveBannerIndex(nextIndex);
+    },
+    []
+  );
 
   const renderCategoryCard = useCallback(
     (cat: CategoryItem) => {
@@ -364,7 +416,7 @@ const HomeScreen = () => {
         </TouchableOpacity>
       );
     },
-    [isDark, navigation],
+    [isDark, navigation]
   );
 
   const renderStoreItem = useCallback(
@@ -374,11 +426,12 @@ const HomeScreen = () => {
         style={[
           styles.placeCard,
           {
-            backgroundColor: colors.card,
-            shadowOpacity: isDark ? 0 : 0.09,
-            elevation: isDark ? 0 : 3,
-            borderWidth: isDark ? 1 : 0,
-            borderColor: isDark ? "#334155" : "transparent",
+            backgroundColor: homeCardBg,
+            shadowColor: homeShadow,
+            shadowOpacity: isDark ? 0 : 0.1,
+            elevation: isDark ? 0 : 4,
+            borderWidth: 1,
+            borderColor: homeBorder,
           },
         ]}
         onPress={() =>
@@ -395,28 +448,18 @@ const HomeScreen = () => {
         <View style={styles.placeBody}>
           <Text
             style={[styles.placeName, { color: colors.text }]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {item.name}
           </Text>
           <View style={styles.placeInfoRow}>
-            <FontAwesome name="star" size={11} color="#F5A623" />
-            <Text
-              style={[
-                styles.ratingText,
-                { color: isDark ? "#CBD5E1" : "#555" },
-              ]}
-            >
+            <FontAwesome name="star" size={11} color={homeAccent} />
+            <Text style={[styles.ratingText, { color: homeMuted }]}>
               {item.rating}
             </Text>
-            <Text style={[styles.dot, { color: isDark ? "#475569" : "#DDD" }]}>
-              •
-            </Text>
+            <Text style={[styles.dot, { color: homeBorder }]}>•</Text>
             <Text
-              style={[
-                styles.placeAddress,
-                { color: isDark ? "#94A3B8" : "#999" },
-              ]}
+              style={[styles.placeAddress, { color: homeMuted }]}
               numberOfLines={1}
             >
               {item.address}
@@ -425,7 +468,16 @@ const HomeScreen = () => {
         </View>
       </TouchableOpacity>
     ),
-    [colors, isDark, navigation],
+    [
+      colors,
+      homeAccent,
+      homeBorder,
+      homeCardBg,
+      homeMuted,
+      homeShadow,
+      isDark,
+      navigation,
+    ]
   );
 
   const renderProductItem = useCallback(
@@ -434,11 +486,12 @@ const HomeScreen = () => {
         style={[
           styles.priceCard,
           {
-            backgroundColor: colors.card,
-            shadowOpacity: isDark ? 0 : 0.09,
+            backgroundColor: homeCardBg,
+            shadowColor: homeShadow,
+            shadowOpacity: isDark ? 0 : 0.11,
             elevation: isDark ? 0 : 4,
-            borderWidth: isDark ? 1 : 0,
-            borderColor: isDark ? "#334155" : "transparent",
+            borderWidth: 1,
+            borderColor: homeBorder,
           },
         ]}
         activeOpacity={0.85}
@@ -460,44 +513,42 @@ const HomeScreen = () => {
             {item.name}
           </Text>
           <View style={styles.priceRatingRow}>
-            <FontAwesome name="star" size={11} color="#F5A623" />
-            <Text
-              style={[
-                styles.priceRatingText,
-                { color: isDark ? "#94A3B8" : "#999" },
-              ]}
-            >
+            <FontAwesome name="star" size={11} color={homeAccent} />
+            <Text style={[styles.priceRatingText, { color: homeMuted }]}>
               {(BEST_PRICE_DATA[item.id]?.rating ?? 4.5).toFixed(1)}
             </Text>
           </View>
           <View
-            style={[
-              styles.priceDivider,
-              { backgroundColor: isDark ? "#334155" : "#F0F0F0" },
-            ]}
+            style={[styles.priceDivider, { backgroundColor: homeBorder }]}
           />
           <View style={styles.priceFooter}>
             <View>
-              <Text
-                style={[
-                  styles.priceFromLabel,
-                  { color: isDark ? "#94A3B8" : "#BBB" },
-                ]}
-              >
+              <Text style={[styles.priceFromLabel, { color: homeMuted }]}>
                 Giá từ
               </Text>
-              <Text style={styles.priceText}>
+              <Text style={[styles.priceText, { color: homeAccent }]}>
                 {Number(item.price).toLocaleString("vi-VN")}đ
               </Text>
             </View>
-            <View style={styles.priceArrowBtn}>
+            <View
+              style={[styles.priceArrowBtn, { backgroundColor: homeAccent }]}
+            >
               <FontAwesome name="plus" size={11} color="#fff" />
             </View>
           </View>
         </View>
       </TouchableOpacity>
     ),
-    [colors, isDark, navigation],
+    [
+      colors,
+      homeAccent,
+      homeBorder,
+      homeCardBg,
+      homeMuted,
+      homeShadow,
+      isDark,
+      navigation,
+    ]
   );
 
   const renderNewsItem = useCallback(
@@ -507,11 +558,12 @@ const HomeScreen = () => {
         style={[
           styles.newsCard,
           {
-            backgroundColor: colors.card,
-            shadowOpacity: isDark ? 0 : 0.09,
-            elevation: isDark ? 0 : 3,
-            borderWidth: isDark ? 1 : 0,
-            borderColor: isDark ? "#334155" : "transparent",
+            backgroundColor: homeCardBg,
+            shadowColor: homeShadow,
+            shadowOpacity: isDark ? 0 : 0.1,
+            elevation: isDark ? 0 : 4,
+            borderWidth: 1,
+            borderColor: homeBorder,
           },
         ]}
         onPress={() => navigation.navigate(item.route as never)}
@@ -524,13 +576,18 @@ const HomeScreen = () => {
           <View
             style={[
               styles.newsBadge,
-              { backgroundColor: isDark ? "#3B2A14" : "#FFF0E0" },
+              {
+                backgroundColor: isDark ? "#2A201B" : "#F5E7DE",
+                borderColor: homeBorder,
+              },
             ]}
           >
-            <Text style={styles.newsBadgeText}>Tin tức</Text>
+            <Text style={[styles.newsBadgeText, { color: homeAccent }]}>
+              Tin tức
+            </Text>
           </View>
           <Text
-            style={[styles.newsTitle, { color: isDark ? "#E5E7EB" : "#222" }]}
+            style={[styles.newsTitle, { color: colors.text }]}
             numberOfLines={2}
           >
             {item.title}
@@ -538,20 +595,53 @@ const HomeScreen = () => {
         </View>
       </TouchableOpacity>
     ),
-    [colors, isDark, navigation],
+    [
+      colors,
+      homeAccent,
+      homeBorder,
+      homeCardBg,
+      homeShadow,
+      isDark,
+      navigation,
+    ]
+  );
+
+  const renderBannerItem = useCallback(
+    ({ item }: { item: BannerItem }) => (
+      <Pressable style={styles.bannerSlide}>
+        {({ pressed }) => (
+          <>
+            <Image
+              source={{ uri: `${API_URL}/images/${item.image}` }}
+              style={styles.bannerImage}
+            />
+            {pressed ? <View style={styles.bannerPressOverlay} /> : null}
+          </>
+        )}
+      </Pressable>
+    ),
+    []
   );
 
   const SectionHeader = ({
     title,
     onPress,
+    titleStyle,
+    accentColor = "#FF8C00",
+    actionColor = "#FF8C00",
   }: {
     title: string;
     onPress?: () => void;
+    titleStyle?: any;
+    accentColor?: string;
+    actionColor?: string;
   }) => (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionTitleRow}>
-        <View style={styles.sectionAccent} />
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        <View
+          style={[styles.sectionAccent, { backgroundColor: accentColor }]}
+        />
+        <Text style={[styles.sectionTitle, { color: colors.text }, titleStyle]}>
           {title}
         </Text>
       </View>
@@ -561,11 +651,13 @@ const HomeScreen = () => {
           style={styles.seeAllRow}
           onPress={onPress}
         >
-          <Text style={styles.seeAllText}>Xem thêm</Text>
+          <Text style={[styles.seeAllText, { color: actionColor }]}>
+            Xem thêm
+          </Text>
           <FontAwesome
             name="chevron-right"
             size={11}
-            color="#FF8C00"
+            color={actionColor}
             style={{ marginLeft: 4 }}
           />
         </TouchableOpacity>
@@ -575,18 +667,15 @@ const HomeScreen = () => {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: homePageBg }]}
     >
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor={isDark ? "#000" : colors.background}
+        backgroundColor={homePageBg}
       />
       <Toast message={toastMsg} visible={toastVisible} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews
-      >
+      <ScrollView showsVerticalScrollIndicator={false} removeClippedSubviews>
         <View style={[styles.headerDark, { backgroundColor: "#000" }]}>
           <View style={styles.headerTop}>
             <Image
@@ -606,16 +695,47 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.9}
-          style={styles.bannerWrapper}
-          onPress={() => navigation.navigate("home_banner_detail")}
-        >
-          <Image
-            source={require("../../../pic/home/banner.png")}
-            style={styles.bannerImage}
+        <View style={styles.bannerWrapper}>
+          <FlatList
+            ref={bannerListRef}
+            data={HOME_BANNERS}
+            keyExtractor={keyById}
+            renderItem={renderBannerItem}
+            style={styles.bannerList}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={BANNER_W}
+            decelerationRate="fast"
+            bounces={false}
+            onMomentumScrollEnd={handleBannerScrollEnd}
+            getItemLayout={(_, index) => ({
+              length: BANNER_W,
+              offset: BANNER_W * index,
+              index,
+            })}
           />
-        </TouchableOpacity>
+
+          <View style={styles.bannerDots}>
+            {HOME_BANNERS.map((banner, index) => {
+              const active = index === activeBannerIndex;
+              return (
+                <View
+                  key={banner.id}
+                  style={[
+                    styles.bannerDot,
+                    active && styles.bannerDotActive,
+                    {
+                      backgroundColor: active
+                        ? "#FFFFFF"
+                        : "rgba(255,255,255,0.45)",
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
+        </View>
 
         <View style={styles.categorySection}>
           {categoriesLoading ? (
@@ -658,6 +778,9 @@ const HomeScreen = () => {
         <View style={styles.section}>
           <SectionHeader
             title="Cửa Hàng"
+            titleStyle={styles.editorialSectionTitle}
+            accentColor={homeAccent}
+            actionColor={homeAccent}
             onPress={() => navigation.navigate("home_store_list")}
           />
           {storesLoading ? (
@@ -685,6 +808,9 @@ const HomeScreen = () => {
         <View style={styles.section}>
           <SectionHeader
             title="Bán Chạy"
+            titleStyle={styles.editorialSectionTitle}
+            accentColor={homeAccent}
+            actionColor={homeAccent}
             onPress={() => navigation.navigate("best_price_all")}
           />
           {productsLoading ? (
@@ -710,7 +836,11 @@ const HomeScreen = () => {
         </View>
 
         <View style={styles.section}>
-          <SectionHeader title="Tin Tức" />
+          <SectionHeader
+            title="Tin Tức"
+            titleStyle={styles.editorialSectionTitle}
+            accentColor={homeAccent}
+          />
           {newsLoading ? (
             <View style={styles.skeletonRow}>
               {[0, 1, 2].map((i) => (
@@ -734,7 +864,7 @@ const HomeScreen = () => {
         <View
           style={[
             styles.consultSection,
-            { backgroundColor: isDark ? "#0B1220" : "#0F1B1D" },
+            { backgroundColor: isDark ? "#1A1512" : "#2B211D" },
           ]}
         >
           <Text style={styles.consultHeading}>ĐĂNG KÝ TƯ VẤN</Text>
@@ -742,7 +872,7 @@ const HomeScreen = () => {
           <View
             style={[
               styles.consultDivider,
-              { backgroundColor: isDark ? "#243041" : "#2A3A3D" },
+              { backgroundColor: isDark ? "#3D312B" : "#5A463C" },
             ]}
           />
 
@@ -775,21 +905,20 @@ const HomeScreen = () => {
               key={f.placeholder}
               style={[
                 styles.inputBox,
-                { backgroundColor: isDark ? "#111827" : "#fff" },
+                { backgroundColor: isDark ? "#241D19" : "#FFF8F3" },
               ]}
             >
               <TextInput
                 value={f.value}
                 onChangeText={f.setter}
                 placeholder={f.placeholder}
-                placeholderTextColor={isDark ? "#64748B" : "#999"}
-                keyboardType={f.keyboard as
-                  | "default"
-                  | "phone-pad"
-                  | "email-address"}
+                placeholderTextColor={isDark ? "#A48E81" : "#9B7E6E"}
+                keyboardType={
+                  f.keyboard as "default" | "phone-pad" | "email-address"
+                }
                 style={[
                   styles.textInput,
-                  { color: isDark ? "#E5E7EB" : "#111" },
+                  { color: isDark ? "#F5E8DE" : "#2B211D" },
                 ]}
               />
             </View>
@@ -801,8 +930,8 @@ const HomeScreen = () => {
             style={[
               styles.tabRow,
               {
-                backgroundColor: isDark ? "#111827" : "#121212",
-                borderColor: isDark ? "#334155" : "#2A3A3D",
+                backgroundColor: isDark ? "#241D19" : "#FFF8F3",
+                borderColor: isDark ? homeBorder : "#DCC8BB",
               },
             ]}
           >
@@ -823,8 +952,8 @@ const HomeScreen = () => {
                         selectedTab === item
                           ? "#FFF"
                           : isDark
-                            ? "#94A3B8"
-                            : "#888",
+                            ? "#CDB8AA"
+                            : "#8B7163",
                     },
                     selectedTab === item && styles.tabTextActive,
                   ]}
@@ -843,7 +972,7 @@ const HomeScreen = () => {
             <View
               style={[
                 styles.radioOuter,
-                { borderColor: isVingroupStaff ? "#2F80ED" : "#7C7C7C" },
+                { borderColor: isVingroupStaff ? homeAccent : "#90766A" },
               ]}
             >
               {isVingroupStaff && <View style={styles.radioInner} />}
@@ -863,11 +992,11 @@ const HomeScreen = () => {
                 styles.checkbox,
                 {
                   borderColor: acceptedPrivacy
-                    ? "#2F80ED"
+                    ? homeAccent
                     : isDark
-                      ? "#475569"
-                      : "#646464",
-                  backgroundColor: acceptedPrivacy ? "#2F80ED" : "transparent",
+                      ? "#6E5A4E"
+                      : "#90766A",
+                  backgroundColor: acceptedPrivacy ? homeAccent : "transparent",
                 },
               ]}
             >
@@ -878,7 +1007,7 @@ const HomeScreen = () => {
             <Text
               style={[
                 styles.checkboxText,
-                { color: isDark ? "#94A3B8" : "#AAA" },
+                { color: isDark ? "#CDB8AA" : "#D9C6B8" },
               ]}
             >
               Tôi đồng ý cho phép Công ty TNHH Kinh doanh Thương mại Dịch vụ
@@ -887,10 +1016,7 @@ const HomeScreen = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              styles.submitBtn,
-              { opacity: submitLoading ? 0.7 : 1 },
-            ]}
+            style={[styles.submitBtn, { opacity: submitLoading ? 0.7 : 1 }]}
             activeOpacity={0.8}
             onPress={handleConsultSubmit}
             disabled={submitLoading}
@@ -966,6 +1092,8 @@ const styles = StyleSheet.create({
   },
 
   bannerWrapper: {
+    width: BANNER_W,
+    alignSelf: "center",
     marginHorizontal: 16,
     marginTop: -86,
     borderRadius: 16,
@@ -976,7 +1104,36 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
   },
+  bannerList: {
+    width: BANNER_W,
+  },
+  bannerSlide: {
+    width: BANNER_W,
+    height: 160,
+  },
   bannerImage: { width: "100%", height: 160, resizeMode: "cover" },
+  bannerPressOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  bannerDots: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  bannerDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  bannerDotActive: {
+    width: 18,
+  },
 
   categorySection: { paddingHorizontal: 20, marginTop: 20 },
   categoryCard: {
@@ -1055,7 +1212,7 @@ const styles = StyleSheet.create({
     width: 180,
     marginRight: 14,
     backgroundColor: "#FFF",
-    borderRadius: 16,
+    borderRadius: 22,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
@@ -1063,13 +1220,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  placeImage: { width: "100%", height: 110, resizeMode: "cover" },
-  placeBody: { padding: 10 },
+  placeImage: { width: "100%", height: 118, resizeMode: "cover" },
+  placeBody: { padding: 12 },
   placeName: {
-    fontSize: 14,
+    fontSize: 12.5,
     fontWeight: "700",
     color: "#111",
     marginBottom: 4,
+    fontFamily: SERIF_FONT,
+    lineHeight: 21,
   },
   placeInfoRow: { flexDirection: "row", alignItems: "center" },
   ratingText: { fontSize: 12, fontWeight: "700", color: "#555", marginLeft: 4 },
@@ -1078,9 +1237,9 @@ const styles = StyleSheet.create({
 
   priceCard: {
     width: 160,
-    marginRight: 14,
+    marginRight: 16,
     backgroundColor: "#FFF",
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -1088,16 +1247,17 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  priceImageBox: { height: 130, overflow: "hidden" },
+  priceImageBox: { height: 136, overflow: "hidden" },
   priceImage: { width: "100%", height: "100%", resizeMode: "cover" },
-  priceContent: { padding: 12 },
+  priceContent: { padding: 14 },
   priceName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
     color: "#111",
-    lineHeight: 21,
-    minHeight: 42,
-    marginBottom: 2,
+    lineHeight: 15,
+    minHeight: 25,
+    marginBottom: 1,
+    fontFamily: SERIF_FONT,
   },
   priceRatingRow: {
     flexDirection: "row",
@@ -1110,28 +1270,34 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontWeight: "500",
   },
-  priceDivider: { height: 0.5, backgroundColor: "#F0F0F0", marginBottom: 8 },
+  priceDivider: { height: 1, backgroundColor: "#F0F0F0", marginBottom: 10 },
   priceFooter: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
   priceFromLabel: { fontSize: 11, color: "#BBB", marginBottom: 2 },
-  priceText: { fontSize: 14, fontWeight: "800", color: "#FF8C00" },
+  priceText: { fontSize: 15, fontWeight: "800", color: "#FF8C00" },
   priceArrowBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: "#FF8C00",
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  editorialSectionTitle: {
+    fontFamily: SERIF_FONT,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 
   newsCard: {
     width: 200,
     marginRight: 14,
     backgroundColor: "#FFF",
-    borderRadius: 16,
+    borderRadius: 22,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
@@ -1139,51 +1305,64 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  newsImage: { width: "100%", height: 110, resizeMode: "cover" },
-  newsBody: { padding: 12 },
+  newsImage: { width: "100%", height: 118, resizeMode: "cover" },
+  newsBody: { padding: 14 },
   newsBadge: {
     alignSelf: "flex-start",
     backgroundColor: "#FFF0E0",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginBottom: 6,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 8,
+    borderWidth: 1,
   },
   newsBadgeText: { fontSize: 10, fontWeight: "700", color: "#FF8C00" },
-  newsTitle: { fontSize: 13, fontWeight: "500", lineHeight: 18, color: "#222" },
+  newsTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 21,
+    color: "#222",
+    fontFamily: SERIF_FONT,
+  },
 
   consultSection: {
-    backgroundColor: "#0F1B1D",
+    backgroundColor: "#2B211D",
     paddingHorizontal: 20,
     paddingVertical: 32,
     marginTop: 40,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#4B3A33",
   },
   consultHeading: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#E6D5C3",
+    color: "#F1DDD0",
     textAlign: "center",
     letterSpacing: 1,
+    fontFamily: SERIF_FONT,
   },
-  consultDivider: { height: 1, backgroundColor: "#2A3A3D", marginVertical: 16 },
+  consultDivider: { height: 1, backgroundColor: "#5A463C", marginVertical: 16 },
   consultSubtitle: {
     fontSize: 14,
-    color: "#CFCFCF",
+    color: "#D9C6B8",
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 24,
   },
   inputBox: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
+    backgroundColor: "#FFF8F3",
+    borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#DCC8BB",
   },
-  textInput: { color: "#111", fontSize: 14 },
+  textInput: { color: "#2B211D", fontSize: 14 },
   consultLabel: {
     fontWeight: "700",
-    color: "#DDD",
+    color: "#F1DDD0",
     fontSize: 16,
     marginTop: 8,
     marginBottom: 12,
@@ -1191,16 +1370,16 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: "row",
-    backgroundColor: "#121212",
-    borderRadius: 12,
+    backgroundColor: "#FFF8F3",
+    borderRadius: 14,
     overflow: "hidden",
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#2A3A3D",
+    borderColor: "#DCC8BB",
   },
   tabItem: { flex: 1, paddingVertical: 12, alignItems: "center" },
-  tabActive: { backgroundColor: "#2F80ED" },
-  tabText: { fontSize: 13, color: "#888", fontWeight: "500" },
+  tabActive: { backgroundColor: "#C96442" },
+  tabText: { fontSize: 13, color: "#8B7163", fontWeight: "600" },
   tabTextActive: { color: "#FFF", fontWeight: "600" },
 
   radioRow: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
@@ -1217,9 +1396,9 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#2F80ED",
+    backgroundColor: "#C96442",
   },
-  radioText: { color: "#EEE", fontSize: 14, flex: 1 },
+  radioText: { color: "#F1DDD0", fontSize: 14, flex: 1 },
 
   checkboxRow: {
     flexDirection: "row",
@@ -1236,12 +1415,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  checkboxText: { color: "#AAA", fontSize: 13, flex: 1, lineHeight: 18 },
+  checkboxText: { color: "#D9C6B8", fontSize: 13, flex: 1, lineHeight: 18 },
 
   submitBtn: {
-    backgroundColor: "#2F80ED",
+    backgroundColor: "#C96442",
     paddingVertical: 15,
-    borderRadius: 10,
+    borderRadius: 14,
     marginTop: 20,
   },
   submitText: {

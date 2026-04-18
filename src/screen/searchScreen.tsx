@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -7,6 +8,7 @@ import {
   FlatList,
   Image,
   Keyboard,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -22,6 +24,12 @@ import BEST_PRICE_DATA from "../data/bestPrice";
 import { darkTheme, lightTheme } from "../theme/colors";
 
 const { width } = Dimensions.get("window");
+const SEARCH_HISTORY_KEY = "SEARCH_SCREEN_HISTORY";
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 const encodeImagePath = (p: string) =>
   p.split("/").map(encodeURIComponent).join("/");
@@ -84,9 +92,9 @@ const SkeletonItem = ({ dark }: { dark: boolean }) => {
           duration: 750,
           useNativeDriver: true,
         }),
-      ]),
+      ])
     ).start();
-  }, []);
+  }, [anim]);
 
   const sk1 = dark ? "#233041" : "#EBEBEB";
   const sk2 = dark ? "#1B2635" : "#F2F2F2";
@@ -152,6 +160,7 @@ export default function SearchScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
+  const pageBg = isDark ? "#120F0D" : "#F4ECE4";
 
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -197,6 +206,20 @@ export default function SearchScreen() {
     })();
   }, []);
 
+  useEffect(() => {
+    const loadSearchHistory = async () => {
+      try {
+        const rawHistory = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);
+        const parsed = rawHistory ? JSON.parse(rawHistory) : [];
+        setHistory(Array.isArray(parsed) ? parsed : []);
+      } catch (e) {
+        console.log("load search history error:", e);
+      }
+    };
+
+    loadSearchHistory();
+  }, []);
+
   const results = useCallback((): SearchItem[] => {
     let data = allData;
     if (typeFilter !== "all") data = data.filter((i) => i._type === typeFilter);
@@ -207,11 +230,29 @@ export default function SearchScreen() {
     return data;
   }, [allData, query, typeFilter])();
 
+  const commitSearchHistory = useCallback(async () => {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) return;
+
+    const nextHistory = [
+      normalizedQuery,
+      ...history.filter((h) => h !== normalizedQuery),
+    ].slice(0, 10);
+
+    setHistory(nextHistory);
+
+    try {
+      await AsyncStorage.setItem(
+        SEARCH_HISTORY_KEY,
+        JSON.stringify(nextHistory)
+      );
+    } catch (e) {
+      console.log("save search history error:", e);
+    }
+  }, [history, query]);
+
   const handleSubmit = () => {
-    if (!query.trim()) return;
-    setHistory((prev) =>
-      [query.trim(), ...prev.filter((h) => h !== query.trim())].slice(0, 10),
-    );
+    commitSearchHistory();
     Keyboard.dismiss();
   };
 
@@ -321,7 +362,7 @@ export default function SearchScreen() {
         </TouchableOpacity>
       );
     },
-    [navigation, colors, isDark],
+    [navigation, colors, isDark]
   );
 
   const showHistory = !query && history.length > 0;
@@ -330,7 +371,7 @@ export default function SearchScreen() {
     <View
       style={[
         styles.safe,
-        { paddingTop: insets.top, backgroundColor: colors.background },
+        { paddingTop: insets.top, backgroundColor: pageBg },
       ]}
     >
       <StatusBar
@@ -449,7 +490,7 @@ export default function SearchScreen() {
         </View>
       ) : (
         <FlatList
-          data={showHistory ? [] : results}
+          data={results}
           keyExtractor={(item, i) => `${item._type}-${item.id}-${i}`}
           renderItem={renderItem}
           contentContainerStyle={[
@@ -467,7 +508,16 @@ export default function SearchScreen() {
                   <Text style={[styles.historyTitle, { color: colors.text }]}>
                     Tìm kiếm gần đây
                   </Text>
-                  <TouchableOpacity onPress={() => setHistory([])}>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      setHistory([]);
+                      try {
+                        await AsyncStorage.removeItem(SEARCH_HISTORY_KEY);
+                      } catch (e) {
+                        console.log("clear search history error:", e);
+                      }
+                    }}
+                  >
                     <Text style={styles.clearText}>Xóa tất cả</Text>
                   </TouchableOpacity>
                 </View>
@@ -480,7 +530,10 @@ export default function SearchScreen() {
                         borderBottomColor: isDark ? "#233041" : "#F0F0F0",
                       },
                     ]}
-                    onPress={() => setQuery(h)}
+                    onPress={() => {
+                      setQuery(h);
+                      Keyboard.dismiss();
+                    }}
                   >
                     <Ionicons
                       name="time-outline"
@@ -496,9 +549,18 @@ export default function SearchScreen() {
                       {h}
                     </Text>
                     <TouchableOpacity
-                      onPress={() =>
-                        setHistory((prev) => prev.filter((_, idx) => idx !== i))
-                      }
+                      onPress={async () => {
+                        const nextHistory = history.filter((_, idx) => idx !== i);
+                        setHistory(nextHistory);
+                        try {
+                          await AsyncStorage.setItem(
+                            SEARCH_HISTORY_KEY,
+                            JSON.stringify(nextHistory)
+                          );
+                        } catch (e) {
+                          console.log("remove search history item error:", e);
+                        }
+                      }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Ionicons
@@ -510,7 +572,7 @@ export default function SearchScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-            ) : null
+            ) : <View />
           }
           ListEmptyComponent={
             query.trim() ? (
@@ -537,7 +599,7 @@ export default function SearchScreen() {
                   Thử tìm với từ khóa khác
                 </Text>
               </View>
-            ) : !showHistory ? (
+            ) : results.length === 0 ? (
               <View style={styles.emptyBox}>
                 <Ionicons
                   name="search-outline"
@@ -564,8 +626,13 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F7F8FA" },
 
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
-  headerTitle: { fontSize: 24, fontWeight: "800", color: "#111" },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4, marginTop: 15 },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
 
   searchBarWrap: { paddingHorizontal: 16, paddingVertical: 10 },
   searchBar: {
@@ -583,7 +650,12 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#39B78D20",
   },
-  searchInput: { flex: 1, fontSize: 15, color: "#111" },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
 
   filterBarWrap: {
     flexDirection: "row",
@@ -600,7 +672,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#EFEFEF",
   },
-  filterText: { fontSize: 12, fontWeight: "700", color: "#888" },
+  filterText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#888",
+    fontFamily: SERIF_FONT,
+  },
 
   countRow: {
     flexDirection: "row",
@@ -615,7 +692,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#39B78D",
     marginRight: 8,
   },
-  countText: { fontSize: 13, color: "#AAA", fontWeight: "500" },
+  countText: {
+    fontSize: 13,
+    color: "#AAA",
+    fontWeight: "500",
+    fontFamily: SERIF_FONT,
+  },
 
   list: { paddingHorizontal: 16, paddingTop: 4 },
 
@@ -633,7 +715,13 @@ const styles = StyleSheet.create({
   cardImageBox: { width: 110, height: 110, backgroundColor: "#F5F5F5" },
   cardImage: { width: "100%", height: "100%" },
   cardInfo: { flex: 1, padding: 12, justifyContent: "space-between" },
-  cardName: { fontSize: 14, fontWeight: "700", color: "#111", lineHeight: 20 },
+  cardName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111",
+    lineHeight: 20,
+    fontFamily: SERIF_FONT,
+  },
   badge: {
     alignSelf: "flex-start",
     paddingHorizontal: 8,
@@ -642,17 +730,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 4,
   },
-  badgeText: { fontSize: 11, fontWeight: "700" },
+  badgeText: { fontSize: 11, fontWeight: "700", fontFamily: SERIF_FONT },
   cardFooter: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
     marginTop: 6,
   },
-  priceLabel: { fontSize: 10, color: "#BBB", marginBottom: 1 },
-  price: { fontSize: 14, fontWeight: "800" },
+  priceLabel: {
+    fontSize: 10,
+    color: "#BBB",
+    marginBottom: 1,
+    fontFamily: SERIF_FONT,
+  },
+  price: { fontSize: 14, fontWeight: "800", fontFamily: SERIF_FONT },
   ratingBox: { flexDirection: "row", alignItems: "center", gap: 4 },
-  ratingText: { fontSize: 12, color: "#999", fontWeight: "600" },
+  ratingText: {
+    fontSize: 12,
+    color: "#999",
+    fontWeight: "600",
+    fontFamily: SERIF_FONT,
+  },
 
   historyBox: { marginBottom: 16 },
   historyHeader: {
@@ -661,8 +759,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  historyTitle: { fontSize: 15, fontWeight: "700", color: "#111" },
-  clearText: { fontSize: 13, color: "#FF3B30", fontWeight: "600" },
+  historyTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
+  clearText: {
+    fontSize: 13,
+    color: "#FF3B30",
+    fontWeight: "600",
+    fontFamily: SERIF_FONT,
+  },
   historyItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -671,9 +779,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: "#F0F0F0",
   },
-  historyText: { flex: 1, fontSize: 14, color: "#555" },
+  historyText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#555",
+    fontFamily: SERIF_FONT,
+  },
 
   emptyBox: { alignItems: "center", paddingTop: 80, gap: 10 },
-  emptyText: { fontSize: 16, color: "#CCC", fontWeight: "600" },
-  emptySub: { fontSize: 13, color: "#DDD" },
+  emptyText: {
+    fontSize: 16,
+    color: "#CCC",
+    fontWeight: "600",
+    fontFamily: SERIF_FONT,
+  },
+  emptySub: { fontSize: 13, color: "#DDD", fontFamily: SERIF_FONT },
 });

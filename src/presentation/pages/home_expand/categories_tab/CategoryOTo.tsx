@@ -22,6 +22,11 @@ import { darkTheme, lightTheme } from "../../../../theme/colors";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 type Car = {
   id: number;
@@ -75,7 +80,7 @@ const CarCard = React.memo(function CarCard({
 }) {
   const uri = buildUri(item.image);
   const [status, setStatus] = useState<"loading" | "ok" | "error">(
-    uri ? "loading" : "error"
+    uri ? "loading" : "error",
   );
   const tab = TABS.find((t) => t.key === item.category);
 
@@ -146,7 +151,7 @@ const CarCard = React.memo(function CarCard({
       </View>
 
       <View style={crd.body}>
-        <Text style={[crd.name, { color: colors.text }]} numberOfLines={2}>
+        <Text style={[crd.name, { color: colors.text }]} numberOfLines={1}>
           {item.name}
         </Text>
 
@@ -259,8 +264,7 @@ function DetailModal({
                 style={[
                   dtl.priceBox,
                   {
-                    backgroundColor:
-                      theme === "dark" ? "#0F1E35" : "#FFF8EE",
+                    backgroundColor: theme === "dark" ? "#0F1E35" : "#FFF8EE",
                   },
                 ]}
               >
@@ -351,6 +355,7 @@ function DetailModal({
 export default function CategoryOTo() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
+  const pageBg = theme === "dark" ? "#120F0D" : "#F4ECE4";
 
   const navigation = useNavigation<NavigationProp<any>>();
 
@@ -411,7 +416,7 @@ export default function CategoryOTo() {
     (car: Car) => {
       navigation.navigate("car_detail", { id: car.id });
     },
-    [navigation]
+    [navigation],
   );
 
   const renderItem = useCallback(
@@ -423,11 +428,11 @@ export default function CategoryOTo() {
         colors={colors}
       />
     ),
-    [openDetail, theme, colors]
+    [openDetail, theme, colors],
   );
 
   return (
-    <SafeAreaView style={[sc.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[sc.safe, { backgroundColor: pageBg }]}>
       <StatusBar
         barStyle={theme === "dark" ? "light-content" : "dark-content"}
         translucent
@@ -439,7 +444,7 @@ export default function CategoryOTo() {
           style={[
             sc.iconBtn,
             {
-              backgroundColor: theme === "dark" ? "#1F2937" : "#EDE9E4",
+              backgroundColor: theme === "dark" ? "#1F2937" : "#F5EAE1",
             },
           ]}
           onPress={() => navigation.goBack()}
@@ -461,7 +466,7 @@ export default function CategoryOTo() {
           <Text
             style={[
               sc.headerSub,
-              { color: theme === "dark" ? "#94A3B8" : "#999" },
+              { color: theme === "dark" ? "#94A3B8" : "#8B7163" },
             ]}
           >
             {loading ? "Đang tải..." : `${filtered.length} mẫu xe`}
@@ -472,7 +477,7 @@ export default function CategoryOTo() {
           style={[
             sc.iconBtn,
             {
-              backgroundColor: theme === "dark" ? "#1F2937" : "#EDE9E4",
+              backgroundColor: theme === "dark" ? "#1F2937" : "#F5EAE1",
             },
           ]}
           onPress={() => setShowSort(true)}
@@ -493,7 +498,14 @@ export default function CategoryOTo() {
           style={[
             sc.searchBox,
             {
-              backgroundColor: theme === "dark" ? "#1F2937" : "#EDE9E4",
+              backgroundColor: theme === "dark" ? "#1F2937" : "#FFF8F2",
+              borderWidth: 1.2,
+              borderColor: theme === "dark" ? "#334155" : "#E7C7B2",
+              shadowColor: theme === "dark" ? "#000" : "#C58A67",
+              shadowOpacity: theme === "dark" ? 0 : 0.08,
+              shadowRadius: theme === "dark" ? 0 : 10,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: theme === "dark" ? 0 : 3,
             },
           ]}
         >
@@ -546,8 +558,20 @@ export default function CategoryOTo() {
                     backgroundColor: isActive
                       ? tab.color
                       : theme === "dark"
-                      ? "#1F2937"
-                      : "#EDE9E4",
+                        ? "#1F2937"
+                        : "#FFF8F2",
+                    borderWidth: isActive ? 0 : 1,
+                    borderColor: isActive
+                      ? "transparent"
+                      : theme === "dark"
+                        ? "#334155"
+                        : "#E4C7B3",
+                    shadowColor: isActive ? "transparent" : "#C58A67",
+                    shadowOpacity:
+                      isActive || theme === "dark" ? 0 : 0.06,
+                    shadowRadius: isActive || theme === "dark" ? 0 : 8,
+                    shadowOffset: { width: 0, height: 3 },
+                    elevation: isActive || theme === "dark" ? 0 : 2,
                   },
                 ]}
                 onPress={() => setActiveTab(tab.key)}
@@ -563,8 +587,8 @@ export default function CategoryOTo() {
                       backgroundColor: isActive
                         ? "rgba(255,255,255,0.28)"
                         : theme === "dark"
-                        ? "#334155"
-                        : "#D8D4CC",
+                          ? "#334155"
+                          : "#D8D4CC",
                     },
                   ]}
                 >
@@ -575,8 +599,8 @@ export default function CategoryOTo() {
                         color: isActive
                           ? "#FFF"
                           : theme === "dark"
-                          ? "#CBD5E1"
-                          : "#666",
+                            ? "#CBD5E1"
+                            : "#666",
                       },
                     ]}
                   >
@@ -595,7 +619,7 @@ export default function CategoryOTo() {
           <Text
             style={[
               sc.centerTxt,
-              { color: theme === "dark" ? "#94A3B8" : "#888" },
+              { color: theme === "dark" ? "#94A3B8" : "#8B7163" },
             ]}
           >
             Đang tải...
@@ -607,7 +631,7 @@ export default function CategoryOTo() {
           <Text
             style={[
               sc.centerTxt,
-              { color: theme === "dark" ? "#94A3B8" : "#888" },
+              { color: theme === "dark" ? "#94A3B8" : "#8B7163" },
             ]}
           >
             Không thể tải dữ liệu
@@ -628,7 +652,7 @@ export default function CategoryOTo() {
           <Text
             style={[
               sc.centerTxt,
-              { color: theme === "dark" ? "#94A3B8" : "#888" },
+              { color: theme === "dark" ? "#94A3B8" : "#8B7163" },
             ]}
           >
             Không tìm thấy xe nào
@@ -702,8 +726,8 @@ export default function CategoryOTo() {
                           ? "#2563EB"
                           : "#1A1A1A"
                         : theme === "dark"
-                        ? "#0F172A"
-                        : "#F5F3F0",
+                          ? "#0F172A"
+                          : "#F5F3F0",
                     },
                   ]}
                   onPress={() => {
@@ -718,8 +742,8 @@ export default function CategoryOTo() {
                         color: active
                           ? "#FFF"
                           : theme === "dark"
-                          ? "#CBD5E1"
-                          : "#333",
+                            ? "#CBD5E1"
+                            : "#333",
                       },
                     ]}
                   >
@@ -745,7 +769,7 @@ export default function CategoryOTo() {
 }
 
 const sc = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F7F5F2" },
+  safe: { flex: 1, backgroundColor: "#F4ECE4" },
 
   header: {
     flexDirection: "row",
@@ -762,22 +786,48 @@ const sc = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  iconBtnTxt: { fontSize: 18, color: "#1A1A1A", fontWeight: "700" },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#1A1A1A" },
-  headerSub: { fontSize: 12, color: "#999", marginTop: 1 },
+  iconBtnTxt: {
+    fontSize: 18,
+    color: "#1A1A1A",
+    fontWeight: "700",
+    fontFamily: SERIF_FONT,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1A1A1A",
+    fontFamily: SERIF_FONT,
+  },
+  headerSub: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 1,
+    fontFamily: SERIF_FONT,
+  },
 
   searchWrap: { paddingHorizontal: 16, marginBottom: 10 },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EDE9E4",
+    backgroundColor: "#FFF8F2",
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   searchIco: { fontSize: 15, marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 14, color: "#1A1A1A", padding: 0 },
-  clearIco: { fontSize: 13, color: "#999", paddingLeft: 8 },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#1A1A1A",
+    padding: 0,
+    fontFamily: SERIF_FONT,
+  },
+  clearIco: {
+    fontSize: 13,
+    color: "#999",
+    paddingLeft: 8,
+    fontFamily: SERIF_FONT,
+  },
 
   tabRow: {
     paddingHorizontal: 16,
@@ -791,7 +841,7 @@ const sc = StyleSheet.create({
     height: 36,
     paddingHorizontal: 12,
     borderRadius: 18,
-    backgroundColor: "#EDE9E4",
+    backgroundColor: "#FFF8F2",
     marginRight: 8,
   },
   tabIco: { fontSize: 13 },
@@ -801,6 +851,7 @@ const sc = StyleSheet.create({
     color: "#555",
     marginLeft: 4,
     marginRight: 5,
+    fontFamily: SERIF_FONT,
   },
   tabLblActive: { color: "#FFF" },
   tabBadge: {
@@ -817,6 +868,7 @@ const sc = StyleSheet.create({
     fontWeight: "700",
     color: "#666",
     lineHeight: 13,
+    fontFamily: SERIF_FONT,
   },
 
   listContent: { paddingHorizontal: 16, paddingBottom: 32 },
@@ -828,7 +880,12 @@ const sc = StyleSheet.create({
     alignItems: "center",
     paddingBottom: 60,
   },
-  centerTxt: { color: "#888", fontSize: 14, marginTop: 10 },
+  centerTxt: {
+    color: "#888",
+    fontSize: 14,
+    marginTop: 10,
+    fontFamily: SERIF_FONT,
+  },
   retryBtn: {
     marginTop: 14,
     backgroundColor: "#1A1A1A",
@@ -836,7 +893,12 @@ const sc = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 100,
   },
-  retryTxt: { color: "#FFF", fontWeight: "600", fontSize: 14 },
+  retryTxt: {
+    color: "#FFF",
+    fontWeight: "600",
+    fontSize: 14,
+    fontFamily: SERIF_FONT,
+  },
 });
 
 const crd = StyleSheet.create({
@@ -864,7 +926,12 @@ const crd = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F0ECE8",
   },
-  fallbackTxt: { fontSize: 11, color: "#BBB", marginTop: 2 },
+  fallbackTxt: {
+    fontSize: 11,
+    color: "#BBB",
+    marginTop: 2,
+    fontFamily: SERIF_FONT,
+  },
   badge: {
     position: "absolute",
     top: 8,
@@ -878,12 +945,13 @@ const crd = StyleSheet.create({
   },
   body: { padding: 11, paddingTop: 9 },
   name: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     color: "#1A1A1A",
-    lineHeight: 18,
-    minHeight: 36,
+    lineHeight: 17,
+    minHeight: 17,
     marginBottom: 6,
+    fontFamily: SERIF_FONT,
   },
   divider: { height: 1, backgroundColor: "#F0ECE8", marginBottom: 7 },
   footer: {
@@ -891,15 +959,25 @@ const crd = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  priceLabel: { fontSize: 10, color: "#BBB", marginBottom: 1 },
-  price: { fontSize: 14, fontWeight: "800", color: "#C8902A" },
+  priceLabel: {
+    fontSize: 10,
+    color: "#BBB",
+    marginBottom: 1,
+    fontFamily: SERIF_FONT,
+  },
+  price: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#C8902A",
+    fontFamily: SERIF_FONT,
+  },
   pill: {
     backgroundColor: "#1A1A1A",
     borderRadius: 100,
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
-  pillTxt: { fontSize: 10, color: "#FFF", fontWeight: "600" },
+  pillTxt: { fontSize: 10, color: "#FFF", fontWeight: "600", fontFamily: SERIF_FONT },
 });
 
 const srt = StyleSheet.create({
@@ -928,6 +1006,7 @@ const srt = StyleSheet.create({
     fontWeight: "700",
     color: "#1A1A1A",
     marginBottom: 12,
+    fontFamily: SERIF_FONT,
   },
   option: {
     flexDirection: "row",
@@ -939,8 +1018,8 @@ const srt = StyleSheet.create({
     backgroundColor: "#F5F3F0",
     marginBottom: 6,
   },
-  optTxt: { fontSize: 14, color: "#333", fontWeight: "500" },
-  check: { color: "#C8902A", fontSize: 16, fontWeight: "800" },
+  optTxt: { fontSize: 14, color: "#333", fontWeight: "500", fontFamily: SERIF_FONT },
+  check: { color: "#C8902A", fontSize: 16, fontWeight: "800", fontFamily: SERIF_FONT },
 });
 
 const dtl = StyleSheet.create({
@@ -979,7 +1058,7 @@ const dtl = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
   },
-  heroBadgeTxt: { color: "#FFF", fontSize: 12, fontWeight: "600" },
+  heroBadgeTxt: { color: "#FFF", fontSize: 12, fontWeight: "600", fontFamily: SERIF_FONT },
   body: { padding: 20 },
   carName: {
     fontSize: 22,
@@ -987,6 +1066,7 @@ const dtl = StyleSheet.create({
     color: "#1A1A1A",
     marginBottom: 14,
     lineHeight: 28,
+    fontFamily: SERIF_FONT,
   },
   priceBox: {
     flexDirection: "row",
@@ -997,13 +1077,14 @@ const dtl = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
   },
-  priceLbl: { fontSize: 13, color: "#888" },
-  priceVal: { fontSize: 22, fontWeight: "900", color: "#C8902A" },
+  priceLbl: { fontSize: 13, color: "#888", fontFamily: SERIF_FONT },
+  priceVal: { fontSize: 22, fontWeight: "900", color: "#C8902A", fontFamily: SERIF_FONT },
   specTitle: {
     fontSize: 14,
     fontWeight: "700",
     color: "#1A1A1A",
     marginBottom: 10,
+    fontFamily: SERIF_FONT,
   },
   specRow: {
     flexDirection: "row",
@@ -1023,8 +1104,9 @@ const dtl = StyleSheet.create({
     fontWeight: "700",
     color: "#1A1A1A",
     marginTop: 4,
+    fontFamily: SERIF_FONT,
   },
-  specLbl: { fontSize: 10, color: "#888", marginTop: 2 },
+  specLbl: { fontSize: 10, color: "#888", marginTop: 2, fontFamily: SERIF_FONT },
   ctaBtn: {
     backgroundColor: "#C8902A",
     borderRadius: 14,
@@ -1032,12 +1114,12 @@ const dtl = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
-  ctaTxt: { color: "#FFF", fontWeight: "700", fontSize: 15 },
+  ctaTxt: { color: "#FFF", fontWeight: "700", fontSize: 15, fontFamily: SERIF_FONT },
   closeBtn: {
     backgroundColor: "#F0ECE8",
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: "center",
   },
-  closeTxt: { color: "#333", fontWeight: "600", fontSize: 14 },
+  closeTxt: { color: "#333", fontWeight: "600", fontSize: 14, fontFamily: SERIF_FONT },
 });

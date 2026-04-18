@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
     Alert,
+    Platform,
     Pressable,
     ScrollView,
     StatusBar,
@@ -15,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../context/themeContext";
 import { darkTheme, lightTheme } from "../../theme/colors";
+import { showFeedback } from "../utils/feedback";
 
 type PaymentOption = "card" | "bank" | "paypal" | "wallet";
 
@@ -23,10 +25,16 @@ const PRIMARY_DARK = "#1D4ED8";
 const PRIMARY_SOFT = "#DBEAFE";
 const PRIMARY_SOFT_BG = "#EFF6FF";
 const PAYMENT_KEY = "PAYMENT_DATA";
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 export default function PaymentMethodScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
+  const pageBg = theme === "dark" ? "#120F0D" : "#F4ECE4";
 
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -122,9 +130,15 @@ export default function PaymentMethodScreen() {
         }),
       );
 
-      Alert.alert("Thành công", "Đã lưu phương thức thanh toán.");
+      showFeedback({
+        type: "success",
+        message: "Đã lưu phương thức thanh toán.",
+      });
     } catch (e) {
-      Alert.alert("Lỗi", "Không thể lưu phương thức thanh toán.");
+      showFeedback({
+        type: "error",
+        message: "Không thể lưu phương thức thanh toán.",
+      });
     }
   };
 
@@ -219,7 +233,7 @@ export default function PaymentMethodScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: pageBg }]}>
       <StatusBar barStyle="light-content" backgroundColor={PRIMARY} />
 
       <ScrollView
@@ -462,7 +476,7 @@ export default function PaymentMethodScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F3F4F6" },
+  container: { flex: 1, backgroundColor: "#F4ECE4" },
 
   topHeader: {
     paddingHorizontal: 20,
@@ -492,6 +506,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     color: "#FFF",
+    fontFamily: SERIF_FONT,
   },
 
   summaryCardCompact: {
@@ -509,18 +524,21 @@ const styles = StyleSheet.create({
     color: "#BFDBFE",
     fontSize: 12,
     marginBottom: 4,
+    fontFamily: SERIF_FONT,
   },
 
   summaryAmount: {
     color: "#FFF",
     fontSize: 22,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
   },
 
   summaryItems: {
     color: "#FFF",
     fontSize: 14,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
 
   content: {
@@ -533,6 +551,7 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     letterSpacing: 1,
     marginBottom: 14,
+    fontFamily: SERIF_FONT,
   },
 
   paymentItem: {
@@ -577,6 +596,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#111827",
+    fontFamily: SERIF_FONT,
   },
 
   paymentTitleActive: {
@@ -587,6 +607,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9CA3AF",
     marginTop: 3,
+    fontFamily: SERIF_FONT,
   },
 
   radioOuter: {
@@ -648,6 +669,7 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 20,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
   },
 
   cardPreviewNumber: {
@@ -657,6 +679,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginTop: 28,
     marginBottom: 26,
+    fontFamily: SERIF_FONT,
   },
 
   cardPreviewBottom: {
@@ -669,12 +692,14 @@ const styles = StyleSheet.create({
     color: "#BFDBFE",
     fontSize: 12,
     marginBottom: 4,
+    fontFamily: SERIF_FONT,
   },
 
   cardPreviewValue: {
     color: "#FFF",
     fontSize: 16,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
 
   formGroup: {
@@ -686,6 +711,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#4B5563",
     marginBottom: 8,
+    fontFamily: SERIF_FONT,
   },
 
   input: {
@@ -697,6 +723,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 16,
     color: "#111827",
+    fontFamily: SERIF_FONT,
   },
 
   row: {
@@ -715,6 +742,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9CA3AF",
     flex: 1,
+    fontFamily: SERIF_FONT,
   },
 
   payBtn: {
@@ -732,5 +760,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 16,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
   },
 });

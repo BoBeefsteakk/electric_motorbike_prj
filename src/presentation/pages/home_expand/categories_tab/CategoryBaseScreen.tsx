@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Dimensions,
   FlatList,
   Image,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -23,7 +23,6 @@ import { HomeStackParamList } from "../../../navigation/types";
 import { useTheme } from "../../../../context/themeContext";
 import { darkTheme, lightTheme } from "../../../../theme/colors";
 
-/* ── Type API ── */
 interface ApiProduct {
   id: number;
   name: string;
@@ -49,7 +48,7 @@ const CATEGORY_SUBTITLE: Record<CategoryType, string> = {
 };
 
 const CATEGORY_COLOR: Record<CategoryType, string> = {
-  pho_thong: "#FF8C00",
+  pho_thong: "#C96442",
   trung_cap: "#2D6BE4",
   cao_cap: "#9B51E0",
   o_to: "#0CAF60",
@@ -70,8 +69,12 @@ type NavProp = NativeStackNavigationProp<HomeStackParamList>;
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
-/* ── Skeleton Card ── */
 const SkeletonCard = ({ theme }: { theme: "light" | "dark" }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
 
@@ -88,7 +91,7 @@ const SkeletonCard = ({ theme }: { theme: "light" | "dark" }) => {
           duration: 800,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, [anim]);
 
@@ -98,18 +101,18 @@ const SkeletonCard = ({ theme }: { theme: "light" | "dark" }) => {
         styles.card,
         {
           opacity: anim,
-          backgroundColor: theme === "dark" ? "#1F2937" : "#fff",
-          shadowOpacity: theme === "dark" ? 0 : 0.06,
+          backgroundColor: theme === "dark" ? "#1E1A18" : "#FFFBF7",
+          shadowOpacity: theme === "dark" ? 0 : 0.08,
           elevation: theme === "dark" ? 0 : 3,
-          borderWidth: theme === "dark" ? 1 : 0,
-          borderColor: theme === "dark" ? "#334155" : "transparent",
+          borderWidth: 1,
+          borderColor: theme === "dark" ? "#4A3930" : "#E8D7CB",
         },
       ]}
     >
       <View
         style={[
           styles.imageBox,
-          { backgroundColor: theme === "dark" ? "#334155" : "#EBEBEB" },
+          { backgroundColor: theme === "dark" ? "#332923" : "#EEDFD2" },
         ]}
       />
       <View style={styles.cardContent}>
@@ -144,11 +147,9 @@ const SkeletonCard = ({ theme }: { theme: "light" | "dark" }) => {
   );
 };
 
-// Encode từng segment của path, giữ nguyên dấu /
 const encodeImagePath = (path: string) =>
   path.split("/").map(encodeURIComponent).join("/");
 
-/* ── RatingStars component ── */
 const RatingStars = React.memo(
   ({ rating, theme }: { rating: number; theme: "light" | "dark" }) => {
     const full = Math.floor(rating);
@@ -193,17 +194,15 @@ const RatingStars = React.memo(
         <Text
           style={[
             styles.ratingText,
-            { color: theme === "dark" ? "#94A3B8" : "#999" },
+            { color: theme === "dark" ? "#BDAA9B" : "#8B7163" },
           ]}
         >
           {rating.toFixed(1)}
         </Text>
       </View>
     );
-  }
+  },
 );
-
-/* ================= SCREEN ================= */
 
 export default function CategoryBaseScreen({ category }: Props) {
   const { theme } = useTheme();
@@ -216,6 +215,11 @@ export default function CategoryBaseScreen({ category }: Props) {
   const [loading, setLoading] = useState(true);
 
   const accentColor = CATEGORY_COLOR[category];
+  const pageBg = theme === "dark" ? "#120F0D" : "#F4ECE4";
+  const cardBg = theme === "dark" ? "#1E1A18" : "#FFFBF7";
+  const cardBorder = theme === "dark" ? "#4A3930" : "#E8D7CB";
+  const softBg = theme === "dark" ? "#2A211D" : "#F2E5DC";
+  const muted = theme === "dark" ? "#BDAA9B" : "#8B7163";
 
   useEffect(() => {
     fetchProducts();
@@ -227,7 +231,7 @@ export default function CategoryBaseScreen({ category }: Props) {
       const res = await fetch(`${API_URL}/api/products`);
       const data = await res.json();
       const filtered = data.filter(
-        (p: any) => DB_CATEGORY_MAP[p.category] === category
+        (p: any) => DB_CATEGORY_MAP[p.category] === category,
       );
       setProducts(filtered);
     } catch (e) {
@@ -240,7 +244,7 @@ export default function CategoryBaseScreen({ category }: Props) {
   const handlePress = useCallback(
     (item: ApiProduct) =>
       navigation.navigate("best_price_detail", { id: item.id }),
-    [navigation]
+    [navigation],
   );
 
   const renderItem = useCallback(
@@ -249,29 +253,30 @@ export default function CategoryBaseScreen({ category }: Props) {
         style={[
           styles.card,
           {
-            backgroundColor: theme === "dark" ? colors.card : "#fff",
-            shadowOpacity: theme === "dark" ? 0 : 0.06,
+            backgroundColor: cardBg,
+            shadowOpacity: theme === "dark" ? 0 : 0.08,
             elevation: theme === "dark" ? 0 : 3,
-            borderWidth: theme === "dark" ? 1 : 0,
-            borderColor: theme === "dark" ? "#334155" : "transparent",
+            borderWidth: 1,
+            borderColor: cardBorder,
           },
         ]}
         activeOpacity={0.88}
         onPress={() => handlePress(item)}
       >
-        <View style={styles.imageBox}>
+        <View style={[styles.imageBox, { backgroundColor: softBg }]}>
           <Image
             source={{ uri: `${API_URL}/images/${encodeImagePath(item.image)}` }}
             style={styles.image}
             fadeDuration={200}
-            onError={(e) =>
-              console.log("img err", item.id, e.nativeEvent.error)
-            }
+            onError={(e) => console.log("img err", item.id, e.nativeEvent.error)}
           />
         </View>
 
         <View style={styles.cardContent}>
-          <Text style={[styles.productName, { color: colors.text }]} numberOfLines={2}>
+          <Text
+            style={[styles.productName, { color: colors.text }]}
+            numberOfLines={1}
+          >
             {item.name}
           </Text>
 
@@ -283,20 +288,13 @@ export default function CategoryBaseScreen({ category }: Props) {
           <View
             style={[
               styles.divider,
-              { backgroundColor: theme === "dark" ? "#334155" : "#F0F0F0" },
+              { backgroundColor: theme === "dark" ? "#4A3930" : "#E8D7CB" },
             ]}
           />
 
           <View style={styles.cardFooter}>
             <View>
-              <Text
-                style={[
-                  styles.priceLabel,
-                  { color: theme === "dark" ? "#94A3B8" : "#BBB" },
-                ]}
-              >
-                Giá từ
-              </Text>
+              <Text style={[styles.priceLabel, { color: muted }]}>Giá từ</Text>
               <Text style={[styles.price, { color: accentColor }]}>
                 {Number(item.price).toLocaleString("vi-VN")} đ
               </Text>
@@ -313,7 +311,7 @@ export default function CategoryBaseScreen({ category }: Props) {
         </View>
       </TouchableOpacity>
     ),
-    [handlePress, accentColor, theme, colors]
+    [handlePress, accentColor, theme, colors, cardBg, cardBorder, softBg, muted],
   );
 
   const ListHeader = () => (
@@ -321,18 +319,13 @@ export default function CategoryBaseScreen({ category }: Props) {
       <Text style={[styles.sectionTitle, { color: colors.text }]}>
         {CATEGORY_LABEL[category]}
       </Text>
-      <Text
-        style={[
-          styles.sectionSubtitle,
-          { color: theme === "dark" ? "#94A3B8" : "#999" },
-        ]}
-      >
+      <Text style={[styles.sectionSubtitle, { color: muted }]}>
         {CATEGORY_SUBTITLE[category]}
       </Text>
       <Text
         style={[
           styles.sectionCount,
-          { color: theme === "dark" ? "#64748B" : "#BBB" },
+          { color: theme === "dark" ? "#8E786B" : "#A38A7B" },
         ]}
       >
         {products.length} mẫu xe
@@ -346,14 +339,9 @@ export default function CategoryBaseScreen({ category }: Props) {
         <FontAwesome
           name="inbox"
           size={52}
-          color={theme === "dark" ? "#475569" : "#DDD"}
+          color={theme === "dark" ? "#6E5A4E" : "#D8C7BA"}
         />
-        <Text
-          style={[
-            styles.emptyText,
-            { color: theme === "dark" ? "#94A3B8" : "#CCC" },
-          ]}
-        >
+        <Text style={[styles.emptyText, { color: muted }]}>
           Chưa có sản phẩm trong danh mục này
         </Text>
       </View>
@@ -373,10 +361,10 @@ export default function CategoryBaseScreen({ category }: Props) {
   const HEADER_H = insets.top + 56;
 
   return (
-    <View style={[styles.safe, { backgroundColor: colors.background }]}>
+    <View style={[styles.safe, { backgroundColor: pageBg }]}>
       <StatusBar
         barStyle={theme === "dark" ? "light-content" : "dark-content"}
-        backgroundColor={theme === "dark" ? colors.background : "#fff"}
+        backgroundColor={pageBg}
         translucent
       />
 
@@ -386,8 +374,8 @@ export default function CategoryBaseScreen({ category }: Props) {
           {
             paddingTop: insets.top,
             height: HEADER_H,
-            backgroundColor: colors.background,
-            borderBottomColor: theme === "dark" ? "#243041" : "#EBEBEB",
+            backgroundColor: pageBg,
+            borderBottomColor: theme === "dark" ? "#3B2F29" : "#E5D8CC",
           },
         ]}
       >
@@ -396,7 +384,7 @@ export default function CategoryBaseScreen({ category }: Props) {
           style={[
             styles.backBtn,
             {
-              backgroundColor: theme === "dark" ? "#1F2937" : "#F5F5F5",
+              backgroundColor: theme === "dark" ? "#1F2937" : "#F5EAE1",
             },
           ]}
           activeOpacity={0.7}
@@ -433,7 +421,7 @@ export default function CategoryBaseScreen({ category }: Props) {
           ]}
           columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
-          removeClippedSubviews={true}
+          removeClippedSubviews
           initialNumToRender={6}
           maxToRenderPerBatch={6}
           windowSize={5}
@@ -443,10 +431,8 @@ export default function CategoryBaseScreen({ category }: Props) {
   );
 }
 
-/* ================= STYLES ================= */
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F7F8FA" },
+  safe: { flex: 1, backgroundColor: "#F4ECE4" },
 
   header: {
     paddingHorizontal: 16,
@@ -466,25 +452,54 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerCenter: { flex: 1, alignItems: "center" },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
 
   listHeaderBox: {
     marginHorizontal: 16,
     marginTop: 20,
     marginBottom: 14,
     paddingLeft: 12,
+    paddingTop: 12,
+    paddingRight: 14,
+    paddingBottom: 12,
     borderLeftWidth: 4,
     borderLeftColor: "#FF8C00",
-    borderRadius: 2,
+    borderRadius: 14,
+    backgroundColor: "#FFF7F0",
+    borderWidth: 1,
+    borderTopColor: "#E8D7CB",
+    borderRightColor: "#E8D7CB",
+    borderBottomColor: "#E8D7CB",
+    shadowColor: "#C58A67",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
-  sectionTitle: { fontSize: 22, fontWeight: "800", color: "#111" },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
   sectionSubtitle: {
     fontSize: 13,
     color: "#999",
     marginTop: 3,
     marginBottom: 6,
+    fontFamily: SERIF_FONT,
   },
-  sectionCount: { fontSize: 12, color: "#BBB", fontWeight: "500" },
+  sectionCount: {
+    fontSize: 12,
+    color: "#BBB",
+    fontWeight: "500",
+    fontFamily: SERIF_FONT,
+  },
 
   listContent: { paddingHorizontal: 16 },
   columnWrapper: { justifyContent: "space-between", marginBottom: 16 },
@@ -508,12 +523,13 @@ const styles = StyleSheet.create({
 
   cardContent: { padding: 12 },
   productName: {
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: "700",
     color: "#111",
-    lineHeight: 23,
-    marginBottom: 3,
-    minHeight: 46,
+    lineHeight: 19,
+    marginBottom: 2,
+    minHeight: 20,
+    fontFamily: SERIF_FONT,
   },
   ratingRow: {
     flexDirection: "row",
@@ -521,7 +537,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: 2,
   },
-  ratingText: { fontSize: 13, color: "#999", marginLeft: 4, fontWeight: "500" },
+  ratingText: {
+    fontSize: 13,
+    color: "#999",
+    marginLeft: 4,
+    fontWeight: "500",
+    fontFamily: SERIF_FONT,
+  },
   divider: {
     height: 0.5,
     backgroundColor: "#F0F0F0",
@@ -532,13 +554,14 @@ const styles = StyleSheet.create({
     color: "#BBB",
     fontWeight: "500",
     marginBottom: 2,
+    fontFamily: SERIF_FONT,
   },
   cardFooter: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  price: { fontSize: 16, fontWeight: "800" },
+  price: { fontSize: 15, fontWeight: "800", fontFamily: SERIF_FONT },
   detailBtn: {
     width: 28,
     height: 28,
@@ -553,5 +576,6 @@ const styles = StyleSheet.create({
     color: "#CCC",
     textAlign: "center",
     lineHeight: 22,
+    fontFamily: SERIF_FONT,
   },
 });

@@ -5,6 +5,7 @@ import {
   Animated,
   FlatList,
   Image,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -28,6 +29,12 @@ interface Accessory {
 /* ── Encode image path (handle spaces in filename) ── */
 const encodeImagePath = (p: string) =>
   p.split("/").map(encodeURIComponent).join("/");
+
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 /* ── Skeleton ── */
 const SkeletonRow = ({ theme }: { theme: "light" | "dark" }) => {
@@ -115,6 +122,7 @@ const SkeletonRow = ({ theme }: { theme: "light" | "dark" }) => {
 export default function CategoryPhuKien() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
+  const pageBg = theme === "dark" ? "#120F0D" : "#F4ECE4";
 
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
@@ -165,7 +173,7 @@ export default function CategoryPhuKien() {
     >
       <View style={styles.imageBox}>
         <Image
-          source={{ uri: `${API_URL}/images/${encodeImagePath(item.image)}` }}
+          source={{ uri: `${API_URL}/${encodeImagePath(item.image)}` }}
           style={styles.image}
           resizeMode="cover"
           fadeDuration={200}
@@ -320,7 +328,7 @@ export default function CategoryPhuKien() {
     <View
       style={[
         styles.safe,
-        { paddingTop: insets.top, backgroundColor: colors.background },
+        { paddingTop: insets.top, backgroundColor: pageBg },
       ]}
     >
       <StatusBar
@@ -333,7 +341,7 @@ export default function CategoryPhuKien() {
         style={[
           styles.header,
           {
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
             borderBottomColor: theme === "dark" ? "#243041" : "#EBEBEB",
           },
         ]}
@@ -410,7 +418,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
 
   listHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
 
@@ -425,8 +438,18 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   heroLeft: {},
-  heroTitle: { fontSize: 20, fontWeight: "800", color: "#111" },
-  heroSub: { fontSize: 13, color: "#999", marginTop: 3 },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
+  heroSub: {
+    fontSize: 13,
+    color: "#999",
+    marginTop: 3,
+    fontFamily: SERIF_FONT,
+  },
 
   sortBar: {
     flexDirection: "row",
@@ -441,7 +464,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "#EFEFEF",
   },
-  sortText: { fontSize: 12, fontWeight: "600", color: "#777" },
+  sortText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#777",
+    fontFamily: SERIF_FONT,
+  },
 
   countText: {
     fontSize: 13,
@@ -449,6 +477,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: 6,
     paddingLeft: 2,
+    fontFamily: SERIF_FONT,
   },
 
   list: { paddingHorizontal: 16 },
@@ -477,7 +506,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  indexText: { fontSize: 11, fontWeight: "800", color: "#fff" },
+  indexText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#fff",
+    fontFamily: SERIF_FONT,
+  },
 
   cardInfo: { flex: 1, padding: 14, justifyContent: "space-between" },
   itemName: {
@@ -485,6 +519,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
     lineHeight: 21,
+    fontFamily: SERIF_FONT,
   },
   divider: { height: 0.5, backgroundColor: "#F0F0F0", marginVertical: 8 },
 
@@ -493,13 +528,19 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  fromLabel: { fontSize: 10, color: "#BBB", marginBottom: 1 },
+  fromLabel: {
+    fontSize: 10,
+    color: "#BBB",
+    marginBottom: 1,
+    fontFamily: SERIF_FONT,
+  },
   price: {
     fontSize: 13,
     fontWeight: "800",
     color: "#FF8C00",
     flexShrink: 1,
     marginRight: 8,
+    fontFamily: SERIF_FONT,
   },
 
   buyBtn: {
@@ -512,5 +553,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     flexShrink: 0,
   },
-  buyText: { fontSize: 11, color: "#fff", fontWeight: "700" },
+  buyText: {
+    fontSize: 11,
+    color: "#fff",
+    fontWeight: "700",
+    fontFamily: SERIF_FONT,
+  },
 });

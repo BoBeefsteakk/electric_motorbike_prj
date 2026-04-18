@@ -1,21 +1,32 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Animated,
+  Alert,
   FlatList,
+  Platform,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../context/themeContext";
 import API_URL from "../../data/api/apis";
 import { darkTheme, lightTheme } from "../../theme/colors";
+import { ApiErrorState, ApiSkeleton } from "../components/ApiFeedback";
+import EmptyState from "../components/EmptyState";
 
 const AUTH_USER_KEY = "AUTH_USER";
+const ORDER_SEARCH_HISTORY_KEY = "ORDER_SEARCH_HISTORY";
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 interface OrderItem {
   id?: number;
@@ -38,6 +49,8 @@ interface Order {
   items: OrderItem[];
 }
 
+type TimelineState = "completed" | "current" | "upcoming" | "canceled";
+
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -52,51 +65,51 @@ const STATUS_COLOR: Record<string, string> = {
   "Đã hủy": "#FF4D4D",
 };
 
-const SkeletonCard = ({ dark }: { dark: boolean }) => {
-  const anim = useRef(new Animated.Value(0.4)).current;
+const ORDER_FILTERS = [
+  "Tất cả",
+  "Đang xử lý",
+  "Đã xác nhận",
+  "Đang giao",
+  "Hoàn thành",
+  "Đã hủy",
+];
 
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, {
-          toValue: 1,
-          duration: 750,
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim, {
-          toValue: 0.4,
-          duration: 750,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-  }, [anim]);
+const ORDER_TIMELINE = [
+  "Đang xử lý",
+  "Đã xác nhận",
+  "Đang giao",
+  "Hoàn thành",
+];
 
-  return (
-    <Animated.View
-      style={[
-        styles.skeletonCard,
-        {
-          backgroundColor: dark ? "#1F2937" : "#EBEBEB",
-          opacity: anim,
-        },
-      ]}
-    />
-  );
+const STATUS_INDEX: Record<string, number> = {
+  "Đang xử lý": 0,
+  "Đã xác nhận": 1,
+  "Đang giao": 2,
+  "Hoàn thành": 3,
 };
 
 export default function OrderScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
+  const pageBg = isDark ? "#120F0D" : "#F4ECE4";
   const navigation = useNavigation<any>();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Tất cả");
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (showLoader = true) => {
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
+      setError(null);
 
       const rawUser = await AsyncStorage.getItem(AUTH_USER_KEY);
       const authUser = rawUser ? JSON.parse(rawUser) : null;
@@ -114,24 +127,179 @@ export default function OrderScreen() {
         setOrders(data.data);
       } else {
         setOrders([]);
+        setError("Không tải được dữ liệu");
       }
     } catch (e) {
       console.log("Lỗi fetch orders:", e);
       setOrders([]);
+      setError("Không tải được dữ liệu");
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       fetchOrders();
-    }, [fetchOrders]),
+    }, [fetchOrders])
   );
+
+  useEffect(() => {
+    const loadSearchHistory = async () => {
+      try {
+        const rawHistory = await AsyncStorage.getItem(ORDER_SEARCH_HISTORY_KEY);
+        const parsed = rawHistory ? JSON.parse(rawHistory) : [];
+        setSearchHistory(Array.isArray(parsed) ? parsed : []);
+      } catch (e) {
+        console.log("Lỗi load order search history:", e);
+      }
+    };
+
+    loadSearchHistory();
+  }, []);
+
+  const commitOrderSearchHistory = useCallback(async () => {
+    const normalizedQuery = searchQuery.trim();
+    if (!normalizedQuery) return;
+
+    const nextHistory = [
+      normalizedQuery,
+      ...searchHistory.filter((item) => item !== normalizedQuery),
+    ].slice(0, 8);
+
+    setSearchHistory(nextHistory);
+
+    try {
+      await AsyncStorage.setItem(
+        ORDER_SEARCH_HISTORY_KEY,
+        JSON.stringify(nextHistory)
+      );
+    } catch (e) {
+      console.log("Lỗi save order search history:", e);
+    }
+  }, [searchHistory, searchQuery]);
+
+  const handleRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      await fetchOrders(false);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchOrders]);
+
+  const handleDeleteCanceledOrder = useCallback(async (order: Order) => {
+    Alert.alert(
+      "Xóa đơn hàng",
+      `Bạn muốn xóa đơn #${order.orderId} khỏi danh sách?`,
+      [
+        { text: "Không", style: "cancel" },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeletingOrderId(order.orderId);
+
+              const res = await fetch(
+                `${API_URL}/api/orders/${encodeURIComponent(
+                  order.orderId
+                )}?userId=${encodeURIComponent(order.userId || "")}`,
+                {
+                  method: "DELETE",
+                }
+              );
+
+              const data = await res.json();
+
+              if (!res.ok || !data.success) {
+                Alert.alert(
+                  "Thông báo",
+                  data.message || "Không thể xóa đơn hàng đã hủy"
+                );
+                return;
+              }
+
+              setOrders((prev) =>
+                prev.filter((item) => item.orderId !== order.orderId)
+              );
+            } catch (e) {
+              Alert.alert("Lỗi", "Không thể xóa đơn hàng đã hủy");
+            } finally {
+              setDeletingOrderId(null);
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
+  const filteredOrders = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    return orders.filter((item) => {
+      const matchesStatus =
+        statusFilter === "Tất cả" || item.status === statusFilter;
+
+      if (!matchesStatus) return false;
+      if (!normalizedQuery) return true;
+
+      const firstItemName = item.items?.[0]?.name?.toLowerCase?.() || "";
+
+      return (
+        item.orderId.toLowerCase().includes(normalizedQuery) ||
+        firstItemName.includes(normalizedQuery)
+      );
+    });
+  }, [orders, searchQuery, statusFilter]);
 
   const renderItem = ({ item }: { item: Order }) => {
     const statusColor = STATUS_COLOR[item.status] ?? "#888";
     const firstItem = item.items?.[0];
+    const isCanceled = item.status === "Đã hủy";
+    const isDeleting = deletingOrderId === item.orderId;
+    const currentStatusIndex = STATUS_INDEX[item.status] ?? 0;
+
+    const getTimelineState = (index: number): TimelineState => {
+      if (isCanceled) {
+        return index === 0 ? "completed" : "canceled";
+      }
+
+      if (index < currentStatusIndex) return "completed";
+      if (index === currentStatusIndex) return "current";
+      return "upcoming";
+    };
+
+    const getTimelineColors = (state: TimelineState) => {
+      switch (state) {
+        case "completed":
+          return {
+            dot: "#16A34A",
+            line: "#16A34A",
+            text: isDark ? "#CBD5E1" : "#475569",
+          };
+        case "current":
+          return {
+            dot: "#C47A4A",
+            line: isDark ? "#334155" : "#E5E7EB",
+            text: "#C47A4A",
+          };
+        case "canceled":
+          return {
+            dot: "#FF4D4D",
+            line: "#FF4D4D",
+            text: "#FF4D4D",
+          };
+        default:
+          return {
+            dot: isDark ? "#334155" : "#D6D3D1",
+            line: isDark ? "#334155" : "#E5E7EB",
+            text: isDark ? "#64748B" : "#94A3B8",
+          };
+      }
+    };
 
     return (
       <Pressable
@@ -222,7 +390,7 @@ export default function OrderScreen() {
                     { color: isDark ? "#94A3B8" : "#AAA" },
                   ]}
                 >
-                  và {item.items.length - 1} sản phẩm khác
+                  va {item.items.length - 1} sản phẩm khác
                 </Text>
               )}
             </View>
@@ -240,18 +408,96 @@ export default function OrderScreen() {
 
         <View
           style={[
-            styles.orderFooter,
-            { borderTopColor: isDark ? "#334155" : "#F0F0F0" },
+            styles.timelineBox,
+            {
+              backgroundColor: isDark ? "#0F172A" : "#FAF7F4",
+              borderColor: isDark ? "#334155" : "#EADFD6",
+            },
           ]}
         >
           <Text
             style={[
-              styles.itemCount,
-              { color: isDark ? "#94A3B8" : "#AAA" },
+              styles.timelineHeading,
+              { color: isDark ? "#94A3B8" : "#78716C" },
             ]}
           >
-            {item.items.length} sản phẩm
+            Tiến trình đơn hàng
           </Text>
+
+          <View style={styles.timelineTrack}>
+            {ORDER_TIMELINE.map((label, index) => {
+              const state = getTimelineState(index);
+              const timelineColors = getTimelineColors(state);
+              const isLast = index === ORDER_TIMELINE.length - 1;
+
+              return (
+                <React.Fragment key={`${item.orderId}-${label}`}>
+                  <View style={styles.timelineStep}>
+                    <View
+                      style={[
+                        styles.timelineDot,
+                        { backgroundColor: timelineColors.dot },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.timelineLabel,
+                        { color: timelineColors.text },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {label}
+                    </Text>
+                  </View>
+
+                  {!isLast && (
+                    <View
+                      style={[
+                        styles.timelineConnector,
+                        { backgroundColor: timelineColors.line },
+                      ]}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.orderFooter,
+            { borderTopColor: isDark ? "#334155" : "#F0F0F0" },
+          ]}
+        >
+          <View style={styles.orderFooterLeft}>
+            <Text
+              style={[
+                styles.itemCount,
+                { color: isDark ? "#94A3B8" : "#AAA" },
+              ]}
+            >
+              {item.items.length} sản phẩm
+            </Text>
+
+            {isCanceled && (
+              <Pressable
+                onPress={(event: any) => {
+                  event?.stopPropagation?.();
+                  handleDeleteCanceledOrder(item);
+                }}
+                disabled={isDeleting}
+                style={[
+                  styles.deleteOrderBtn,
+                  isDeleting && styles.deleteOrderBtnDisabled,
+                ]}
+              >
+                <Text style={styles.deleteOrderBtnText}>
+                  {isDeleting ? "Đang xóa..." : "Xóa"}
+                </Text>
+              </Pressable>
+            )}
+          </View>
 
           <View style={styles.totalGroup}>
             <Text
@@ -271,13 +517,146 @@ export default function OrderScreen() {
     );
   };
 
+  const listHeader = (
+    <View style={styles.filterSection}>
+      <View
+        style={[
+          styles.searchBox,
+          {
+            backgroundColor: isDark ? "#0F172A" : "#FFF8F3",
+            borderColor: isDark ? "#334155" : "#E8D7CB",
+          },
+        ]}
+      >
+        <Ionicons
+          name="search-outline"
+          size={18}
+          color={isDark ? "#94A3B8" : "#8B7163"}
+        />
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={commitOrderSearchHistory}
+          placeholder="Tìm theo mã đơn hoặc tên sản phẩm"
+          placeholderTextColor={isDark ? "#64748B" : "#A8A29E"}
+          style={[styles.searchInput, { color: colors.text }]}
+        />
+      </View>
+
+      {searchHistory.length > 0 ? (
+        <View style={styles.historySection}>
+          <View style={styles.historyHeader}>
+            <Text
+              style={[
+                styles.historyTitle,
+                { color: isDark ? "#94A3B8" : "#78716C" },
+              ]}
+            >
+              Tìm kiếm gần đây
+            </Text>
+            <Pressable
+              onPress={async () => {
+                setSearchHistory([]);
+                try {
+                  await AsyncStorage.removeItem(ORDER_SEARCH_HISTORY_KEY);
+                } catch (e) {
+                  console.log("Lỗi clear order search history:", e);
+                }
+              }}
+            >
+              <Text style={styles.historyClearText}>Xóa</Text>
+            </Pressable>
+          </View>
+
+          <FlatList
+            horizontal
+            data={searchHistory}
+            keyExtractor={(item) => item}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.historyRow}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => {
+                  setSearchQuery(item);
+                }}
+                style={[
+                  styles.historyChip,
+                  {
+                    backgroundColor: isDark ? "#0F172A" : "#FFF8F3",
+                    borderColor: isDark ? "#334155" : "#E8D7CB",
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="time-outline"
+                  size={13}
+                  color={isDark ? "#94A3B8" : "#8B7163"}
+                />
+                <Text
+                  style={[
+                    styles.historyChipText,
+                    { color: isDark ? "#CBD5E1" : "#6B4F3C" },
+                  ]}
+                >
+                  {item}
+                </Text>
+              </Pressable>
+            )}
+          />
+        </View>
+      ) : null}
+
+      <FlatList
+        horizontal
+        data={ORDER_FILTERS}
+        keyExtractor={(item) => item}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+        renderItem={({ item }) => {
+          const active = item === statusFilter;
+          return (
+            <Pressable
+              onPress={() => setStatusFilter(item)}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor: active
+                    ? "#C47A4A"
+                    : isDark
+                      ? "#0F172A"
+                      : "#FFF8F3",
+                  borderColor: active
+                    ? "#C47A4A"
+                    : isDark
+                      ? "#334155"
+                      : "#E8D7CB",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  {
+                    color: active ? "#FFFFFF" : isDark ? "#CBD5E1" : "#6B4F3C",
+                  },
+                ]}
+              >
+                {item}
+              </Text>
+            </Pressable>
+          );
+        }}
+      />
+    </View>
+  );
+
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]}>
       <View
         style={[
           styles.header,
           {
-            backgroundColor: isDark ? colors.card : "#fff",
+            backgroundColor: pageBg,
             borderBottomColor: isDark ? "#334155" : "#EBEBEB",
           },
         ]}
@@ -305,45 +684,62 @@ export default function OrderScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.list}>
-          {[0, 1, 2].map((i) => (
-            <SkeletonCard key={i} dark={isDark} />
-          ))}
-        </View>
+        <ApiSkeleton dark={isDark} variant="list" count={3} />
+      ) : error && orders.length === 0 ? (
+        <ApiErrorState
+          dark={isDark}
+          title="Không tải được dữ liệu"
+          description="Danh sách đơn hàng hiện chưa thể tải. Vui lòng thử lại."
+          onRetry={fetchOrders}
+        />
       ) : (
         <FlatList
-          data={orders}
+          data={filteredOrders}
           keyExtractor={(item, index) =>
             item.orderId
               ? `order-${item.orderId}`
               : `order-fallback-${item.id ?? index}`
           }
           renderItem={renderItem}
+          ListHeaderComponent={listHeader}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#C47A4A"
+              colors={["#C47A4A"]}
+            />
+          }
           contentContainerStyle={[
             styles.list,
-            orders.length === 0 && { flex: 1, justifyContent: "center" },
+            filteredOrders.length === 0 && { flexGrow: 1 },
           ]}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           ListEmptyComponent={
-            <View style={styles.emptyBox}>
-              <Ionicons
-                name="receipt-outline"
-                size={52}
-                color={isDark ? "#475569" : "#D1D5DB"}
-              />
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                Chưa có đơn hàng nào
-              </Text>
-              <Text
-                style={[
-                  styles.emptySub,
-                  { color: isDark ? "#94A3B8" : "#AAA" },
-                ]}
-              >
-                Các đơn đã đặt và đã hủy sẽ hiển thị tại đây.
-              </Text>
-            </View>
+            <EmptyState
+              icon="receipt-outline"
+              dark={isDark}
+              title={
+                orders.length === 0
+                  ? "Chưa có đơn hàng nào"
+                  : "Không tìm thấy đơn phù hợp"
+              }
+              description={
+                orders.length === 0
+                  ? "Các đơn đã đặt và đã hủy sẽ hiển thị tại đây sau khi anh hoàn tất giao dịch."
+                  : "Thử đổi từ khóa tìm kiếm hoặc chọn trạng thái khác."
+              }
+              actionLabel={orders.length === 0 ? "Khám phá xe ngay" : "Đặt lại bộ lọc"}
+              onPressAction={
+                orders.length === 0
+                  ? () => navigation.navigate("home")
+                  : () => {
+                      setSearchQuery("");
+                      setStatusFilter("Tất cả");
+                    }
+              }
+            />
           }
         />
       )}
@@ -377,6 +773,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
     color: "#111",
   },
 
@@ -384,10 +781,87 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 
-  skeletonCard: {
-    height: 140,
-    borderRadius: 20,
-    marginBottom: 12,
+  filterSection: {
+    marginBottom: 16,
+  },
+
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 14,
+    fontFamily: SERIF_FONT,
+    paddingVertical: 0,
+  },
+
+  historySection: {
+    marginTop: 12,
+  },
+
+  historyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+
+  historyTitle: {
+    fontSize: 12,
+    fontFamily: SERIF_FONT,
+  },
+
+  historyClearText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#C47A4A",
+    fontFamily: SERIF_FONT,
+  },
+
+  historyRow: {
+    gap: 8,
+    paddingBottom: 2,
+  },
+
+  historyChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+
+  historyChipText: {
+    fontSize: 12,
+    fontFamily: SERIF_FONT,
+  },
+
+  filterRow: {
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 8,
+  },
+
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
 
   orderCard: {
@@ -410,12 +884,14 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 14,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
     color: "#111",
     marginBottom: 3,
   },
 
   orderDate: {
     fontSize: 12,
+    fontFamily: SERIF_FONT,
     color: "#AAA",
   },
 
@@ -438,6 +914,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
 
   divider: {
@@ -469,11 +946,13 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 14,
     fontWeight: "600",
+    fontFamily: SERIF_FONT,
     color: "#333",
   },
 
   moreItems: {
     fontSize: 12,
+    fontFamily: SERIF_FONT,
     color: "#AAA",
     marginTop: 2,
   },
@@ -481,7 +960,53 @@ const styles = StyleSheet.create({
   productQty: {
     fontSize: 14,
     fontWeight: "600",
+    fontFamily: SERIF_FONT,
     color: "#888",
+  },
+
+  timelineBox: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+  },
+
+  timelineHeading: {
+    fontSize: 12,
+    fontFamily: SERIF_FONT,
+    marginBottom: 10,
+  },
+
+  timelineTrack: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  timelineStep: {
+    width: 52,
+    alignItems: "center",
+  },
+
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginBottom: 6,
+  },
+
+  timelineLabel: {
+    fontSize: 10,
+    lineHeight: 13,
+    textAlign: "center",
+    fontFamily: SERIF_FONT,
+  },
+
+  timelineConnector: {
+    flex: 1,
+    height: 2,
+    marginTop: 4,
+    marginHorizontal: 4,
+    borderRadius: 999,
   },
 
   orderFooter: {
@@ -493,9 +1018,34 @@ const styles = StyleSheet.create({
     borderTopColor: "#F0F0F0",
   },
 
+  orderFooterLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
   itemCount: {
     fontSize: 12,
+    fontFamily: SERIF_FONT,
     color: "#AAA",
+  },
+
+  deleteOrderBtn: {
+    backgroundColor: "#FFE8E8",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  deleteOrderBtnDisabled: {
+    opacity: 0.7,
+  },
+
+  deleteOrderBtnText: {
+    color: "#FF4D4D",
+    fontSize: 12,
+    fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
 
   totalGroup: {
@@ -505,31 +1055,14 @@ const styles = StyleSheet.create({
 
   totalLabel: {
     fontSize: 13,
+    fontFamily: SERIF_FONT,
     color: "#888",
   },
 
   totalValue: {
     fontSize: 15,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
     color: "#FF4D4D",
-  },
-
-  emptyBox: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#CCC",
-  },
-
-  emptySub: {
-    fontSize: 13,
-    color: "#DDD",
-    textAlign: "center",
   },
 });

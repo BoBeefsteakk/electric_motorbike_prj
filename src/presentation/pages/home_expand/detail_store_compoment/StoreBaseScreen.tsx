@@ -11,8 +11,8 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Image,
   Platform,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -23,6 +23,9 @@ import {
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import API_URL from "../../../../../src/data/api/apis";
+import AppImage from "../../../components/AppImage";
+import { ApiErrorState } from "../../../components/ApiFeedback";
+import EmptyState from "../../../components/EmptyState";
 import { HomeStackParamList } from "../../../navigation/types";
 import { useTheme } from "../../../../context/themeContext";
 import { darkTheme, lightTheme } from "../../../../theme/colors";
@@ -31,6 +34,11 @@ const { width } = Dimensions.get("window");
 const CARD_W = (width - 48) / 2;
 const TOP_OFFSET =
   Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 8 : 48;
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
 
 type ProductType = "Phổ thông" | "Trung cấp" | "Cao cấp";
 
@@ -66,7 +74,6 @@ const encodeImagePath = (p: string) =>
 
 const keyById = (item: { id: number }) => String(item.id);
 
-/* ── Skeleton ── */
 const SkeletonCard = ({ dark }: { dark: boolean }) => {
   const anim = useRef(new Animated.Value(0.4)).current;
 
@@ -135,6 +142,7 @@ export default function StoreBaseScreen() {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
+  const pageBg = isDark ? "#120F0D" : "#F4ECE4";
 
   const navigation =
     useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
@@ -146,6 +154,8 @@ export default function StoreBaseScreen() {
   const [store, setStore] = useState<StoreInfo | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerOpacity = scrollY.interpolate({
@@ -154,33 +164,80 @@ export default function StoreBaseScreen() {
     extrapolate: "clamp",
   });
 
-  useEffect(() => {
-    if (!storeId) {
-      setLoading(false);
-      return;
-    }
+  const fetchStoreData = useCallback(
+    async (preserveData = false) => {
+      if (!storeId) {
+        setStore(null);
+        setProducts([]);
+        setError(null);
+        return;
+      }
 
-    (async () => {
       try {
+        setError(null);
+
         const [storeRes, productRes] = await Promise.all([
           fetch(`${API_URL}/api/stores/${storeId}`),
           fetch(`${API_URL}/api/products`),
         ]);
 
-        setStore(await storeRes.json());
-        setProducts(await productRes.json());
+        if (!storeRes.ok || !productRes.ok) {
+          throw new Error(
+            `fetch store data failed: ${storeRes.status}/${productRes.status}`
+          );
+        }
+
+        const [storeData, productData] = await Promise.all([
+          storeRes.json(),
+          productRes.json(),
+        ]);
+
+        setStore(
+          storeData && typeof storeData === "object" && storeData.id
+            ? storeData
+            : null
+        );
+        setProducts(Array.isArray(productData) ? productData : []);
       } catch (e) {
         console.log("Lỗi fetch store:", e);
-      } finally {
-        setLoading(false);
+        if (!preserveData) {
+          setStore(null);
+          setProducts([]);
+        }
+        setError("Không tải được dữ liệu");
       }
-    })();
-  }, [storeId]);
+    },
+    [storeId]
+  );
+
+  useEffect(() => {
+    setLoading(true);
+    fetchStoreData().finally(() => setLoading(false));
+  }, [fetchStoreData]);
 
   const filteredProducts = useMemo(
     () => products.filter((p) => CATEGORY_MAP[p.category] === activeTab),
     [activeTab, products]
   );
+  const firstAvailableTab = useMemo(
+    () =>
+      TABS.find((tab) =>
+        products.some((p) => CATEGORY_MAP[p.category] === tab)
+      ) ?? null,
+    [products]
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchStoreData(true);
+    setRefreshing(false);
+  }, [fetchStoreData]);
+
+  const handleRetry = useCallback(async () => {
+    setLoading(true);
+    await fetchStoreData();
+    setLoading(false);
+  }, [fetchStoreData]);
 
   const renderProduct = useCallback(
     ({ item }: { item: Product }) => (
@@ -188,7 +245,7 @@ export default function StoreBaseScreen() {
         style={[
           styles.productCard,
           {
-            backgroundColor: colors.card,
+            backgroundColor: isDark ? colors.card : "#fff",
             shadowOpacity: isDark ? 0 : 0.07,
             elevation: isDark ? 0 : 3,
             borderWidth: isDark ? 1 : 0,
@@ -199,9 +256,12 @@ export default function StoreBaseScreen() {
         onPress={() => navigation.navigate("best_price_detail", { id: item.id })}
       >
         <View style={styles.productImageBox}>
-          <Image
-            source={{ uri: `${API_URL}/images/${encodeImagePath(item.image)}` }}
+          <AppImage
+            uri={`${API_URL}/images/${encodeImagePath(item.image)}`}
             style={styles.productImage}
+            dark={isDark}
+            fallbackEmoji="🏍️"
+            fallbackLabel="Ảnh xe chưa sẵn sàng"
           />
         </View>
 
@@ -234,7 +294,7 @@ export default function StoreBaseScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.loadingBox, { backgroundColor: colors.background }]}>
+      <View style={[styles.loadingBox, { backgroundColor: pageBg }]}>
         <View
           style={[
             styles.skeletonHeader,
@@ -261,18 +321,46 @@ export default function StoreBaseScreen() {
     );
   }
 
+  if (error && !store) {
+    return (
+      <View style={[styles.container, { backgroundColor: pageBg }]}>
+        <StatusBar
+          barStyle={isDark ? "light-content" : "dark-content"}
+          translucent
+          backgroundColor="transparent"
+        />
+        <ApiErrorState
+          dark={isDark}
+          title="Không tải được dữ liệu"
+          description="Thông tin cửa hàng hiện chưa thể tải. Vui lòng thử lại."
+          onRetry={handleRetry}
+        />
+      </View>
+    );
+  }
+
   if (!store) {
     return (
-      <View style={[styles.loadingBox, { backgroundColor: colors.background }]}>
-        <Text style={{ color: isDark ? "#94A3B8" : "#999", fontSize: 15 }}>
-          Không tìm thấy cửa hàng
-        </Text>
+      <View style={[styles.container, { backgroundColor: pageBg }]}>
+        <StatusBar
+          barStyle={isDark ? "light-content" : "dark-content"}
+          translucent
+          backgroundColor="transparent"
+        />
+        <EmptyState
+          dark={isDark}
+          icon="storefront-outline"
+          title="Không tìm thấy cửa hàng"
+          description="Cửa hàng này không còn tồn tại hoặc dữ liệu chưa sẵn sàng."
+          actionLabel="Quay lại"
+          onAction={() => navigation.goBack()}
+        />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: pageBg }]}>
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
         translucent
@@ -285,12 +373,15 @@ export default function StoreBaseScreen() {
           {
             opacity: headerOpacity,
             paddingTop: insets.top,
-            backgroundColor: colors.background,
+            backgroundColor: pageBg,
             borderBottomColor: isDark ? "#243041" : "#EBEBEB",
           },
         ]}
       >
-        <Text style={[styles.floatingTitle, { color: colors.text }]} numberOfLines={1}>
+        <Text
+          style={[styles.floatingTitle, { color: colors.text }]}
+          numberOfLines={1}
+        >
           {store.name}
         </Text>
       </Animated.View>
@@ -302,16 +393,32 @@ export default function StoreBaseScreen() {
           { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={isDark ? "#E5E7EB" : "#C47A4A"}
+            colors={["#C47A4A"]}
+            progressBackgroundColor={isDark ? "#1F2937" : "#FFFFFF"}
+          />
+        }
       >
         <View style={styles.coverWrapper}>
-          <Image
-            source={{ uri: `${API_URL}${store.image}` }}
+          <AppImage
+            uri={`${API_URL}${store.image}`}
             style={styles.coverImage}
+            dark={isDark}
+            fallbackIcon="storefront-outline"
+            fallbackLabel="Ảnh cửa hàng chưa sẵn sàng"
           />
           <View
             style={[
               styles.coverOverlay,
-              { backgroundColor: isDark ? "rgba(0,0,0,0.38)" : "rgba(0,0,0,0.25)" },
+              {
+                backgroundColor: isDark
+                  ? "rgba(0,0,0,0.38)"
+                  : "rgba(0,0,0,0.25)",
+              },
             ]}
           />
 
@@ -332,7 +439,7 @@ export default function StoreBaseScreen() {
           style={[
             styles.infoCard,
             {
-              backgroundColor: colors.card,
+              backgroundColor: isDark ? colors.card : "#fff",
               shadowOpacity: isDark ? 0 : 0.06,
               elevation: isDark ? 0 : 3,
               borderWidth: isDark ? 1 : 0,
@@ -370,7 +477,7 @@ export default function StoreBaseScreen() {
                 color={isDark ? "#CBD5E1" : "#555"}
               />
               <Text style={[styles.chipText, { color: colors.text }]}>
-                8:00 – 20:00
+                8:00 - 20:00
               </Text>
             </View>
 
@@ -415,8 +522,8 @@ export default function StoreBaseScreen() {
                     backgroundColor: active
                       ? "#FF8C00"
                       : isDark
-                      ? "#1F2937"
-                      : "#EFEFEF",
+                        ? "#1F2937"
+                        : "#EFEFEF",
                     borderWidth: isDark && !active ? 1 : 0,
                     borderColor: isDark && !active ? "#334155" : "transparent",
                   },
@@ -449,21 +556,16 @@ export default function StoreBaseScreen() {
         </Text>
 
         {filteredProducts.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons
-              name="cube-outline"
-              size={48}
-              color={isDark ? "#475569" : "#DDD"}
-            />
-            <Text
-              style={[
-                styles.emptyText,
-                { color: isDark ? "#94A3B8" : "#CCC" },
-              ]}
-            >
-              Không có sản phẩm
-            </Text>
-          </View>
+          <EmptyState
+            dark={isDark}
+            icon="cube-outline"
+            title="Không có sản phẩm"
+            description={`Hiện chưa có xe thuộc nhóm ${activeTab.toLowerCase()}.`}
+            actionLabel={firstAvailableTab ? `Xem ${firstAvailableTab}` : undefined}
+            onAction={
+              firstAvailableTab ? () => setActiveTab(firstAvailableTab) : undefined
+            }
+          />
         ) : (
           <FlatList
             data={filteredProducts}
@@ -483,8 +585,8 @@ export default function StoreBaseScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7F8FA" },
-  loadingBox: { flex: 1, backgroundColor: "#F7F8FA" },
+  container: { flex: 1, backgroundColor: "#F4ECE4" },
+  loadingBox: { flex: 1, backgroundColor: "#F4ECE4" },
 
   floatingHeader: {
     position: "absolute",
@@ -499,7 +601,12 @@ const styles = StyleSheet.create({
     borderBottomColor: "#EBEBEB",
     alignItems: "center",
   },
-  floatingTitle: { fontSize: 16, fontWeight: "700", color: "#111" },
+  floatingTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+    fontFamily: SERIF_FONT,
+  },
 
   coverWrapper: { position: "relative", marginBottom: -24 },
   coverImage: { width: "100%", height: 260, resizeMode: "cover" },
@@ -508,7 +615,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.25)",
   },
   coverNameBox: { position: "absolute", bottom: 16, left: 16, right: 16 },
-  coverName: { fontSize: 30, fontWeight: "800", color: "#fff" },
+  coverName: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#fff",
+    fontFamily: SERIF_FONT,
+  },
 
   backBtn: {
     position: "absolute",
@@ -552,9 +664,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  chipText: { fontSize: 12, color: "#444", fontWeight: "600" },
+  chipText: {
+    fontSize: 12,
+    color: "#444",
+    fontWeight: "600",
+    fontFamily: SERIF_FONT,
+  },
 
-  description: { fontSize: 14, color: "#666", lineHeight: 22 },
+  description: {
+    fontSize: 14,
+    color: "#666",
+    lineHeight: 22,
+    fontFamily: SERIF_FONT,
+  },
 
   tabsRow: {
     flexDirection: "row",
@@ -570,9 +692,12 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: "#EFEFEF",
   },
-  tabActive: { backgroundColor: "#FF8C00" },
-  tabText: { fontSize: 13, color: "#777", fontWeight: "600" },
-  tabTextActive: { color: "#fff" },
+  tabText: {
+    fontSize: 13,
+    color: "#777",
+    fontWeight: "600",
+    fontFamily: SERIF_FONT,
+  },
 
   productCount: {
     fontSize: 13,
@@ -581,6 +706,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 4,
     marginTop: 6,
+    fontFamily: SERIF_FONT,
   },
 
   productList: { paddingHorizontal: 16 },
@@ -608,13 +734,19 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 8,
     minHeight: 40,
+    fontFamily: SERIF_FONT,
   },
   productFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  productPrice: { fontSize: 13, fontWeight: "800", color: "#FF8C00" },
+  productPrice: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#FF8C00",
+    fontFamily: SERIF_FONT,
+  },
   detailBtn: {
     width: 26,
     height: 26,
@@ -623,7 +755,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
-  emptyBox: { alignItems: "center", paddingTop: 60, gap: 12 },
-  emptyText: { fontSize: 14, color: "#CCC" },
 });

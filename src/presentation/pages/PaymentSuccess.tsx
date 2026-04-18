@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -30,10 +31,17 @@ const formatDateTime = (value?: string) => {
   return `${day}/${month}/${year} ${hour}:${minute}`;
 };
 
+const SERIF_FONT = Platform.select({
+  ios: "Georgia",
+  android: "serif",
+  default: "serif",
+});
+
 export default function PaymentSuccessScreen({ navigation, route }: any) {
   const { theme } = useTheme();
   const colors = theme === "dark" ? darkTheme : lightTheme;
   const isDark = theme === "dark";
+  const pageBg = isDark ? "#120F0D" : "#F4ECE4";
 
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const hasSavedNotification = useRef(false);
@@ -128,7 +136,7 @@ export default function PaymentSuccessScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: pageBg }]}
     >
       <ScrollView contentContainerStyle={styles.content}>
         <Animated.View
@@ -159,8 +167,8 @@ export default function PaymentSuccessScreen({ navigation, route }: any) {
           style={[
             styles.infoCard,
             {
-              backgroundColor: isDark ? "#111827" : "#FFFFFF",
-              borderColor: isDark ? "#1F2937" : "#E5E7EB",
+              backgroundColor: isDark ? colors.card : "#FFFFFF",
+              borderColor: isDark ? "#334155" : "#E5E7EB",
             },
           ]}
         >
@@ -216,8 +224,8 @@ export default function PaymentSuccessScreen({ navigation, route }: any) {
           style={[
             styles.detailCard,
             {
-              backgroundColor: isDark ? "#111827" : "#FFFFFF",
-              borderColor: isDark ? "#1F2937" : "#E5E7EB",
+              backgroundColor: isDark ? colors.card : "#FFFFFF",
+              borderColor: isDark ? "#334155" : "#E5E7EB",
             },
           ]}
         >
@@ -241,7 +249,7 @@ export default function PaymentSuccessScreen({ navigation, route }: any) {
                 style={[
                   styles.itemRow,
                   {
-                    borderBottomColor: isDark ? "#1F2937" : "#F1F5F9",
+                    borderBottomColor: isDark ? "#334155" : "#F1F5F9",
                   },
                 ]}
               >
@@ -343,6 +351,7 @@ export default function PaymentSuccessScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#F4ECE4",
   },
   content: {
     padding: 20,
@@ -369,11 +378,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
     textAlign: "center",
     marginBottom: 12,
   },
   desc: {
     fontSize: 15,
+    fontFamily: SERIF_FONT,
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 24,
@@ -391,14 +402,17 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
+    fontFamily: SERIF_FONT,
   },
   infoValue: {
     fontSize: 14,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
   statusText: {
     fontSize: 14,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
   },
   detailCard: {
     borderWidth: 1,
@@ -409,10 +423,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
     marginBottom: 14,
   },
   emptyText: {
     fontSize: 14,
+    fontFamily: SERIF_FONT,
     textAlign: "center",
     paddingVertical: 12,
   },
@@ -430,15 +446,18 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 15,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
     marginBottom: 4,
   },
   itemMeta: {
     fontSize: 13,
+    fontFamily: SERIF_FONT,
     lineHeight: 18,
   },
   itemPrice: {
     fontSize: 14,
     fontWeight: "700",
+    fontFamily: SERIF_FONT,
   },
   summaryWrap: {
     marginTop: 14,
@@ -453,18 +472,22 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
+    fontFamily: SERIF_FONT,
   },
   summaryValue: {
     fontSize: 14,
     fontWeight: "600",
+    fontFamily: SERIF_FONT,
   },
   totalLabel: {
     fontSize: 16,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
   },
   totalValue: {
     fontSize: 18,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
     color: "#16A34A",
   },
   btn: {
@@ -478,6 +501,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
   },
   cancelBtn: {
     backgroundColor: "#EF4444",
@@ -492,5 +516,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 15,
     fontWeight: "800",
+    fontFamily: SERIF_FONT,
   },
 });
